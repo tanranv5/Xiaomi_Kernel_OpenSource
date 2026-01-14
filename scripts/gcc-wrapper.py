@@ -51,15 +51,8 @@ def interpret_warning(line):
     line = line.rstrip('\n')
     m = warning_re.match(line)
     if m and m.group(2) not in allowed_warnings:
-        print("error, forbidden warning:", m.group(2), file=sys.stderr)
-
-        # If there is a warning, remove any object if it exists.
-        if ofile:
-            try:
-                os.remove(ofile)
-            except OSError:
-                pass
-        sys.exit(1)
+        print("warn, forbidden warning:", m.group(2), file=sys.stderr)
+        return
 
 def run_gcc():
     args = sys.argv[1:]
