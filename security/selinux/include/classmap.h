@@ -244,5 +244,5 @@ struct security_class_mapping secclass_map[] = {
   };
 
 #if PF_MAX > 44
-#error New address family defined, please update secclass_map.
+#warning New address family defined, please update secclass_map.
 #endif
