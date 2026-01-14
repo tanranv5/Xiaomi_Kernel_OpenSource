@@ -1,4 +1,4 @@
-#! /usr/bin/env python2
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 # Copyright (c) 2011-2017, The Linux Foundation. All rights reserved.
@@ -51,7 +51,7 @@ def interpret_warning(line):
     line = line.rstrip('\n')
     m = warning_re.match(line)
     if m and m.group(2) not in allowed_warnings:
-        print >> sys.stderr, "error, forbidden warning:", m.group(2)
+        print("error, forbidden warning:", m.group(2), file=sys.stderr)
 
         # If there is a warning, remove any object if it exists.
         if ofile:
@@ -74,9 +74,9 @@ def run_gcc():
     compiler = sys.argv[0]
 
     try:
-        proc = subprocess.Popen(args, stderr=subprocess.PIPE)
+        proc = subprocess.Popen(args, stderr=subprocess.PIPE, text=True)
         for line in proc.stderr:
-            print >> sys.stderr, line,
+            sys.stderr.write(line)
             interpret_warning(line)
 
         result = proc.wait()
@@ -84,9 +84,9 @@ def run_gcc():
         result = e.errno
         if result == errno.ENOENT:
             print >> sys.stderr, args[0] + ':',e.strerror
-            print >> sys.stderr, 'Is your PATH set correctly?'
+            print("Is your PATH set correctly?", file=sys.stderr)
         else:
-            print >> sys.stderr, ' '.join(args), str(e)
+            print(" ".join(args), str(e), file=sys.stderr)
 
     return result
 
