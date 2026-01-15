@@ -44,15 +44,16 @@ static ssize_t gsi_dump_evt(struct file *file,
 	uint32_t val;
 	struct gsi_evt_ctx *ctx;
 	uint16_t i;
+	size_t to_copy;
 
-	if (sizeof(dbg_buff) < count + 1)
-		return -EINVAL;
-
-	missing = copy_from_user(dbg_buff, buf, count);
+	to_copy = min_t(size_t, count, sizeof(dbg_buff) - 1);
+	missing = copy_from_user(dbg_buff, buf, to_copy);
 	if (missing)
 		return -EFAULT;
 
-	dbg_buff[count] = '\0';
+	dbg_buff[to_copy] = '\0';
+	if (to_copy > 0 && dbg_buff[to_copy - 1] == '\n')
+		dbg_buff[to_copy - 1] = '\0';
 
 	sptr = dbg_buff;
 
@@ -157,15 +158,16 @@ static ssize_t gsi_dump_ch(struct file *file,
 	uint32_t val;
 	struct gsi_chan_ctx *ctx;
 	uint16_t i;
+	size_t to_copy;
 
-	if (sizeof(dbg_buff) < count + 1)
-		return -EINVAL;
-
-	missing = copy_from_user(dbg_buff, buf, count);
+	to_copy = min_t(size_t, count, sizeof(dbg_buff) - 1);
+	missing = copy_from_user(dbg_buff, buf, to_copy);
 	if (missing)
 		return -EFAULT;
 
-	dbg_buff[count] = '\0';
+	dbg_buff[to_copy] = '\0';
+	if (to_copy > 0 && dbg_buff[to_copy - 1] == '\n')
+		dbg_buff[to_copy - 1] = '\0';
 
 	sptr = dbg_buff;
 
@@ -298,14 +300,15 @@ static ssize_t gsi_dump_stats(struct file *file,
 {
 	int ch_id;
 	int min, max;
+	size_t to_copy;
 
-	if (sizeof(dbg_buff) < count + 1)
+	to_copy = min_t(size_t, count, sizeof(dbg_buff) - 1);
+	if (copy_from_user(dbg_buff, buf, to_copy))
 		goto error;
 
-	if (copy_from_user(dbg_buff, buf, count))
-		goto error;
-
-	dbg_buff[count] = '\0';
+	dbg_buff[to_copy] = '\0';
+	if (to_copy > 0 && dbg_buff[to_copy - 1] == '\n')
+		dbg_buff[to_copy - 1] = '\0';
 
 	if (kstrtos32(dbg_buff, 0, &ch_id))
 		goto error;
@@ -357,14 +360,15 @@ static ssize_t gsi_enable_dp_stats(struct file *file,
 	int ch_id;
 	bool enable;
 	int ret;
+	size_t to_copy;
 
-	if (sizeof(dbg_buff) < count + 1)
+	to_copy = min_t(size_t, count, sizeof(dbg_buff) - 1);
+	if (copy_from_user(dbg_buff, buf, to_copy))
 		goto error;
 
-	if (copy_from_user(dbg_buff, buf, count))
-		goto error;
-
-	dbg_buff[count] = '\0';
+	dbg_buff[to_copy] = '\0';
+	if (to_copy > 0 && dbg_buff[to_copy - 1] == '\n')
+		dbg_buff[to_copy - 1] = '\0';
 
 	if (dbg_buff[0] != '+' && dbg_buff[0] != '-')
 		goto error;
@@ -416,16 +420,17 @@ static ssize_t gsi_set_max_elem_dp_stats(struct file *file,
 	u32 max_elem;
 	unsigned long missing;
 	char *sptr, *token;
+	size_t to_copy;
 
 
-	if (sizeof(dbg_buff) < count + 1)
-		goto error;
-
-	missing = copy_from_user(dbg_buff, buf, count);
+	to_copy = min_t(size_t, count, sizeof(dbg_buff) - 1);
+	missing = copy_from_user(dbg_buff, buf, to_copy);
 	if (missing)
 		goto error;
 
-	dbg_buff[count] = '\0';
+	dbg_buff[to_copy] = '\0';
+	if (to_copy > 0 && dbg_buff[to_copy - 1] == '\n')
+		dbg_buff[to_copy - 1] = '\0';
 
 	sptr = dbg_buff;
 
@@ -539,14 +544,15 @@ static ssize_t gsi_rst_stats(struct file *file,
 {
 	int ch_id;
 	int min, max;
+	size_t to_copy;
 
-	if (sizeof(dbg_buff) < count + 1)
+	to_copy = min_t(size_t, count, sizeof(dbg_buff) - 1);
+	if (copy_from_user(dbg_buff, buf, to_copy))
 		goto error;
 
-	if (copy_from_user(dbg_buff, buf, count))
-		goto error;
-
-	dbg_buff[count] = '\0';
+	dbg_buff[to_copy] = '\0';
+	if (to_copy > 0 && dbg_buff[to_copy - 1] == '\n')
+		dbg_buff[to_copy - 1] = '\0';
 
 	if (kstrtos32(dbg_buff, 0, &ch_id))
 		goto error;
@@ -578,14 +584,15 @@ static ssize_t gsi_print_dp_stats(struct file *file,
 	int ch_id;
 	bool enable;
 	int ret;
+	size_t to_copy;
 
-	if (sizeof(dbg_buff) < count + 1)
+	to_copy = min_t(size_t, count, sizeof(dbg_buff) - 1);
+	if (copy_from_user(dbg_buff, buf, to_copy))
 		goto error;
 
-	if (copy_from_user(dbg_buff, buf, count))
-		goto error;
-
-	dbg_buff[count] = '\0';
+	dbg_buff[to_copy] = '\0';
+	if (to_copy > 0 && dbg_buff[to_copy - 1] == '\n')
+		dbg_buff[to_copy - 1] = '\0';
 
 	if (dbg_buff[0] != '+' && dbg_buff[0] != '-')
 		goto error;
@@ -635,15 +642,16 @@ static ssize_t gsi_enable_ipc_low(struct file *file,
 {
 	unsigned long missing;
 	s8 option = 0;
+	size_t to_copy;
 
-	if (sizeof(dbg_buff) < count + 1)
-		return -EFAULT;
-
-	missing = copy_from_user(dbg_buff, ubuf, count);
+	to_copy = min_t(size_t, count, sizeof(dbg_buff) - 1);
+	missing = copy_from_user(dbg_buff, ubuf, to_copy);
 	if (missing)
 		return -EFAULT;
 
-	dbg_buff[count] = '\0';
+	dbg_buff[to_copy] = '\0';
+	if (to_copy > 0 && dbg_buff[to_copy - 1] == '\n')
+		dbg_buff[to_copy - 1] = '\0';
 	if (kstrtos8(dbg_buff, 0, &option))
 		return -EINVAL;
 
@@ -768,4 +776,3 @@ void gsi_debugfs_init(void)
 fail:
 	debugfs_remove_recursive(dent);
 }
-
