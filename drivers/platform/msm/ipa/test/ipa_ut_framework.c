@@ -799,6 +799,7 @@ static int ipa_ut_framework_enable(void)
 		goto unlock_mutex;
 	}
 
+
 	if (ipa_ut_framework_load_suites()) {
 		IPA_UT_ERR("failed to load the suites into debugfs\n");
 		ret = -EFAULT;
@@ -858,20 +859,19 @@ static ssize_t ipa_ut_dbgfs_enable_write(struct file *file,
 	char lcl_buf[IPA_UT_DEBUG_WRITE_BUF_SIZE];
 	s8 option = 0;
 	int ret;
+	size_t to_copy;
 
 	IPA_UT_DBG("Entry\n");
 
-	if (sizeof(lcl_buf) < count + 1) {
-		IPA_UT_ERR("No enough space\n");
-		return -E2BIG;
-	}
-
-	if (copy_from_user(lcl_buf, buf, count)) {
+	to_copy = min_t(size_t, count, sizeof(lcl_buf) - 1);
+	if (copy_from_user(lcl_buf, buf, to_copy)) {
 		IPA_UT_ERR("fail to copy buf from user space\n");
 		return -EFAULT;
 	}
 
-	lcl_buf[count] = '\0';
+	lcl_buf[to_copy] = '\0';
+	if (to_copy > 0 && lcl_buf[to_copy - 1] == '\n')
+		lcl_buf[to_copy - 1] = '\0';
 	if (kstrtos8(lcl_buf, 0, &option)) {
 		IPA_UT_ERR("fail convert str to s8\n");
 		return -EINVAL;
