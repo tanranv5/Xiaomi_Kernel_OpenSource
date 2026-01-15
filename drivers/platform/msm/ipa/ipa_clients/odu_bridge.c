@@ -709,16 +709,16 @@ static ssize_t odu_debugfs_hw_bridge_mode_write(struct file *file,
 {
 	unsigned long missing;
 	enum odu_bridge_mode mode;
+	size_t to_copy;
 
-	if (sizeof(dbg_buff) < count + 1)
-		return -EFAULT;
-
-	missing = copy_from_user(dbg_buff, ubuf, count);
+	to_copy = min_t(size_t, count, sizeof(dbg_buff) - 1);
+	missing = copy_from_user(dbg_buff, ubuf, to_copy);
 	if (missing)
 		return -EFAULT;
 
-	if (count > 0)
-		dbg_buff[count-1] = '\0';
+	dbg_buff[to_copy] = '\0';
+	if (to_copy > 0 && dbg_buff[to_copy - 1] == '\n')
+		dbg_buff[to_copy - 1] = '\0';
 
 	if (strcmp(dbg_buff, "router") == 0) {
 		mode = ODU_BRIDGE_MODE_ROUTER;
@@ -1051,7 +1051,7 @@ static int odu_bridge_register_properties(void)
 	ipv6_property->dst_pipe = IPA_CLIENT_ODU_EMB_CONS;
 	ipv6_property->hdr_l2_type = IPA_HDR_L2_ETHERNET_II;
 	strlcpy(ipv6_property->hdr_name, ODU_BRIDGE_IPV6_HDR_NAME,
-			IPA_RESOURCE_NAME_MAX);
+		IPA_RESOURCE_NAME_MAX);
 	tx_properties.num_props = 2;
 
 	rx_properties.prop = rx_ioc_properties;
