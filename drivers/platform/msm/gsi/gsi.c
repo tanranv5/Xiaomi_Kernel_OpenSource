@@ -4212,7 +4212,7 @@ void gsi_wdi3_dump_register(unsigned long chan_hdl)
 		pr_err("%s:%d gsi context not allocated\n", __func__, __LINE__);
 		return;
 	}
-	GSIDBG("reg dump ch id %d\n", chan_hdl);
+	GSIDBG("reg dump ch id %lu\n", chan_hdl);
 	val = gsi_readl(gsi_ctx->base +
 		GSI_EE_n_GSI_CH_k_CNTXT_0_OFFS(chan_hdl,
 			gsi_ctx->per.ee));

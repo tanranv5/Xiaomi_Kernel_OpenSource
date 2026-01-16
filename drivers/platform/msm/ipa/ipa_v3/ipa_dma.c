@@ -1195,15 +1195,16 @@ static ssize_t ipa3_dma_debugfs_reset_statistics(struct file *file,
 {
 	unsigned long missing;
 	s8 in_num = 0;
+	size_t to_copy;
 
-	if (sizeof(dbg_buff) < count + 1)
-		return -EFAULT;
-
-	missing = copy_from_user(dbg_buff, ubuf, count);
+	to_copy = min_t(size_t, count, sizeof(dbg_buff) - 1);
+	missing = copy_from_user(dbg_buff, ubuf, to_copy);
 	if (missing)
 		return -EFAULT;
 
-	dbg_buff[count] = '\0';
+	dbg_buff[to_copy] = '\0';
+	if (to_copy > 0 && dbg_buff[to_copy - 1] == '\n')
+		dbg_buff[to_copy - 1] = '\0';
 	if (kstrtos8(dbg_buff, 0, &in_num))
 		return -EFAULT;
 	switch (in_num) {

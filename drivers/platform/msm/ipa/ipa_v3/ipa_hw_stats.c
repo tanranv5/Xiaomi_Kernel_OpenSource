@@ -1529,20 +1529,18 @@ static ssize_t ipa_debugfs_reset_quota_stats(struct file *file,
 	unsigned long missing;
 	s8 client = 0;
 	int ret;
+	size_t to_copy;
 
 	mutex_lock(&ipa3_ctx->lock);
-	if (sizeof(dbg_buff) < count + 1) {
-		ret = -EFAULT;
-		goto bail;
-	}
+	to_copy = min_t(size_t, count, sizeof(dbg_buff) - 1);
 
-	missing = copy_from_user(dbg_buff, ubuf, count);
+	missing = copy_from_user(dbg_buff, ubuf, to_copy);
 	if (missing) {
 		ret = -EFAULT;
 		goto bail;
 	}
 
-	dbg_buff[count] = '\0';
+	dbg_buff[to_copy] = '\0';
 	if (kstrtos8(dbg_buff, 0, &client)) {
 		ret = -EFAULT;
 		goto bail;
@@ -1628,20 +1626,18 @@ static ssize_t ipa_debugfs_reset_tethering_stats(struct file *file,
 	unsigned long missing;
 	s8 client = 0;
 	int ret;
+	size_t to_copy;
 
 	mutex_lock(&ipa3_ctx->lock);
-	if (sizeof(dbg_buff) < count + 1) {
-		ret = -EFAULT;
-		goto bail;
-	}
+	to_copy = min_t(size_t, count, sizeof(dbg_buff) - 1);
 
-	missing = copy_from_user(dbg_buff, ubuf, count);
+	missing = copy_from_user(dbg_buff, ubuf, to_copy);
 	if (missing) {
 		ret = -EFAULT;
 		goto bail;
 	}
 
-	dbg_buff[count] = '\0';
+	dbg_buff[to_copy] = '\0';
 	if (kstrtos8(dbg_buff, 0, &client)) {
 		ret = -EFAULT;
 		goto bail;
@@ -1746,20 +1742,18 @@ static ssize_t ipa_debugfs_control_flt_rt_stats(enum ipa_ip_type ip,
 	unsigned long missing;
 	u16 rule_id = 0;
 	int ret;
+	size_t to_copy;
 
 	mutex_lock(&ipa3_ctx->lock);
-	if (sizeof(dbg_buff) < count + 1) {
-		ret = -EFAULT;
-		goto bail;
-	}
+	to_copy = min_t(size_t, count, sizeof(dbg_buff) - 1);
 
-	missing = copy_from_user(dbg_buff, ubuf, count);
+	missing = copy_from_user(dbg_buff, ubuf, to_copy);
 	if (missing) {
 		ret = -EFAULT;
 		goto bail;
 	}
 
-	dbg_buff[count] = '\0';
+	dbg_buff[to_copy] = '\0';
 	if (strcmp(dbg_buff, "start\n") == 0) {
 		ipa_flt_rt_stats_start(ip, filtering);
 	} else if (strcmp(dbg_buff, "clear\n") == 0) {
@@ -1839,20 +1833,18 @@ static ssize_t ipa_debugfs_reset_drop_stats(struct file *file,
 	unsigned long missing;
 	s8 client = 0;
 	int ret;
+	size_t to_copy;
 
 	mutex_lock(&ipa3_ctx->lock);
-	if (sizeof(dbg_buff) < count + 1) {
-		ret = -EFAULT;
-		goto bail;
-	}
+	to_copy = min_t(size_t, count, sizeof(dbg_buff) - 1);
 
-	missing = copy_from_user(dbg_buff, ubuf, count);
+	missing = copy_from_user(dbg_buff, ubuf, to_copy);
 	if (missing) {
 		ret = -EFAULT;
 		goto bail;
 	}
 
-	dbg_buff[count] = '\0';
+	dbg_buff[to_copy] = '\0';
 	if (kstrtos8(dbg_buff, 0, &client)) {
 		ret = -EFAULT;
 		goto bail;

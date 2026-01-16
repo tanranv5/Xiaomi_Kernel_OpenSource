@@ -1920,12 +1920,15 @@ static int tid_open_short_test(struct device *dev, struct seq_file *seq,
 	if (ret <= 0)
 		ts_err("test error!");
 
-	seq_printf(seq, "buff_Info1:\n");
-	for (int i = 0; i < (info->used_size * 2); i++) {
-		if (i % 30 == 2)
-			seq_putc(seq, '\n');
+	{
+		int i;
+		seq_printf(seq, "buff_Info1:\n");
+		for (i = 0; i < (info->used_size * 2); i++) {
+			if (i % 30 == 2)
+				seq_putc(seq, '\n');
 
-		seq_printf(seq, "%8d",info->buff[i]);
+			seq_printf(seq, "%8d",info->buff[i]);
+		}
 	}
 
 	seq_putc(seq, '\n');

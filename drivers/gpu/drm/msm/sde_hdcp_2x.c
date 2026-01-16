@@ -432,7 +432,7 @@ static u8 sde_hdcp_2x_stream_type(u8 min_enc_level)
 		stream_type = 1;
 		break;
 	default:
-		stream_type = stream_type_0;
+		stream_type = 0;
 		break;
 	}
 
