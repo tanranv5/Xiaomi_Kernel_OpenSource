@@ -150,16 +150,19 @@ static ssize_t ipa3_write_ep_holb(struct file *file,
 	u32 ep_idx;
 	unsigned long missing;
 	char *sptr, *token;
-	size_t to_copy;
 
-	to_copy = min_t(size_t, count, sizeof(dbg_buff) - 1);
-	missing = copy_from_user(dbg_buff, buf, to_copy);
-	if (missing)
-		return -EFAULT;
+	{
+		size_t to_copy;
 
-	dbg_buff[to_copy] = '\0';
-	if (to_copy > 0 && dbg_buff[to_copy - 1] == '\n')
-		dbg_buff[to_copy - 1] = '\0';
+		to_copy = min_t(size_t, count, sizeof(dbg_buff) - 1);
+		missing = copy_from_user(dbg_buff, buf, to_copy);
+		if (missing)
+			return -EFAULT;
+
+		dbg_buff[to_copy] = '\0';
+		if (to_copy > 0 && dbg_buff[to_copy - 1] == '\n')
+			dbg_buff[to_copy - 1] = '\0';
+	}
 
 	sptr = dbg_buff;
 
@@ -194,16 +197,19 @@ static ssize_t ipa3_write_ep_reg(struct file *file, const char __user *buf,
 {
 	unsigned long missing;
 	s8 option = 0;
-	size_t to_copy;
 
-	to_copy = min_t(size_t, count, sizeof(dbg_buff) - 1);
-	missing = copy_from_user(dbg_buff, buf, to_copy);
-	if (missing)
-		return -EFAULT;
+	{
+		size_t to_copy;
 
-	dbg_buff[to_copy] = '\0';
-	if (to_copy > 0 && dbg_buff[to_copy - 1] == '\n')
-		dbg_buff[to_copy - 1] = '\0';
+		to_copy = min_t(size_t, count, sizeof(dbg_buff) - 1);
+		missing = copy_from_user(dbg_buff, buf, to_copy);
+		if (missing)
+			return -EFAULT;
+
+		dbg_buff[to_copy] = '\0';
+		if (to_copy > 0 && dbg_buff[to_copy - 1] == '\n')
+			dbg_buff[to_copy - 1] = '\0';
+	}
 	if (kstrtos8(dbg_buff, 0, &option))
 		return -EFAULT;
 
@@ -333,16 +339,19 @@ static ssize_t ipa3_write_keep_awake(struct file *file, const char __user *buf,
 {
 	unsigned long missing;
 	s8 option = 0;
-	size_t to_copy;
 
-	to_copy = min_t(size_t, count, sizeof(dbg_buff) - 1);
-	missing = copy_from_user(dbg_buff, buf, to_copy);
-	if (missing)
-		return -EFAULT;
+	{
+		size_t to_copy;
 
-	dbg_buff[to_copy] = '\0';
-	if (to_copy > 0 && dbg_buff[to_copy - 1] == '\n')
-		dbg_buff[to_copy - 1] = '\0';
+		to_copy = min_t(size_t, count, sizeof(dbg_buff) - 1);
+		missing = copy_from_user(dbg_buff, buf, to_copy);
+		if (missing)
+			return -EFAULT;
+
+		dbg_buff[to_copy] = '\0';
+		if (to_copy > 0 && dbg_buff[to_copy - 1] == '\n')
+			dbg_buff[to_copy - 1] = '\0';
+	}
 	if (kstrtos8(dbg_buff, 0, &option))
 		return -EFAULT;
 
@@ -1524,21 +1533,24 @@ static ssize_t ipa3_write_dbg_cnt(struct file *file, const char __user *buf,
 	unsigned long missing;
 	u32 option = 0;
 	struct ipahal_reg_debug_cnt_ctrl dbg_cnt_ctrl;
-	size_t to_copy;
 
 	if (ipa3_ctx->ipa_hw_type >= IPA_HW_v4_0) {
 		IPAERR("IPA_DEBUG_CNT_CTRL is not supported in IPA 4.0\n");
 		return -EPERM;
 	}
 
-	to_copy = min_t(size_t, count, sizeof(dbg_buff) - 1);
-	missing = copy_from_user(dbg_buff, buf, to_copy);
-	if (missing)
-		return -EFAULT;
+	{
+		size_t to_copy;
 
-	dbg_buff[to_copy] = '\0';
-	if (to_copy > 0 && dbg_buff[to_copy - 1] == '\n')
-		dbg_buff[to_copy - 1] = '\0';
+		to_copy = min_t(size_t, count, sizeof(dbg_buff) - 1);
+		missing = copy_from_user(dbg_buff, buf, to_copy);
+		if (missing)
+			return -EFAULT;
+
+		dbg_buff[to_copy] = '\0';
+		if (to_copy > 0 && dbg_buff[to_copy - 1] == '\n')
+			dbg_buff[to_copy - 1] = '\0';
+	}
 	if (kstrtou32(dbg_buff, 0, &option))
 		return -EFAULT;
 
@@ -2088,16 +2100,19 @@ static ssize_t ipa3_clear_active_clients_log(struct file *file,
 {
 	unsigned long missing;
 	s8 option = 0;
-	size_t to_copy;
 
-	to_copy = min_t(size_t, count, sizeof(dbg_buff) - 1);
-	missing = copy_from_user(dbg_buff, ubuf, to_copy);
-	if (missing)
-		return -EFAULT;
+	{
+		size_t to_copy;
 
-	dbg_buff[to_copy] = '\0';
-	if (to_copy > 0 && dbg_buff[to_copy - 1] == '\n')
-		dbg_buff[to_copy - 1] = '\0';
+		to_copy = min_t(size_t, count, sizeof(dbg_buff) - 1);
+		missing = copy_from_user(dbg_buff, ubuf, to_copy);
+		if (missing)
+			return -EFAULT;
+
+		dbg_buff[to_copy] = '\0';
+		if (to_copy > 0 && dbg_buff[to_copy - 1] == '\n')
+			dbg_buff[to_copy - 1] = '\0';
+	}
 	if (kstrtos8(dbg_buff, 0, &option))
 		return -EFAULT;
 
@@ -2111,16 +2126,19 @@ static ssize_t ipa3_enable_ipc_low(struct file *file,
 {
 	unsigned long missing;
 	s8 option = 0;
-	size_t to_copy;
 
-	to_copy = min_t(size_t, count, sizeof(dbg_buff) - 1);
-	missing = copy_from_user(dbg_buff, ubuf, to_copy);
-	if (missing)
-		return -EFAULT;
+	{
+		size_t to_copy;
 
-	dbg_buff[to_copy] = '\0';
-	if (to_copy > 0 && dbg_buff[to_copy - 1] == '\n')
-		dbg_buff[to_copy - 1] = '\0';
+		to_copy = min_t(size_t, count, sizeof(dbg_buff) - 1);
+		missing = copy_from_user(dbg_buff, ubuf, to_copy);
+		if (missing)
+			return -EFAULT;
+
+		dbg_buff[to_copy] = '\0';
+		if (to_copy > 0 && dbg_buff[to_copy - 1] == '\n')
+			dbg_buff[to_copy - 1] = '\0';
+	}
 	if (kstrtos8(dbg_buff, 0, &option))
 		return -EFAULT;
 
