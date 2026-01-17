@@ -199,17 +199,18 @@ dtb-$(CONFIG_ARCH_SDMMAGPIE)	+= sdmmagpie-rumi.dtb \
 	sdmmagpie-dual-display-idp.dtb
 endif
 
+ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
 ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY_LAURUS),y)
 	dtbo-$(CONFIG_ARCH_TRINKET) += \
 		laurus-qrd-overlay.dtbo
 
 laurus-qrd-overlay.dtbo-base := trinket.dtb
-
 else
 	dtbo-$(CONFIG_ARCH_TRINKET) += \
 		laurel_sprout-qrd-overlay.dtbo
 
 laurel_sprout-qrd-overlay.dtbo-base := trinket.dtb
+endif
 endif
 
 dtb-$(CONFIG_ARCH_SDXPRAIRIE) += sdxprairie-rumi.dtb \

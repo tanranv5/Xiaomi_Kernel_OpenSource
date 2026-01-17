@@ -18,8 +18,8 @@
 			trip0_bat {
 				trip = <&pmi632_trip0>;
 				cooling-device =
-					<&pmi632_charger (THERMAL_MAX_LIMIT-1)
-						(THERMAL_MAX_LIMIT-1)>;
+					<&pmi632_charger 0xfffffffd
+						0xfffffffd>;
 			};
 			trip1_bat {
 				trip = <&pmi632_trip1>;
@@ -35,50 +35,50 @@
 			trip0_cpu0 {
 				trip = <&pm6125_trip0>;
 				cooling-device =
-					<&CPU0 (THERMAL_MAX_LIMIT-1)
-						(THERMAL_MAX_LIMIT-1)>;
+					<&CPU0 0xfffffffd
+						0xfffffffd>;
 			};
 			trip0_cpu1 {
 				trip = <&pm6125_trip0>;
 				cooling-device =
-					<&CPU1 (THERMAL_MAX_LIMIT-1)
-						(THERMAL_MAX_LIMIT-1)>;
+					<&CPU1 0xfffffffd
+						0xfffffffd>;
 			};
 			trip0_cpu2 {
 				trip = <&pm6125_trip0>;
 				cooling-device =
-					<&CPU2 (THERMAL_MAX_LIMIT-1)
-						(THERMAL_MAX_LIMIT-1)>;
+					<&CPU2 0xfffffffd
+						0xfffffffd>;
 			};
 			trip0_cpu3 {
 				trip = <&pm6125_trip0>;
 				cooling-device =
-					<&CPU3 (THERMAL_MAX_LIMIT-1)
-						(THERMAL_MAX_LIMIT-1)>;
+					<&CPU3 0xfffffffd
+						0xfffffffd>;
 			};
 			trip0_cpu4 {
 				trip = <&pm6125_trip0>;
 				cooling-device =
-					<&CPU4 (THERMAL_MAX_LIMIT-1)
-						(THERMAL_MAX_LIMIT-1)>;
+					<&CPU4 0xfffffffd
+						0xfffffffd>;
 			};
 			trip0_cpu5 {
 				trip = <&pm6125_trip0>;
 				cooling-device =
-					<&CPU5 (THERMAL_MAX_LIMIT-1)
-						(THERMAL_MAX_LIMIT-1)>;
+					<&CPU5 0xfffffffd
+						0xfffffffd>;
 			};
 			trip0_cpu6 {
 				trip = <&pm6125_trip0>;
 				cooling-device =
-					<&CPU6 (THERMAL_MAX_LIMIT-1)
-						(THERMAL_MAX_LIMIT-1)>;
+					<&CPU6 0xfffffffd
+						0xfffffffd>;
 			};
 			trip0_cpu7 {
 				trip = <&pm6125_trip0>;
 				cooling-device =
-					<&CPU7 (THERMAL_MAX_LIMIT-1)
-						(THERMAL_MAX_LIMIT-1)>;
+					<&CPU7 0xfffffffd
+						0xfffffffd>;
 			};
 			trip1_cpu1 {
 				trip = <&pm6125_trip1>;
@@ -183,38 +183,38 @@
 			vbat_cpu0 {
 				trip = <&pmi632_vbat_lvl1>;
 				cooling-device =
-					<&CPU0 (THERMAL_MAX_LIMIT-5)
-						(THERMAL_MAX_LIMIT-5)>;
+					<&CPU0 0xfffffff9
+						0xfffffff9>;
 			};
 			vbat_cpu1 {
 				trip = <&pmi632_vbat_lvl1>;
 				cooling-device =
-					<&CPU1 (THERMAL_MAX_LIMIT-5)
-						(THERMAL_MAX_LIMIT-5)>;
+					<&CPU1 0xfffffff9
+						0xfffffff9>;
 			};
 			vbat_cpu2 {
 				trip = <&pmi632_vbat_lvl1>;
 				cooling-device =
-					<&CPU2 (THERMAL_MAX_LIMIT-5)
-						(THERMAL_MAX_LIMIT-5)>;
+					<&CPU2 0xfffffff9
+						0xfffffff9>;
 			};
 			vbat_cpu3 {
 				trip = <&pmi632_vbat_lvl1>;
 				cooling-device =
-					<&CPU3 (THERMAL_MAX_LIMIT-5)
-						(THERMAL_MAX_LIMIT-5)>;
+					<&CPU3 0xfffffff9
+						0xfffffff9>;
 			};
 			vbat_cpu4 {
 				trip = <&pmi632_vbat_lvl1>;
 				cooling-device =
-					<&CPU4 (THERMAL_MAX_LIMIT-5)
-						(THERMAL_MAX_LIMIT-5)>;
+					<&CPU4 0xfffffff9
+						0xfffffff9>;
 			};
 			vbat_cpu5 {
 				trip = <&pmi632_vbat_lvl1>;
 				cooling-device =
-					<&CPU5 (THERMAL_MAX_LIMIT-5)
-						(THERMAL_MAX_LIMIT-5)>;
+					<&CPU5 0xfffffff9
+						0xfffffff9>;
 			};
 			vbat_cpu6 {
 				trip = <&pmi632_vbat_lvl1>;
@@ -236,26 +236,26 @@
 			vbat_cpu0 {
 				trip = <&pmi632_vbat_lvl2>;
 				cooling-device =
-					<&CPU0 (THERMAL_MAX_LIMIT-5)
-						(THERMAL_MAX_LIMIT-5)>;
+					<&CPU0 0xfffffff9
+						0xfffffff9>;
 			};
 			vbat_cpu1 {
 				trip = <&pmi632_vbat_lvl2>;
 				cooling-device =
-					<&CPU1 (THERMAL_MAX_LIMIT-5)
-						(THERMAL_MAX_LIMIT-5)>;
+					<&CPU1 0xfffffff9
+						0xfffffff9>;
 			};
 			vbat_cpu2 {
 				trip = <&pmi632_vbat_lvl2>;
 				cooling-device =
-					<&CPU2 (THERMAL_MAX_LIMIT-5)
-						(THERMAL_MAX_LIMIT-5)>;
+					<&CPU2 0xfffffff9
+						0xfffffff9>;
 			};
 			vbat_cpu3 {
 				trip = <&pmi632_vbat_lvl2>;
 				cooling-device =
-					<&CPU3 (THERMAL_MAX_LIMIT-5)
-						(THERMAL_MAX_LIMIT-5)>;
+					<&CPU3 0xfffffff9
+						0xfffffff9>;
 			};
 			vbat_cpu4 {
 				trip = <&pmi632_vbat_lvl2>;
@@ -342,38 +342,38 @@
 			ibat_cpu0 {
 				trip = <&pmi632_ibat_lvl1>;
 				cooling-device =
-					<&CPU0 (THERMAL_MAX_LIMIT-5)
-						(THERMAL_MAX_LIMIT-5)>;
+					<&CPU0 0xfffffff9
+						0xfffffff9>;
 			};
 			ibat_cpu1 {
 				trip = <&pmi632_ibat_lvl1>;
 				cooling-device =
-					<&CPU1 (THERMAL_MAX_LIMIT-5)
-						(THERMAL_MAX_LIMIT-5)>;
+					<&CPU1 0xfffffff9
+						0xfffffff9>;
 			};
 			ibat_cpu2 {
 				trip = <&pmi632_ibat_lvl1>;
 				cooling-device =
-					<&CPU2 (THERMAL_MAX_LIMIT-5)
-						(THERMAL_MAX_LIMIT-5)>;
+					<&CPU2 0xfffffff9
+						0xfffffff9>;
 			};
 			ibat_cpu3 {
 				trip = <&pmi632_ibat_lvl1>;
 				cooling-device =
-					<&CPU3 (THERMAL_MAX_LIMIT-5)
-						(THERMAL_MAX_LIMIT-5)>;
+					<&CPU3 0xfffffff9
+						0xfffffff9>;
 			};
 			ibat_cpu4 {
 				trip = <&pmi632_ibat_lvl1>;
 				cooling-device =
-					<&CPU4 (THERMAL_MAX_LIMIT-5)
-						(THERMAL_MAX_LIMIT-5)>;
+					<&CPU4 0xfffffff9
+						0xfffffff9>;
 			};
 			ibat_cpu5 {
 				trip = <&pmi632_ibat_lvl1>;
 				cooling-device =
-					<&CPU5 (THERMAL_MAX_LIMIT-5)
-						(THERMAL_MAX_LIMIT-5)>;
+					<&CPU5 0xfffffff9
+						0xfffffff9>;
 			};
 			ibat_cpu6 {
 				trip = <&pmi632_ibat_lvl1>;
@@ -395,38 +395,38 @@
 			soc_cpu0 {
 				trip = <&pmi632_low_soc>;
 				cooling-device =
-					<&CPU0 (THERMAL_MAX_LIMIT-5)
-						(THERMAL_MAX_LIMIT-5)>;
+					<&CPU0 0xfffffff9
+						0xfffffff9>;
 			};
 			soc_cpu1 {
 				trip = <&pmi632_low_soc>;
 				cooling-device =
-					<&CPU1 (THERMAL_MAX_LIMIT-5)
-						(THERMAL_MAX_LIMIT-5)>;
+					<&CPU1 0xfffffff9
+						0xfffffff9>;
 			};
 			soc_cpu2 {
 				trip = <&pmi632_low_soc>;
 				cooling-device =
-					<&CPU2 (THERMAL_MAX_LIMIT-5)
-						(THERMAL_MAX_LIMIT-5)>;
+					<&CPU2 0xfffffff9
+						0xfffffff9>;
 			};
 			soc_cpu3 {
 				trip = <&pmi632_low_soc>;
 				cooling-device =
-					<&CPU3 (THERMAL_MAX_LIMIT-5)
-						(THERMAL_MAX_LIMIT-5)>;
+					<&CPU3 0xfffffff9
+						0xfffffff9>;
 			};
 			soc_cpu4 {
 				trip = <&pmi632_low_soc>;
 				cooling-device =
-					<&CPU4 (THERMAL_MAX_LIMIT-5)
-						(THERMAL_MAX_LIMIT-5)>;
+					<&CPU4 0xfffffff9
+						0xfffffff9>;
 			};
 			soc_cpu5 {
 				trip = <&pmi632_low_soc>;
 				cooling-device =
-					<&CPU5 (THERMAL_MAX_LIMIT-5)
-						(THERMAL_MAX_LIMIT-5)>;
+					<&CPU5 0xfffffff9
+						0xfffffff9>;
 			};
 			soc_cpu6 {
 				trip = <&pmi632_low_soc>;
