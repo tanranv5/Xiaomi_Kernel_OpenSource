@@ -194,6 +194,30 @@ jobs:
             ./scripts/config --file out/.config -d KSU_MANUAL_HOOK || true
             ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
             ./scripts/config --file out/.config -d KPM || true
+
+            make O=out olddefconfig
+
+            # 强制断言 KPROBES 路线生效，避免悄悄被回退
+            if ! grep -q '^CONFIG_KPROBES=y' out/.config; then
+              echo "CONFIG_KPROBES 未开启，停止构建"
+              exit 1
+            fi
+            if ! grep -q '^CONFIG_KRETPROBES=y' out/.config; then
+              echo "CONFIG_KRETPROBES 未开启，停止构建"
+              exit 1
+            fi
+            if ! grep -q '^CONFIG_KPROBE_EVENTS=y' out/.config; then
+              echo "CONFIG_KPROBE_EVENTS 未开启，停止构建"
+              exit 1
+            fi
+            if ! grep -q '^CONFIG_KALLSYMS=y' out/.config; then
+              echo "CONFIG_KALLSYMS 未开启，停止构建"
+              exit 1
+            fi
+            if ! grep -q '^CONFIG_KALLSYMS_ALL=y' out/.config; then
+              echo "CONFIG_KALLSYMS_ALL 未开启，停止构建"
+              exit 1
+            fi
           fi
 
           # 保持默认版本字符串，避免 vendor 模块 vermagic 不匹配（例如 Wi-Fi 驱动）
