@@ -29,24 +29,24 @@ name: build-laurus-sukisu
         default: "on"
         type: choice
         options:
-          - on
-          - off
+          - "on"
+          - "off"
       fortify:
         description: "是否启用 FORTIFY_SOURCE（推荐日用 on；老 GCC 4.9 需先修触发点再开启）"
         required: true
         default: "off"
         type: choice
         options:
-          - off
-          - on
+          - "off"
+          - "on"
       build_dtbo:
         description: "是否构建 DTBO（overlay）；off 会绕过 trinket dtbo 编译失败（先确保内核能出镜像）"
         required: true
         default: "off"
         type: choice
         options:
-          - off
-          - on
+          - "off"
+          - "on"
       gcc64_repo:
         description: "AArch64 GCC 4.9 工具链仓库"
         required: true
@@ -156,13 +156,13 @@ jobs:
 
           if [ "$WITH_SUKISU" = "on" ]; then
             # 明确写入关键依赖（对老内核更稳），避免 olddefconfig 回落
-            cat >> "${DEFCONFIG_PATH}" <<'EOF'
-CONFIG_KPROBES=y
-CONFIG_KRETPROBES=y
-CONFIG_KPROBE_EVENTS=y
-CONFIG_KALLSYMS=y
-CONFIG_KALLSYMS_ALL=y
-EOF
+            printf '%s\n' \
+              'CONFIG_KPROBES=y' \
+              'CONFIG_KRETPROBES=y' \
+              'CONFIG_KPROBE_EVENTS=y' \
+              'CONFIG_KALLSYMS=y' \
+              'CONFIG_KALLSYMS_ALL=y' \
+              >> "${DEFCONFIG_PATH}"
           fi
 
           mkdir -p out
