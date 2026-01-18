@@ -85,196 +85,6 @@ jobs:
             python3 rsync unzip xz-utils \
             device-tree-compiler zip
 
-      - name: 应用 SukiSU manual hook 补丁（4.14）
-        id: manual-hook
-        if: env.WITH_SUKISU == 'on'
-        run: |
-          set -euxo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-          import sys
-
-          def insert_before(path: Path, marker: str, block: str, marker_hint: str):
-              text = path.read_text()
-              if block.strip() in text:
-                  print(f"{path}: 已存在 {marker_hint}, 跳过")
-                  return
-              idx = text.find(marker)
-              if idx < 0:
-                  raise SystemExit(f"{path}: 未找到插入点 {marker_hint}")
-              text = text[:idx] + block + text[idx:]
-              path.write_text(text)
-              print(f"{path}: 已插入 {marker_hint}")
-
-          def insert_after_line_in_function(path: Path, func_prefix: str, line_match: str, block: str, marker_hint: str):
-              text = path.read_text()
-              if block.strip() in text:
-                  print(f"{path}: 已存在 {marker_hint}, 跳过")
-                  return
-              lines = text.splitlines(keepends=True)
-              out = []
-              inserted = False
-              in_func = False
-              for idx, line in enumerate(lines):
-                  out.append(line)
-                  if (not in_func) and line.lstrip().startswith(func_prefix):
-                      in_func = True
-                  if in_func and (not inserted) and line.strip() == line_match:
-                      out.append(block)
-                      out.extend(lines[idx + 1 :])
-                      inserted = True
-                      break
-              if not inserted:
-                  raise SystemExit(f"{path}: 未找到插入点 {marker_hint}")
-              path.write_text("".join(out))
-              print(f"{path}: 已插入 {marker_hint}")
-
-          def insert_after_block_start(path: Path, func_prefix: str, block: str, marker_hint: str):
-              text = path.read_text()
-              if block.strip() in text:
-                  print(f"{path}: 已存在 {marker_hint}, 跳过")
-                  return
-              lines = text.splitlines(keepends=True)
-              out = []
-              inserted = False
-              i = 0
-              while i < len(lines):
-                  line = lines[i]
-                  out.append(line)
-                  if line.startswith(func_prefix):
-                      i += 1
-                      while i < len(lines):
-                          out.append(lines[i])
-                          if lines[i].strip() == "{":
-                              out.append(block)
-                              inserted = True
-                              i += 1
-                              break
-                          i += 1
-                      continue
-                  i += 1
-              if not inserted:
-                  raise SystemExit(f"{path}: 未找到插入点 {marker_hint}")
-              path.write_text("".join(out))
-              print(f"{path}: 已插入 {marker_hint}")
-
-          exec_c = Path("fs/exec.c")
-          open_c = Path("fs/open.c")
-          stat_c = Path("fs/stat.c")
-          reboot_c = Path("kernel/reboot.c")
-          input_c = Path("drivers/input/input.c")
-
-          insert_before(
-              exec_c,
-              "static int do_execveat_common(",
-              "#ifdef CONFIG_KSU\n"
-              "extern int ksu_handle_execveat_ksud(int *fd, struct filename **filename_ptr,\n"
-              "\t\t\tstruct user_arg_ptr *argv, struct user_arg_ptr *envp, int *flags);\n"
-              "extern int ksu_handle_execve_sucompat(const char __user **filename_user,\n"
-              "\t\t\tvoid *__never_use_argv, void *__never_use_envp, int *__never_use_flags);\n"
-              "#endif\n",
-              "exec.c extern",
-          )
-          insert_after_line_in_function(
-              exec_c,
-              "static int do_execveat_common(",
-              "int retval;",
-              "\n#ifdef CONFIG_KSU\n"
-              "\tksu_handle_execveat_ksud(&fd, &filename, &argv, &envp, &flags);\n"
-              "#endif\n",
-              "exec.c do_execveat_common hook",
-          )
-          insert_after_block_start(
-              exec_c,
-              "SYSCALL_DEFINE3(execve,",
-              "#ifdef CONFIG_KSU\n"
-              "\tksu_handle_execve_sucompat(&filename, NULL, NULL, NULL);\n"
-              "#endif\n",
-              "exec.c execve hook",
-          )
-          insert_after_block_start(
-              exec_c,
-              "SYSCALL_DEFINE5(execveat,",
-              "#ifdef CONFIG_KSU\n"
-              "\tksu_handle_execve_sucompat(&filename, NULL, NULL, NULL);\n"
-              "#endif\n",
-              "exec.c execveat hook",
-          )
-
-          insert_before(
-              open_c,
-              "SYSCALL_DEFINE3(faccessat",
-              "#ifdef CONFIG_KSU\n"
-              "extern int ksu_handle_faccessat(int *dfd, const char __user **filename_user, int *mode,\n"
-              "\t\t\t int *flags);\n"
-              "#endif\n",
-              "open.c extern",
-          )
-          insert_after_line_in_function(
-              open_c,
-              "SYSCALL_DEFINE3(faccessat",
-              "unsigned int lookup_flags = LOOKUP_FOLLOW;",
-              "\n#ifdef CONFIG_KSU\n"
-              "\tksu_handle_faccessat(&dfd, &filename, &mode, NULL);\n"
-              "#endif\n",
-              "open.c faccessat hook",
-          )
-
-          insert_before(
-              stat_c,
-              "int vfs_statx(",
-              "#ifdef CONFIG_KSU\n"
-              "extern int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags);\n"
-              "#endif\n",
-              "stat.c extern",
-          )
-          insert_after_line_in_function(
-              stat_c,
-              "int vfs_statx(",
-              "unsigned int lookup_flags = LOOKUP_FOLLOW | LOOKUP_AUTOMOUNT;",
-              "\n#ifdef CONFIG_KSU\n"
-              "\tksu_handle_stat(&dfd, &filename, &flags);\n"
-              "#endif\n",
-              "stat.c vfs_statx hook",
-          )
-
-          insert_before(
-              reboot_c,
-              "SYSCALL_DEFINE4(reboot",
-              "#ifdef CONFIG_KSU\n"
-              "extern int ksu_handle_sys_reboot(int magic1, int magic2, unsigned int cmd, void __user **arg);\n"
-              "#endif\n",
-              "reboot.c extern",
-          )
-          insert_after_line_in_function(
-              reboot_c,
-              "SYSCALL_DEFINE4(reboot",
-              "int ret = 0;",
-              "\n#ifdef CONFIG_KSU\n"
-              "\tksu_handle_sys_reboot(magic1, magic2, cmd, &arg);\n"
-              "#endif\n",
-              "reboot.c reboot hook",
-          )
-
-          insert_before(
-              input_c,
-              "static void input_handle_event(",
-              "#ifdef CONFIG_KSU\n"
-              "extern int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *value);\n"
-              "#endif\n",
-              "input.c extern",
-          )
-          insert_after_line_in_function(
-              input_c,
-              "static void input_handle_event(",
-              "int disposition = input_get_disposition(dev, type, code, &value);",
-              "\n#ifdef CONFIG_KSU\n"
-              "\tksu_handle_input_handle_event(&type, &code, &value);\n"
-              "#endif\n",
-              "input.c hook",
-          )
-          PY
-
       - name: 拉取工具链（GCC 4.9）
         id: toolchain
         run: |
@@ -324,16 +134,13 @@ jobs:
           fi
 
           if [ "$WITH_SUKISU" = "on" ]; then
-            # 明确写入关键依赖（对老内核更稳），避免 olddefconfig 回落
+            # 走 KPROBES 路线，不启用 manual hook
             printf '%s\n' \
               'CONFIG_KPROBES=y' \
               'CONFIG_KRETPROBES=y' \
               'CONFIG_KPROBE_EVENTS=y' \
               'CONFIG_KALLSYMS=y' \
               'CONFIG_KALLSYMS_ALL=y' \
-              'CONFIG_KSU_MANUAL_HOOK=y' \
-              'CONFIG_KSU_MANUAL_SU=y' \
-              'CONFIG_KPM=y' \
               'CONFIG_SECURITYFS=y' \
               'CONFIG_DEVTMPFS=y' \
               'CONFIG_DEVTMPFS_MOUNT=y' \
@@ -345,7 +152,7 @@ jobs:
           make O=out "$DEFCONFIG"
 
           if [ "$WITH_SUKISU" = "on" ]; then
-            # KernelSU：保持默认配置，确保 hook 依赖项开启
+            # KernelSU：使用 KPROBES 路线
             ./scripts/config --file out/.config -e KSU || true
             ./scripts/config --file out/.config -e KPROBES || true
             ./scripts/config --file out/.config -e KRETPROBES || true
@@ -353,13 +160,13 @@ jobs:
             ./scripts/config --file out/.config -e KPROBE_EVENTS || true
             ./scripts/config --file out/.config -e KALLSYMS || true
             ./scripts/config --file out/.config -e KALLSYMS_ALL || true
-            ./scripts/config --file out/.config -e KSU_MANUAL_HOOK || true
-            ./scripts/config --file out/.config -e KSU_MANUAL_SU || true
-            ./scripts/config --file out/.config -e KPM || true
             ./scripts/config --file out/.config -e SECURITYFS || true
             ./scripts/config --file out/.config -e DEVTMPFS || true
             ./scripts/config --file out/.config -e DEVTMPFS_MOUNT || true
             ./scripts/config --file out/.config -e OVERLAY_FS || true
+            ./scripts/config --file out/.config -d KSU_MANUAL_HOOK || true
+            ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
+            ./scripts/config --file out/.config -d KPM || true
           fi
 
           FORTIFY="${{ github.event_name == 'workflow_dispatch' && inputs.fortify || 'off' }}"
@@ -373,20 +180,20 @@ jobs:
           make O=out olddefconfig
 
           if [ "$WITH_SUKISU" = "on" ]; then
-            # olddefconfig 后再确认 hook 依赖项保持开启
+            # olddefconfig 后再确认 KPROBES 路线依赖项保持开启
             ./scripts/config --file out/.config -e KPROBES || true
             ./scripts/config --file out/.config -e KRETPROBES || true
             ./scripts/config --file out/.config -e KPROBES_ON_FTRACE || true
             ./scripts/config --file out/.config -e KPROBE_EVENTS || true
             ./scripts/config --file out/.config -e KALLSYMS || true
             ./scripts/config --file out/.config -e KALLSYMS_ALL || true
-            ./scripts/config --file out/.config -e KSU_MANUAL_HOOK || true
-            ./scripts/config --file out/.config -e KSU_MANUAL_SU || true
-            ./scripts/config --file out/.config -e KPM || true
             ./scripts/config --file out/.config -e SECURITYFS || true
             ./scripts/config --file out/.config -e DEVTMPFS || true
             ./scripts/config --file out/.config -e DEVTMPFS_MOUNT || true
             ./scripts/config --file out/.config -e OVERLAY_FS || true
+            ./scripts/config --file out/.config -d KSU_MANUAL_HOOK || true
+            ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
+            ./scripts/config --file out/.config -d KPM || true
           fi
 
           # 保持默认版本字符串，避免 vendor 模块 vermagic 不匹配（例如 Wi-Fi 驱动）
@@ -483,7 +290,7 @@ jobs:
             grep -nE "error:|fatal error:" build.log 2>&1 | tail -n 200 || true
             echo
             echo "==== make failures (tail 120) ===="
-            grep -nE "make(\[[0-9]+\])?: \*\*\*|make: \*\*\*|Error [0-9]+" build.log 2>&1 | tail -n 120 || true
+            grep -nE "make(\\[[0-9]+\\])?: \\*\\*\\*|make: \\*\\*\\*|Error [0-9]+" build.log 2>&1 | tail -n 120 || true
             echo
             echo "==== dtc/dts errors (tail 200) ===="
             grep -nE "FATAL ERROR|syntax error|parse error|Error:" build.log 2>&1 | tail -n 200 || true
