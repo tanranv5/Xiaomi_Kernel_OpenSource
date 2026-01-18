@@ -37,6 +37,7 @@ jobs:
     timeout-minutes: 90
     env:
       WITH_SUKISU: "off"
+      LOCALVERSION: ""
 
     steps:
       - name: 检出内核源码
@@ -100,6 +101,9 @@ jobs:
             # GCC 4.9 下 include/linux/string.h 的 FORTIFY memcpy 会触发 __read_overflow2 编译期错误
             ./scripts/config --file out/.config -d FORTIFY_SOURCE || true
           fi
+
+          # 允许加载厂商预编译模块（避免签名强制导致 Wi-Fi 模块加载失败）
+          ./scripts/config --file out/.config -d MODULE_SIG_FORCE || true
 
           make O=out olddefconfig
 
