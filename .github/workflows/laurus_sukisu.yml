@@ -334,6 +334,10 @@ jobs:
               'CONFIG_KSU_MANUAL_HOOK=y' \
               'CONFIG_KSU_MANUAL_SU=y' \
               'CONFIG_KPM=y' \
+              'CONFIG_SECURITYFS=y' \
+              'CONFIG_DEVTMPFS=y' \
+              'CONFIG_DEVTMPFS_MOUNT=y' \
+              'CONFIG_OVERLAY_FS=y' \
               >> "${DEFCONFIG_PATH}"
           fi
 
@@ -352,6 +356,10 @@ jobs:
             ./scripts/config --file out/.config -e KSU_MANUAL_HOOK || true
             ./scripts/config --file out/.config -e KSU_MANUAL_SU || true
             ./scripts/config --file out/.config -e KPM || true
+            ./scripts/config --file out/.config -e SECURITYFS || true
+            ./scripts/config --file out/.config -e DEVTMPFS || true
+            ./scripts/config --file out/.config -e DEVTMPFS_MOUNT || true
+            ./scripts/config --file out/.config -e OVERLAY_FS || true
           fi
 
           FORTIFY="${{ github.event_name == 'workflow_dispatch' && inputs.fortify || 'off' }}"
@@ -375,6 +383,10 @@ jobs:
             ./scripts/config --file out/.config -e KSU_MANUAL_HOOK || true
             ./scripts/config --file out/.config -e KSU_MANUAL_SU || true
             ./scripts/config --file out/.config -e KPM || true
+            ./scripts/config --file out/.config -e SECURITYFS || true
+            ./scripts/config --file out/.config -e DEVTMPFS || true
+            ./scripts/config --file out/.config -e DEVTMPFS_MOUNT || true
+            ./scripts/config --file out/.config -e OVERLAY_FS || true
           fi
 
           # 内核版本标记：添加 -tanran 后缀，便于识别修过的内核
