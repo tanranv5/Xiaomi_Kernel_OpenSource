@@ -1,6 +1,6 @@
 name: build-laurus-sukisu
 
-on:
+"on":
   workflow_dispatch:
     inputs:
       kernel_branch:
