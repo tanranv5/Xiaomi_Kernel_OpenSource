@@ -106,7 +106,7 @@ jobs:
               path.write_text(text)
               print(f"{path}: 已插入 {marker_hint}")
 
-          def insert_after_line(path: Path, line_match: str, block: str, marker_hint: str):
+          def insert_after_line_in_function(path: Path, func_prefix: str, line_match: str, block: str, marker_hint: str):
               text = path.read_text()
               if block.strip() in text:
                   print(f"{path}: 已存在 {marker_hint}, 跳过")
@@ -114,11 +114,16 @@ jobs:
               lines = text.splitlines(keepends=True)
               out = []
               inserted = False
-              for line in lines:
+              in_func = False
+              for idx, line in enumerate(lines):
                   out.append(line)
-                  if (not inserted) and line.strip() == line_match:
+                  if (not in_func) and line.lstrip().startswith(func_prefix):
+                      in_func = True
+                  if in_func and (not inserted) and line.strip() == line_match:
                       out.append(block)
+                      out.extend(lines[idx + 1 :])
                       inserted = True
+                      break
               if not inserted:
                   raise SystemExit(f"{path}: 未找到插入点 {marker_hint}")
               path.write_text("".join(out))
@@ -170,8 +175,9 @@ jobs:
               "#endif\n",
               "exec.c extern",
           )
-          insert_after_line(
+          insert_after_line_in_function(
               exec_c,
+              "static int do_execveat_common(",
               "int retval;",
               "\n#ifdef CONFIG_KSU\n"
               "\tksu_handle_execveat_ksud(&fd, &filename, &argv, &envp, &flags);\n"
@@ -204,8 +210,9 @@ jobs:
               "#endif\n",
               "open.c extern",
           )
-          insert_after_line(
+          insert_after_line_in_function(
               open_c,
+              "SYSCALL_DEFINE3(faccessat",
               "unsigned int lookup_flags = LOOKUP_FOLLOW;",
               "\n#ifdef CONFIG_KSU\n"
               "\tksu_handle_faccessat(&dfd, &filename, &mode, NULL);\n"
@@ -221,8 +228,9 @@ jobs:
               "#endif\n",
               "stat.c extern",
           )
-          insert_after_line(
+          insert_after_line_in_function(
               stat_c,
+              "int vfs_statx(",
               "unsigned int lookup_flags = LOOKUP_FOLLOW | LOOKUP_AUTOMOUNT;",
               "\n#ifdef CONFIG_KSU\n"
               "\tksu_handle_stat(&dfd, &filename, &flags);\n"
@@ -238,8 +246,9 @@ jobs:
               "#endif\n",
               "reboot.c extern",
           )
-          insert_after_line(
+          insert_after_line_in_function(
               reboot_c,
+              "SYSCALL_DEFINE4(reboot",
               "int ret = 0;",
               "\n#ifdef CONFIG_KSU\n"
               "\tksu_handle_sys_reboot(magic1, magic2, cmd, &arg);\n"
@@ -255,8 +264,9 @@ jobs:
               "#endif\n",
               "input.c extern",
           )
-          insert_after_line(
+          insert_after_line_in_function(
               input_c,
+              "static void input_handle_event(",
               "int disposition = input_get_disposition(dev, type, code, &value);",
               "\n#ifdef CONFIG_KSU\n"
               "\tksu_handle_input_handle_event(&type, &code, &value);\n"
