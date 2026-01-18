@@ -96,22 +96,22 @@ jobs:
           --- a/drivers/input/input.c
           +++ b/drivers/input/input.c
           @@ -377,11 +377,18 @@ static int input_get_disposition(struct input_dev *dev,
-          	return disposition;
+          \treturn disposition;
           }
           
           +#ifdef CONFIG_KSU
           +extern int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *value);
           +#endif
            static void input_handle_event(struct input_dev *dev,
-           			       unsigned int type, unsigned int code, int value)
+          \t\t\t       unsigned int type, unsigned int code, int value)
            {
-           	int disposition = input_get_disposition(dev, type, code, &value);
+          \tint disposition = input_get_disposition(dev, type, code, &value);
           
           +#ifdef CONFIG_KSU
-          +	ksu_handle_input_handle_event(&type, &code, &value);
+          +\tksu_handle_input_handle_event(&type, &code, &value);
           +#endif
-           	if (disposition != INPUT_IGNORE_EVENT && type != EV_SYN)
-           		add_input_randomness(type, code, value);
+          \tif (disposition != INPUT_IGNORE_EVENT && type != EV_SYN)
+          \t\tadd_input_randomness(type, code, value);
           
           diff --git a/fs/exec.c b/fs/exec.c
           index d98e7ce04dbd..c0cc201ca3b6 100644
@@ -123,48 +123,48 @@ jobs:
             */
           +#ifdef CONFIG_KSU
           +extern int ksu_handle_execveat_ksud(int *fd, struct filename **filename_ptr,
-          +			struct user_arg_ptr *argv, struct user_arg_ptr *envp, int *flags);
+          +\t\t\tstruct user_arg_ptr *argv, struct user_arg_ptr *envp, int *flags);
           +extern int ksu_handle_execve_sucompat(const char __user **filename_user,
-          +			void *__never_use_argv, void *__never_use_envp, int *__never_use_flags);
+          +\t\t\tvoid *__never_use_argv, void *__never_use_envp, int *__never_use_flags);
           +#endif
            static int do_execveat_common(int fd, struct filename *filename,
-           			      struct user_arg_ptr argv,
-           			      struct user_arg_ptr envp,
+          \t\t\t      struct user_arg_ptr argv,
+          \t\t\t      struct user_arg_ptr envp,
           @@ -1724,6 +1731,10 @@ static int do_execveat_common(int fd, struct filename *filename,
-           	struct files_struct *displaced;
-           	int retval;
+          \tstruct files_struct *displaced;
+          \tint retval;
           
-           	if (IS_ERR(filename))
-           		return PTR_ERR(filename);
+          \tif (IS_ERR(filename))
+          \t\treturn PTR_ERR(filename);
           
           +#ifdef CONFIG_KSU
-          +	ksu_handle_execveat_ksud(&fd, &filename, &argv, &envp, &flags);
+          +\tksu_handle_execveat_ksud(&fd, &filename, &argv, &envp, &flags);
           +#endif
-           	/*
-           	 * We move the actual failure in case of RLIMIT_NPROC excess from
-           	 * set*uid() to execve() because too many poorly written programs
+          \t/*
+          \t * We move the actual failure in case of RLIMIT_NPROC excess from
+          \t * set*uid() to execve() because too many poorly written programs
           @@ -1943,6 +1954,9 @@ SYSCALL_DEFINE3(execve,
-           		const char __user *, filename,
-           		const char __user *const __user *, argv,
-           		const char __user *const __user *, envp)
+          \t\tconst char __user *, filename,
+          \t\tconst char __user *const __user *, argv,
+          \t\tconst char __user *const __user *, envp)
            {
           +#ifdef CONFIG_KSU
-          +	ksu_handle_execve_sucompat(&filename, NULL, NULL, NULL);
+          +\tksu_handle_execve_sucompat(&filename, NULL, NULL, NULL);
           +#endif
-           	return do_execve(getname(filename), argv, envp);
+          \treturn do_execve(getname(filename), argv, envp);
            }
           
           @@ -1955,6 +1969,9 @@ SYSCALL_DEFINE5(execveat,
-           		int, flags)
+          \t\tint, flags)
            {
-           	int lookup_flags = (flags & AT_EMPTY_PATH) ? LOOKUP_EMPTY : 0;
+          \tint lookup_flags = (flags & AT_EMPTY_PATH) ? LOOKUP_EMPTY : 0;
           
           +#ifdef CONFIG_KSU
-          +	ksu_handle_execve_sucompat(&filename, NULL, NULL, NULL);
+          +\tksu_handle_execve_sucompat(&filename, NULL, NULL, NULL);
           +#endif
-           	return do_execveat(fd,
-           			   getname_flags(filename, lookup_flags, NULL),
-           			   argv, envp, flags);
+          \treturn do_execveat(fd,
+          \t\t\t   getname_flags(filename, lookup_flags, NULL),
+          \t\t\t   argv, envp, flags);
           diff --git a/fs/open.c b/fs/open.c
           index 548494f1277c..26def41eeca5 100644
           --- a/fs/open.c
@@ -175,20 +175,20 @@ jobs:
            */
           +#ifdef CONFIG_KSU
           +extern int ksu_handle_faccessat(int *dfd, const char __user **filename_user, int *mode,
-          +			 int *flags);
+          +\t\t\t int *flags);
           +#endif
            SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)
            {
-           	const struct cred *old_cred;
+          \tconst struct cred *old_cred;
           @@ -369,6 +373,10 @@ SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)
-           	int res;
-           	unsigned int lookup_flags = LOOKUP_FOLLOW;
+          \tint res;
+          \tunsigned int lookup_flags = LOOKUP_FOLLOW;
           
           +#ifdef CONFIG_KSU
-          +	ksu_handle_faccessat(&dfd, &filename, &mode, NULL);
+          +\tksu_handle_faccessat(&dfd, &filename, &mode, NULL);
           +#endif
-          	if (mode & ~S_IRWXO)	/* where's F_OK, X_OK, W_OK, R_OK? */
-           		return -EINVAL;
+          \tif (mode & ~S_IRWXO)\t/* where's F_OK, X_OK, W_OK, R_OK? */
+          \t\treturn -EINVAL;
           
           diff --git a/fs/stat.c b/fs/stat.c
           index 0fda4b6b8fb2..7423c5eeac9a 100644
@@ -202,18 +202,18 @@ jobs:
           +extern int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags);
           +#endif
            int vfs_statx(int dfd, const char __user *filename, int flags,
-           	      struct kstat *stat, u32 request_mask)
+          \t      struct kstat *stat, u32 request_mask)
            {
           @@ -170,6 +173,10 @@ int vfs_statx(int dfd, const char __user *filename, int flags,
-           	int error = -EINVAL;
-           	unsigned int lookup_flags = LOOKUP_FOLLOW | LOOKUP_AUTOMOUNT;
+          \tint error = -EINVAL;
+          \tunsigned int lookup_flags = LOOKUP_FOLLOW | LOOKUP_AUTOMOUNT;
           
           +#ifdef CONFIG_KSU
-          +	ksu_handle_stat(&dfd, &filename, &flags);
+          +\tksu_handle_stat(&dfd, &filename, &flags);
           +#endif
-          	if ((flags & ~(AT_SYMLINK_NOFOLLOW | AT_NO_AUTOMOUNT |
-           		       AT_EMPTY_PATH | KSTAT_QUERY_FLAGS)) != 0)
-           		return -EINVAL;
+          \tif ((flags & ~(AT_SYMLINK_NOFOLLOW | AT_NO_AUTOMOUNT |
+          \t\t       AT_EMPTY_PATH | KSTAT_QUERY_FLAGS)) != 0)
+          \t\treturn -EINVAL;
           diff --git a/kernel/reboot.c b/kernel/reboot.c
           index 2946ed1d99d4..253b81f76325 100644
           --- a/kernel/reboot.c
@@ -226,19 +226,21 @@ jobs:
           +extern int ksu_handle_sys_reboot(int magic1, int magic2, unsigned int cmd, void __user **arg);
           +#endif
            SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
-           		void __user *, arg)
+          \t\tvoid __user *, arg)
            {
           @@ -284,6 +287,10 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
-           	char buffer[256];
-           	int ret = 0;
+          \tchar buffer[256];
+          \tint ret = 0;
           
           +#ifdef CONFIG_KSU
-          +	ksu_handle_sys_reboot(magic1, magic2, cmd, &arg);
+          +\tksu_handle_sys_reboot(magic1, magic2, cmd, &arg);
           +#endif
-           	/* We only trust the superuser with rebooting the system. */
-           	if (!ns_capable(pid_ns->user_ns, CAP_SYS_BOOT))
-           		return -EPERM;
+          \t/* We only trust the superuser with rebooting the system. */
+          \tif (!ns_capable(pid_ns->user_ns, CAP_SYS_BOOT))
+          \t\treturn -EPERM;
           PATCH
+          sed $'s/\\t/\t/g' /tmp/ksu-manual.patch > /tmp/ksu-manual.patch.fixed
+          mv /tmp/ksu-manual.patch.fixed /tmp/ksu-manual.patch
           git apply /tmp/ksu-manual.patch
 
       - name: 拉取工具链（GCC 4.9）
