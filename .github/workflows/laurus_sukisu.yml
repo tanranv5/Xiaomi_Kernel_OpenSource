@@ -85,6 +85,13 @@ jobs:
             python3 rsync unzip xz-utils \
             device-tree-compiler zip
 
+      - name: 应用 KernelSU manual hook 补丁（4.14）
+        id: manual-hook
+        if: env.WITH_SUKISU == 'on'
+        run: |
+          set -euxo pipefail
+          curl -fsSL "https://raw.githubusercontent.com/rksuorg/kernel_patches/master/manual_hook/kernel-4.14.patch" | git apply -
+
       - name: 拉取工具链（GCC 4.9）
         id: toolchain
         run: |
@@ -141,8 +148,8 @@ jobs:
               'CONFIG_KPROBE_EVENTS=y' \
               'CONFIG_KALLSYMS=y' \
               'CONFIG_KALLSYMS_ALL=y' \
-              'CONFIG_KSU_MANUAL_HOOK=n' \
-              'CONFIG_KSU_MANUAL_SU=n' \
+              'CONFIG_KSU_MANUAL_HOOK=y' \
+              'CONFIG_KSU_MANUAL_SU=y' \
               >> "${DEFCONFIG_PATH}"
           fi
 
@@ -158,8 +165,8 @@ jobs:
             ./scripts/config --file out/.config -e KPROBE_EVENTS || true
             ./scripts/config --file out/.config -e KALLSYMS || true
             ./scripts/config --file out/.config -e KALLSYMS_ALL || true
-            ./scripts/config --file out/.config -d KSU_MANUAL_HOOK || true
-            ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
+            ./scripts/config --file out/.config -e KSU_MANUAL_HOOK || true
+            ./scripts/config --file out/.config -e KSU_MANUAL_SU || true
           fi
 
           FORTIFY="${{ github.event_name == 'workflow_dispatch' && inputs.fortify || 'off' }}"
@@ -180,8 +187,8 @@ jobs:
             ./scripts/config --file out/.config -e KPROBE_EVENTS || true
             ./scripts/config --file out/.config -e KALLSYMS || true
             ./scripts/config --file out/.config -e KALLSYMS_ALL || true
-            ./scripts/config --file out/.config -d KSU_MANUAL_HOOK || true
-            ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
+            ./scripts/config --file out/.config -e KSU_MANUAL_HOOK || true
+            ./scripts/config --file out/.config -e KSU_MANUAL_SU || true
           fi
 
           # 内核版本标记：添加 -tanran 后缀，便于识别修过的内核
