@@ -23,14 +23,6 @@ name: build-laurus-sukisu
         options:
           - builtin
           - main
-      with_sukisu:
-        description: "是否集成 SukiSU（建议先做纯内核自检）"
-        required: true
-        default: "on"
-        type: choice
-        options:
-          - "on"
-          - "off"
       fortify:
         description: "是否启用 FORTIFY_SOURCE（推荐日用 on；老 GCC 4.9 需先修触发点再开启）"
         required: true
@@ -63,9 +55,6 @@ name: build-laurus-sukisu
         description: "ARM GCC 4.9 工具链分支"
         required: true
         default: "lineage-19.1"
-  push:
-    branches:
-      - "laurus-p-oss-ci"
 
 permissions:
   contents: write
@@ -74,6 +63,8 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     timeout-minutes: 90
+    env:
+      WITH_SUKISU: "on"
 
     steps:
       - name: 检出内核源码
@@ -108,18 +99,6 @@ jobs:
 
           echo "TOOLCHAIN_GCC64=$PWD/toolchain-gcc64" >> "$GITHUB_ENV"
           echo "TOOLCHAIN_GCC32=$PWD/toolchain-gcc32" >> "$GITHUB_ENV"
-
-      - name: 计算构建模式
-        id: mode
-        run: |
-          set -euxo pipefail
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "WITH_SUKISU=${{ inputs.with_sukisu }}" >> "$GITHUB_ENV"
-          elif [ "${{ github.ref_name }}" = "ci/laurus-plain" ]; then
-            echo "WITH_SUKISU=off" >> "$GITHUB_ENV"
-          else
-            echo "WITH_SUKISU=on" >> "$GITHUB_ENV"
-          fi
 
       - name: 集成 SukiSU Ultra
         id: sukisu
