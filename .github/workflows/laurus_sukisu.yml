@@ -197,6 +197,10 @@ jobs:
 
             make O=out olddefconfig
 
+            # 再次强制关闭 manual hook，避免被 defconfig/默认值回写
+            ./scripts/config --file out/.config -d KSU_MANUAL_HOOK || true
+            ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
+
             # 强制断言 KPROBES 路线生效，避免悄悄被回退
             if ! grep -q '^CONFIG_KPROBES=y' out/.config; then
               echo "CONFIG_KPROBES 未开启，停止构建"
@@ -216,6 +220,14 @@ jobs:
             fi
             if ! grep -q '^CONFIG_KALLSYMS_ALL=y' out/.config; then
               echo "CONFIG_KALLSYMS_ALL 未开启，停止构建"
+              exit 1
+            fi
+            if grep -q '^CONFIG_KSU_MANUAL_HOOK=y' out/.config; then
+              echo "CONFIG_KSU_MANUAL_HOOK 未关闭，停止构建"
+              exit 1
+            fi
+            if grep -q '^CONFIG_KSU_MANUAL_SU=y' out/.config; then
+              echo "CONFIG_KSU_MANUAL_SU 未关闭，停止构建"
               exit 1
             fi
           fi
