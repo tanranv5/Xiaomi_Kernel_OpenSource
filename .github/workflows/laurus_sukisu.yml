@@ -162,6 +162,8 @@ jobs:
               'CONFIG_KPROBE_EVENTS=y' \
               'CONFIG_KALLSYMS=y' \
               'CONFIG_KALLSYMS_ALL=y' \
+              'CONFIG_KSU_MANUAL_HOOK=n' \
+              'CONFIG_KSU_MANUAL_SU=n' \
               >> "${DEFCONFIG_PATH}"
           fi
 
@@ -178,6 +180,7 @@ jobs:
             ./scripts/config --file out/.config -e KALLSYMS || true
             ./scripts/config --file out/.config -e KALLSYMS_ALL || true
             ./scripts/config --file out/.config -d KSU_MANUAL_HOOK || true
+            ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
           fi
 
           FORTIFY="${{ github.event_name == 'workflow_dispatch' && inputs.fortify || 'off' }}"
@@ -199,6 +202,7 @@ jobs:
             ./scripts/config --file out/.config -e KALLSYMS || true
             ./scripts/config --file out/.config -e KALLSYMS_ALL || true
             ./scripts/config --file out/.config -d KSU_MANUAL_HOOK || true
+            ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
           fi
 
           # 内核版本标记：添加 -tanran 后缀，便于识别修过的内核
