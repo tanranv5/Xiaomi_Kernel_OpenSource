@@ -239,6 +239,8 @@ jobs:
           \tif (!ns_capable(pid_ns->user_ns, CAP_SYS_BOOT))
           \t\treturn -EPERM;
           PATCH
+          sed 's/^          //' /tmp/ksu-manual.patch > /tmp/ksu-manual.patch.trim
+          mv /tmp/ksu-manual.patch.trim /tmp/ksu-manual.patch
           sed $'s/\\t/\t/g' /tmp/ksu-manual.patch > /tmp/ksu-manual.patch.fixed
           mv /tmp/ksu-manual.patch.fixed /tmp/ksu-manual.patch
           git apply /tmp/ksu-manual.patch
