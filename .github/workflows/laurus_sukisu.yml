@@ -90,160 +90,180 @@ jobs:
         if: env.WITH_SUKISU == 'on'
         run: |
           set -euxo pipefail
-          cat <<'PATCH' > /tmp/ksu-manual.patch
-          diff --git a/drivers/input/input.c b/drivers/input/input.c
-          index c5c301d0956b..4f233f1560f3 100644
-          --- a/drivers/input/input.c
-          +++ b/drivers/input/input.c
-          @@ -377,11 +377,18 @@ static int input_get_disposition(struct input_dev *dev,
-          \treturn disposition;
-          }
-          
-          +#ifdef CONFIG_KSU
-          +extern int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *value);
-          +#endif
-           static void input_handle_event(struct input_dev *dev,
-          \t\t\t       unsigned int type, unsigned int code, int value)
-           {
-          \tint disposition = input_get_disposition(dev, type, code, &value);
-          
-          +#ifdef CONFIG_KSU
-          +\tksu_handle_input_handle_event(&type, &code, &value);
-          +#endif
-          \tif (disposition != INPUT_IGNORE_EVENT && type != EV_SYN)
-          \t\tadd_input_randomness(type, code, value);
-          
-          diff --git a/fs/exec.c b/fs/exec.c
-          index d98e7ce04dbd..c0cc201ca3b6 100644
-          --- a/fs/exec.c
-          +++ b/fs/exec.c
-          @@ -1713,6 +1713,13 @@ static int exec_binprm(struct linux_binprm *bprm)
-           /*
-            * sys_execve() executes a new program.
-            */
-          +#ifdef CONFIG_KSU
-          +extern int ksu_handle_execveat_ksud(int *fd, struct filename **filename_ptr,
-          +\t\t\tstruct user_arg_ptr *argv, struct user_arg_ptr *envp, int *flags);
-          +extern int ksu_handle_execve_sucompat(const char __user **filename_user,
-          +\t\t\tvoid *__never_use_argv, void *__never_use_envp, int *__never_use_flags);
-          +#endif
-           static int do_execveat_common(int fd, struct filename *filename,
-          \t\t\t      struct user_arg_ptr argv,
-          \t\t\t      struct user_arg_ptr envp,
-          @@ -1724,6 +1731,10 @@ static int do_execveat_common(int fd, struct filename *filename,
-          \tstruct files_struct *displaced;
-          \tint retval;
-          
-          \tif (IS_ERR(filename))
-          \t\treturn PTR_ERR(filename);
-          
-          +#ifdef CONFIG_KSU
-          +\tksu_handle_execveat_ksud(&fd, &filename, &argv, &envp, &flags);
-          +#endif
-          \t/*
-          \t * We move the actual failure in case of RLIMIT_NPROC excess from
-          \t * set*uid() to execve() because too many poorly written programs
-          @@ -1943,6 +1954,9 @@ SYSCALL_DEFINE3(execve,
-          \t\tconst char __user *, filename,
-          \t\tconst char __user *const __user *, argv,
-          \t\tconst char __user *const __user *, envp)
-           {
-          +#ifdef CONFIG_KSU
-          +\tksu_handle_execve_sucompat(&filename, NULL, NULL, NULL);
-          +#endif
-          \treturn do_execve(getname(filename), argv, envp);
-           }
-          
-          @@ -1955,6 +1969,9 @@ SYSCALL_DEFINE5(execveat,
-          \t\tint, flags)
-           {
-          \tint lookup_flags = (flags & AT_EMPTY_PATH) ? LOOKUP_EMPTY : 0;
-          
-          +#ifdef CONFIG_KSU
-          +\tksu_handle_execve_sucompat(&filename, NULL, NULL, NULL);
-          +#endif
-          \treturn do_execveat(fd,
-          \t\t\t   getname_flags(filename, lookup_flags, NULL),
-          \t\t\t   argv, envp, flags);
-          diff --git a/fs/open.c b/fs/open.c
-          index 548494f1277c..26def41eeca5 100644
-          --- a/fs/open.c
-          +++ b/fs/open.c
-          @@ -359,6 +359,10 @@ SYSCALL_DEFINE4(fallocate, int, fd, int, mode, loff_t, offset, loff_t, len)
-           * We do this by temporarily clearing all FS-related capabilities and
-           * switching the fsuid/fsgid around to the real ones.
-           */
-          +#ifdef CONFIG_KSU
-          +extern int ksu_handle_faccessat(int *dfd, const char __user **filename_user, int *mode,
-          +\t\t\t int *flags);
-          +#endif
-           SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)
-           {
-          \tconst struct cred *old_cred;
-          @@ -369,6 +373,10 @@ SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)
-          \tint res;
-          \tunsigned int lookup_flags = LOOKUP_FOLLOW;
-          
-          +#ifdef CONFIG_KSU
-          +\tksu_handle_faccessat(&dfd, &filename, &mode, NULL);
-          +#endif
-          \tif (mode & ~S_IRWXO)\t/* where's F_OK, X_OK, W_OK, R_OK? */
-          \t\treturn -EINVAL;
-          
-          diff --git a/fs/stat.c b/fs/stat.c
-          index 0fda4b6b8fb2..7423c5eeac9a 100644
-          --- a/fs/stat.c
-          +++ b/fs/stat.c
-          @@ -163,6 +163,9 @@ EXPORT_SYMBOL(vfs_statx_fd);
-           *
-           * 0 will be returned on success, and a -ve error code if unsuccessful.
-           */
-          +#ifdef CONFIG_KSU
-          +extern int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags);
-          +#endif
-           int vfs_statx(int dfd, const char __user *filename, int flags,
-          \t      struct kstat *stat, u32 request_mask)
-           {
-          @@ -170,6 +173,10 @@ int vfs_statx(int dfd, const char __user *filename, int flags,
-          \tint error = -EINVAL;
-          \tunsigned int lookup_flags = LOOKUP_FOLLOW | LOOKUP_AUTOMOUNT;
-          
-          +#ifdef CONFIG_KSU
-          +\tksu_handle_stat(&dfd, &filename, &flags);
-          +#endif
-          \tif ((flags & ~(AT_SYMLINK_NOFOLLOW | AT_NO_AUTOMOUNT |
-          \t\t       AT_EMPTY_PATH | KSTAT_QUERY_FLAGS)) != 0)
-          \t\treturn -EINVAL;
-          diff --git a/kernel/reboot.c b/kernel/reboot.c
-          index 2946ed1d99d4..253b81f76325 100644
-          --- a/kernel/reboot.c
-          +++ b/kernel/reboot.c
-          @@ -277,6 +277,9 @@ static DEFINE_MUTEX(reboot_mutex);
-           *
-           * reboot doesn't sync: do that yourself before calling this.
-           */
-          +#ifdef CONFIG_KSU
-          +extern int ksu_handle_sys_reboot(int magic1, int magic2, unsigned int cmd, void __user **arg);
-          +#endif
-           SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
-          \t\tvoid __user *, arg)
-           {
-          @@ -284,6 +287,10 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
-          \tchar buffer[256];
-          \tint ret = 0;
-          
-          +#ifdef CONFIG_KSU
-          +\tksu_handle_sys_reboot(magic1, magic2, cmd, &arg);
-          +#endif
-          \t/* We only trust the superuser with rebooting the system. */
-          \tif (!ns_capable(pid_ns->user_ns, CAP_SYS_BOOT))
-          \t\treturn -EPERM;
-          PATCH
-          sed 's/^          //' /tmp/ksu-manual.patch > /tmp/ksu-manual.patch.trim
-          mv /tmp/ksu-manual.patch.trim /tmp/ksu-manual.patch
-          sed $'s/\\t/\t/g' /tmp/ksu-manual.patch > /tmp/ksu-manual.patch.fixed
-          mv /tmp/ksu-manual.patch.fixed /tmp/ksu-manual.patch
-          git apply /tmp/ksu-manual.patch
+          python3 - <<'PY'
+          from pathlib import Path
+          import sys
+
+          def insert_before(path: Path, marker: str, block: str, marker_hint: str):
+              text = path.read_text()
+              if marker in text:
+                  print(f"{path}: 已存在 {marker_hint}, 跳过")
+                  return
+              idx = text.find(marker)
+              if idx < 0:
+                  raise SystemExit(f"{path}: 未找到插入点 {marker_hint}")
+              text = text[:idx] + block + text[idx:]
+              path.write_text(text)
+              print(f"{path}: 已插入 {marker_hint}")
+
+          def insert_after_line(path: Path, line_match: str, block: str, marker_hint: str):
+              text = path.read_text()
+              if block.strip() in text:
+                  print(f"{path}: 已存在 {marker_hint}, 跳过")
+                  return
+              lines = text.splitlines(keepends=True)
+              out = []
+              inserted = False
+              for line in lines:
+                  out.append(line)
+                  if (not inserted) and line.strip() == line_match:
+                      out.append(block)
+                      inserted = True
+              if not inserted:
+                  raise SystemExit(f"{path}: 未找到插入点 {marker_hint}")
+              path.write_text("".join(out))
+              print(f"{path}: 已插入 {marker_hint}")
+
+          def insert_after_block_start(path: Path, func_prefix: str, block: str, marker_hint: str):
+              text = path.read_text()
+              if block.strip() in text:
+                  print(f"{path}: 已存在 {marker_hint}, 跳过")
+                  return
+              lines = text.splitlines(keepends=True)
+              out = []
+              inserted = False
+              i = 0
+              while i < len(lines):
+                  line = lines[i]
+                  out.append(line)
+                  if line.startswith(func_prefix):
+                      i += 1
+                      while i < len(lines):
+                          out.append(lines[i])
+                          if lines[i].strip() == "{":
+                              out.append(block)
+                              inserted = True
+                              i += 1
+                              break
+                          i += 1
+                      continue
+                  i += 1
+              if not inserted:
+                  raise SystemExit(f"{path}: 未找到插入点 {marker_hint}")
+              path.write_text("".join(out))
+              print(f"{path}: 已插入 {marker_hint}")
+
+          exec_c = Path("fs/exec.c")
+          open_c = Path("fs/open.c")
+          stat_c = Path("fs/stat.c")
+          reboot_c = Path("kernel/reboot.c")
+          input_c = Path("drivers/input/input.c")
+
+          insert_before(
+              exec_c,
+              "static int do_execveat_common(",
+              "#ifdef CONFIG_KSU\n"
+              "extern int ksu_handle_execveat_ksud(int *fd, struct filename **filename_ptr,\n"
+              "\t\t\tstruct user_arg_ptr *argv, struct user_arg_ptr *envp, int *flags);\n"
+              "extern int ksu_handle_execve_sucompat(const char __user **filename_user,\n"
+              "\t\t\tvoid *__never_use_argv, void *__never_use_envp, int *__never_use_flags);\n"
+              "#endif\n",
+              "exec.c extern",
+          )
+          insert_after_line(
+              exec_c,
+              "int retval;",
+              "\n#ifdef CONFIG_KSU\n"
+              "\tksu_handle_execveat_ksud(&fd, &filename, &argv, &envp, &flags);\n"
+              "#endif\n",
+              "exec.c do_execveat_common hook",
+          )
+          insert_after_block_start(
+              exec_c,
+              "SYSCALL_DEFINE3(execve,",
+              "#ifdef CONFIG_KSU\n"
+              "\tksu_handle_execve_sucompat(&filename, NULL, NULL, NULL);\n"
+              "#endif\n",
+              "exec.c execve hook",
+          )
+          insert_after_block_start(
+              exec_c,
+              "SYSCALL_DEFINE5(execveat,",
+              "#ifdef CONFIG_KSU\n"
+              "\tksu_handle_execve_sucompat(&filename, NULL, NULL, NULL);\n"
+              "#endif\n",
+              "exec.c execveat hook",
+          )
+
+          insert_before(
+              open_c,
+              "SYSCALL_DEFINE3(faccessat",
+              "#ifdef CONFIG_KSU\n"
+              "extern int ksu_handle_faccessat(int *dfd, const char __user **filename_user, int *mode,\n"
+              "\t\t\t int *flags);\n"
+              "#endif\n",
+              "open.c extern",
+          )
+          insert_after_line(
+              open_c,
+              "unsigned int lookup_flags = LOOKUP_FOLLOW;",
+              "\n#ifdef CONFIG_KSU\n"
+              "\tksu_handle_faccessat(&dfd, &filename, &mode, NULL);\n"
+              "#endif\n",
+              "open.c faccessat hook",
+          )
+
+          insert_before(
+              stat_c,
+              "int vfs_statx(",
+              "#ifdef CONFIG_KSU\n"
+              "extern int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags);\n"
+              "#endif\n",
+              "stat.c extern",
+          )
+          insert_after_line(
+              stat_c,
+              "unsigned int lookup_flags = LOOKUP_FOLLOW | LOOKUP_AUTOMOUNT;",
+              "\n#ifdef CONFIG_KSU\n"
+              "\tksu_handle_stat(&dfd, &filename, &flags);\n"
+              "#endif\n",
+              "stat.c vfs_statx hook",
+          )
+
+          insert_before(
+              reboot_c,
+              "SYSCALL_DEFINE4(reboot",
+              "#ifdef CONFIG_KSU\n"
+              "extern int ksu_handle_sys_reboot(int magic1, int magic2, unsigned int cmd, void __user **arg);\n"
+              "#endif\n",
+              "reboot.c extern",
+          )
+          insert_after_line(
+              reboot_c,
+              "int ret = 0;",
+              "\n#ifdef CONFIG_KSU\n"
+              "\tksu_handle_sys_reboot(magic1, magic2, cmd, &arg);\n"
+              "#endif\n",
+              "reboot.c reboot hook",
+          )
+
+          insert_before(
+              input_c,
+              "static void input_handle_event(",
+              "#ifdef CONFIG_KSU\n"
+              "extern int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *value);\n"
+              "#endif\n",
+              "input.c extern",
+          )
+          insert_after_line(
+              input_c,
+              "int disposition = input_get_disposition(dev, type, code, &value);",
+              "\n#ifdef CONFIG_KSU\n"
+              "\tksu_handle_input_handle_event(&type, &code, &value);\n"
+              "#endif\n",
+              "input.c hook",
+          )
+          PY
 
       - name: 拉取工具链（GCC 4.9）
         id: toolchain
