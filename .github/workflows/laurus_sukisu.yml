@@ -115,6 +115,15 @@ jobs:
           # SukiSU 官方脚本
           curl -fsSL "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/${ref}/kernel/setup.sh" | bash -s "$mode"
 
+          # 强制移除 KSU_MANUAL_HOOK 的 select，避免被 Kconfig 反向锁定为 y
+          ksu_kconfigs=$(grep -RIl --exclude-dir=.git --exclude-dir=out --exclude-dir=toolchain-gcc64 --exclude-dir=toolchain-gcc32 "KSU_MANUAL_HOOK" . || true)
+          if [ -n "$ksu_kconfigs" ]; then
+            echo "$ksu_kconfigs" | while IFS= read -r f; do
+              [ -z "$f" ] && continue
+              sed -i -E 's/^([[:space:]]*)select[[:space:]]+KSU_MANUAL_HOOK/\1# select KSU_MANUAL_HOOK/' "$f"
+            done
+          fi
+
       - name: 配置 defconfig
         id: config
         run: |
