@@ -96,7 +96,7 @@ jobs:
 
           def insert_before(path: Path, marker: str, block: str, marker_hint: str):
               text = path.read_text()
-              if marker in text:
+              if block.strip() in text:
                   print(f"{path}: 已存在 {marker_hint}, 跳过")
                   return
               idx = text.find(marker)
