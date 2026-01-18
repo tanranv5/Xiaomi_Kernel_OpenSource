@@ -103,9 +103,7 @@ jobs:
 
           make O=out olddefconfig
 
-          # 内核版本标记：添加 -tanran-plain 后缀，便于识别
-          ./scripts/config --file out/.config --set-str LOCALVERSION "-tanran-plain" || true
-          ./scripts/config --file out/.config -d LOCALVERSION_AUTO || true
+          # 保持默认版本字符串，避免 vendor 模块 vermagic 不匹配（例如 Wi-Fi 驱动）
 
       - name: 编译
         id: build
