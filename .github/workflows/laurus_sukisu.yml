@@ -208,6 +208,7 @@ jobs:
           export PATH="$TOOLCHAIN_GCC64/bin:$TOOLCHAIN_GCC32/bin:$PATH"
           export CROSS_COMPILE="$TOOLCHAIN_GCC64/bin/aarch64-linux-android-"
           export CROSS_COMPILE_ARM32="$TOOLCHAIN_GCC32/bin/arm-linux-androideabi-"
+          export LOCALVERSION=
 
           DEFCONFIG="${{ github.event_name == 'workflow_dispatch' && inputs.defconfig || 'vendor/laurus-perf_defconfig' }}"
           DEFCONFIG_PATH="arch/arm64/configs/${DEFCONFIG}"
@@ -324,6 +325,7 @@ jobs:
           export PATH="$TOOLCHAIN_GCC64/bin:$TOOLCHAIN_GCC32/bin:$PATH"
           export CROSS_COMPILE="$TOOLCHAIN_GCC64/bin/aarch64-linux-android-"
           export CROSS_COMPILE_ARM32="$TOOLCHAIN_GCC32/bin/arm-linux-androideabi-"
+          export LOCALVERSION=
 
           BUILD_DTBO="${{ github.event_name == 'workflow_dispatch' && inputs.build_dtbo || 'off' }}"
 
