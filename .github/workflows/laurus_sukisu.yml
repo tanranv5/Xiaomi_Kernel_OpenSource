@@ -270,6 +270,8 @@ jobs:
           ./scripts/config --file out/.config -d MODULE_SIG || true
           ./scripts/config --file out/.config -d MODULE_SIG_FORCE || true
           ./scripts/config --file out/.config -d MODULE_SIG_ALL || true
+          # 关闭 MODVERSIONS，避免 vendor 模块 symbol CRC 不一致导致加载失败
+          ./scripts/config --file out/.config -d MODVERSIONS || true
 
           # 对齐版本字符串，避免 vermagic 不匹配
           ./scripts/config --file out/.config -d LOCALVERSION_AUTO || true
@@ -304,6 +306,7 @@ jobs:
             ./scripts/config --file out/.config -d MODULE_SIG || true
             ./scripts/config --file out/.config -d MODULE_SIG_FORCE || true
             ./scripts/config --file out/.config -d MODULE_SIG_ALL || true
+            ./scripts/config --file out/.config -d MODVERSIONS || true
             ./scripts/config --file out/.config -d LOCALVERSION_AUTO || true
             ./scripts/config --file out/.config --set-str LOCALVERSION "-perf-g4732215" || true
 
@@ -410,7 +413,7 @@ jobs:
             grep -nE "error:|fatal error:" build.log 2>&1 | tail -n 200 || true
             echo
             echo "==== make failures (tail 120) ===="
-            grep -nE "make(\\[[0-9]+\\])?: \\*\\*\\*|make: \\*\\*\\*|Error [0-9]+" build.log 2>&1 | tail -n 120 || true
+            grep -nE "make(\[[0-9]+\])?: \*\*\*|make: \*\*\*|Error [0-9]+" build.log 2>&1 | tail -n 120 || true
             echo
             echo "==== dtc/dts errors (tail 200) ===="
             grep -nE "FATAL ERROR|syntax error|parse error|Error:" build.log 2>&1 | tail -n 200 || true
@@ -419,7 +422,7 @@ jobs:
             grep -n "warn, forbidden warning" build.log 2>&1 | tail -n 80 || true
             echo
             echo "==== bad_copy / fortify hits (head 200) ===="
-            grep -nE "__bad_copy_(to|from)|copy (source|destination) size is too small|__compiletime_error\\(\"copy (source|destination) size is too small\"\\)|__read_overflow2|FORTIFY|__check_object_size" build.log 2>&1 | head -n 200 || true
+            grep -nE "__bad_copy_(to|from)|copy (source|destination) size is too small|__compiletime_error\(\"copy (source|destination) size is too small\"\)|__read_overflow2|FORTIFY|__check_object_size" build.log 2>&1 | head -n 200 || true
             echo
             echo "==== bad_copy context (first 3 hits, each +/-60 lines) ===="
             hits="$(grep -nE "__bad_copy_(to|from)" build.log 2>/dev/null | head -n 3 | cut -d: -f1 | tr '\n' ' ' || true)"
