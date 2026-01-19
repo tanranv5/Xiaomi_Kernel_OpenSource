@@ -266,12 +266,12 @@ jobs:
             ./scripts/config --file out/.config -e OVERLAY_FS || true
           fi
 
-          # 关闭模块签名强制校验，允许加载 vendor 模块
-          ./scripts/config --file out/.config -d MODULE_SIG || true
+          # 保持 MODULE_SIG 以对齐 struct module，但关闭强制签名校验
+          ./scripts/config --file out/.config -e MODULE_SIG || true
           ./scripts/config --file out/.config -d MODULE_SIG_FORCE || true
           ./scripts/config --file out/.config -d MODULE_SIG_ALL || true
-          # 关闭 MODVERSIONS，避免 vendor 模块 symbol CRC 不一致导致加载失败
-          ./scripts/config --file out/.config -d MODVERSIONS || true
+          # 保持 MODVERSIONS，与 vendor 模块一致
+          ./scripts/config --file out/.config -e MODVERSIONS || true
 
           # 对齐版本字符串，避免 vermagic 不匹配
           ./scripts/config --file out/.config -d LOCALVERSION_AUTO || true
@@ -303,10 +303,10 @@ jobs:
             ./scripts/config --file out/.config -e OVERLAY_FS || true
 
             # 再次确保模块签名/版本字符串设置生效
-            ./scripts/config --file out/.config -d MODULE_SIG || true
+            ./scripts/config --file out/.config -e MODULE_SIG || true
             ./scripts/config --file out/.config -d MODULE_SIG_FORCE || true
             ./scripts/config --file out/.config -d MODULE_SIG_ALL || true
-            ./scripts/config --file out/.config -d MODVERSIONS || true
+            ./scripts/config --file out/.config -e MODVERSIONS || true
             ./scripts/config --file out/.config -d LOCALVERSION_AUTO || true
             ./scripts/config --file out/.config --set-str LOCALVERSION "-perf-g4732215" || true
 
