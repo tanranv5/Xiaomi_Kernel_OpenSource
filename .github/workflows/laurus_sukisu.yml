@@ -138,24 +138,6 @@ jobs:
             done
           fi
 
-      - name: 应用 manual hook 补丁（4.14）
-        id: manual_hook
-        if: env.WITH_SUKISU == 'on'
-        run: |
-          set -euxo pipefail
-          patch_url="https://raw.githubusercontent.com/rksuorg/kernel_patches/master/manual_hook/kernel-4.14.patch"
-          curl -fsSL "$patch_url" -o /tmp/ksu_manual_hook.patch
-          if git apply --check /tmp/ksu_manual_hook.patch; then
-            git apply /tmp/ksu_manual_hook.patch
-          else
-            if git apply --reverse --check /tmp/ksu_manual_hook.patch; then
-              echo "manual hook 补丁已存在，跳过"
-            else
-              echo "manual hook 补丁无法应用"
-              exit 1
-            fi
-          fi
-
       - name: 配置 defconfig
         id: config
         run: |
@@ -269,14 +251,6 @@ jobs:
             fi
             if ! grep -q '^CONFIG_KALLSYMS_ALL=y' out/.config; then
               echo "CONFIG_KALLSYMS_ALL 未开启，停止构建"
-              exit 1
-            fi
-            if grep -q '^CONFIG_KSU_MANUAL_HOOK=y' out/.config; then
-              echo "CONFIG_KSU_MANUAL_HOOK 未关闭，停止构建"
-              exit 1
-            fi
-            if grep -q '^CONFIG_KSU_MANUAL_SU=y' out/.config; then
-              echo "CONFIG_KSU_MANUAL_SU 未关闭，停止构建"
               exit 1
             fi
           fi
