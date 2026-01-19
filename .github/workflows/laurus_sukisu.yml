@@ -132,17 +132,18 @@ jobs:
           fi
 
           cat > "${ksu_dir}/manual_hook_adapters.c" <<'EOF'
+          #include <linux/compiler.h>
           #include <linux/cred.h>
           #include <linux/err.h>
           #include <linux/fs.h>
           #include <linux/namei.h>
           #include <linux/printk.h>
           #include <linux/string.h>
+          #include <linux/version.h>
 
           #include "allowlist.h"
           #include "app_profile.h"
           #include "ksud.h"
-          #include "sucompat.h"
 
           struct user_arg_ptr;
           int ksu_handle_execveat_ksud(int *fd, struct filename **filename_ptr,
