@@ -124,6 +124,14 @@ jobs:
             done
           fi
 
+          # 将 KSU_MANUAL_HOOK 默认值改成 n（若存在 default y）
+          if [ -n "$ksu_kconfigs" ]; then
+            echo "$ksu_kconfigs" | while IFS= read -r f; do
+              [ -z "$f" ] && continue
+              perl -0777 -i -pe 's/(config KSU_MANUAL_HOOK[\s\S]*?\n\s*default)\s+y(\b[^\n]*)/\1 n\2/' "$f"
+            done
+          fi
+
       - name: 配置 defconfig
         id: config
         run: |
@@ -371,6 +379,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: laurus-${{ github.run_id }}
+          include-hidden-files: true
           if-no-files-found: warn
           path: |
             build.log
