@@ -217,6 +217,10 @@ jobs:
             exit 1
           fi
 
+          # 对齐 vendor 模块 vermagic（避免 Wi-Fi 模块加载失败）
+          sed -i -E 's/^SUBLEVEL = .*/SUBLEVEL = 117/' Makefile
+          sed -i -E 's/^EXTRAVERSION = .*/EXTRAVERSION = -perf/' Makefile
+
           if [ "$WITH_SUKISU" = "on" ]; then
             # non-GKI 使用 manual hook
             sed -i -E '/^CONFIG_KSU=/d' "${DEFCONFIG_PATH}"
@@ -260,6 +264,15 @@ jobs:
             ./scripts/config --file out/.config -e OVERLAY_FS || true
           fi
 
+          # 关闭模块签名强制校验，允许加载 vendor 模块
+          ./scripts/config --file out/.config -d MODULE_SIG || true
+          ./scripts/config --file out/.config -d MODULE_SIG_FORCE || true
+          ./scripts/config --file out/.config -d MODULE_SIG_ALL || true
+
+          # 对齐版本字符串，避免 vermagic 不匹配
+          ./scripts/config --file out/.config -d LOCALVERSION_AUTO || true
+          ./scripts/config --file out/.config --set-str LOCALVERSION "-g4732215" || true
+
           FORTIFY="${{ github.event_name == 'workflow_dispatch' && inputs.fortify || 'off' }}"
           if [ "$FORTIFY" = "on" ]; then
             ./scripts/config --file out/.config -e FORTIFY_SOURCE || true
@@ -284,6 +297,13 @@ jobs:
             ./scripts/config --file out/.config -e DEVTMPFS || true
             ./scripts/config --file out/.config -e DEVTMPFS_MOUNT || true
             ./scripts/config --file out/.config -e OVERLAY_FS || true
+
+            # 再次确保模块签名/版本字符串设置生效
+            ./scripts/config --file out/.config -d MODULE_SIG || true
+            ./scripts/config --file out/.config -d MODULE_SIG_FORCE || true
+            ./scripts/config --file out/.config -d MODULE_SIG_ALL || true
+            ./scripts/config --file out/.config -d LOCALVERSION_AUTO || true
+            ./scripts/config --file out/.config --set-str LOCALVERSION "-g4732215" || true
 
             make O=out olddefconfig
 
