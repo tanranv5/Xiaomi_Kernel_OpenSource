@@ -117,6 +117,12 @@ jobs:
 
           # 强制移除 KSU_MANUAL_HOOK 的 select，避免被 Kconfig 反向锁定为 y
           ksu_kconfigs=$(grep -RIl --exclude-dir=.git --exclude-dir=out --exclude-dir=toolchain-gcc64 --exclude-dir=toolchain-gcc32 "KSU_MANUAL_HOOK" . || true)
+          if [ -z "$ksu_kconfigs" ]; then
+            echo "未找到包含 KSU_MANUAL_HOOK 的文件"
+          else
+            echo "KSU_MANUAL_HOOK 命中文件："
+            echo "$ksu_kconfigs"
+          fi
           if [ -n "$ksu_kconfigs" ]; then
             echo "$ksu_kconfigs" | while IFS= read -r f; do
               [ -z "$f" ] && continue
@@ -162,6 +168,14 @@ jobs:
               'CONFIG_DEVTMPFS=y' \
               'CONFIG_DEVTMPFS_MOUNT=y' \
               'CONFIG_OVERLAY_FS=y' \
+              >> "${DEFCONFIG_PATH}"
+
+            # 移除 defconfig 中可能被 setup.sh 写入的 manual hook/su 强制项
+            sed -i -E '/CONFIG_KSU_MANUAL_HOOK/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/CONFIG_KSU_MANUAL_SU/d' "${DEFCONFIG_PATH}"
+            printf '%s\n' \
+              '# CONFIG_KSU_MANUAL_HOOK is not set' \
+              '# CONFIG_KSU_MANUAL_SU is not set' \
               >> "${DEFCONFIG_PATH}"
           fi
 
@@ -383,6 +397,7 @@ jobs:
           if-no-files-found: warn
           path: |
             build.log
+            ci_logs/latest.txt
             out/.config
             out/arch/arm64/boot/Image.gz-dtb
             out/arch/arm64/boot/Image.gz
