@@ -116,7 +116,7 @@ jobs:
           curl -fsSL "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/${ref}/kernel/setup.sh" | bash -s "$mode"
 
           # 应用 manual hook 补丁（4.14）
-          patch_url="https://raw.githubusercontent.com/rksuorg/kernel_patches/main/manual_hook/kernel-4.14.patch"
+          patch_url="https://raw.githubusercontent.com/rksuorg/kernel_patches/master/manual_hook/kernel-4.14.patch"
           curl -fsSL "$patch_url" -o /tmp/ksu_manual_hook.patch
           if git apply --reverse --check /tmp/ksu_manual_hook.patch; then
             echo "manual hook patch already applied"
