@@ -5930,19 +5930,17 @@ static ssize_t ipa3_write(struct file *file, const char __user *buf,
 	unsigned long missing;
 
 	char dbg_buff[32] = { 0 };
+	size_t to_copy;
 
-	if (sizeof(dbg_buff) < count + 1)
-		return -EFAULT;
-
-	missing = copy_from_user(dbg_buff, buf, count);
+	to_copy = min_t(size_t, count, sizeof(dbg_buff) - 1);
+	missing = copy_from_user(dbg_buff, buf, to_copy);
 
 	if (missing) {
 		IPAERR("Unable to copy data from user\n");
 		return -EFAULT;
 	}
 
-	if (count > 0)
-		dbg_buff[count] = '\0';
+	dbg_buff[to_copy] = '\0';
 
 	IPADBG("user input string %s\n", dbg_buff);
 
@@ -5972,8 +5970,8 @@ static ssize_t ipa3_write(struct file *file, const char __user *buf,
 		}
 
 		/* trim ending newline character if any */
-		if (count && (dbg_buff[count - 1] == '\n'))
-			dbg_buff[count - 1] = '\0';
+		if (to_copy > 0 && dbg_buff[to_copy - 1] == '\n')
+			dbg_buff[to_copy - 1] = '\0';
 
 		/*
 		 * This logic enforeces MHI mode based on userspace input.
