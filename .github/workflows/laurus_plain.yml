@@ -1,0 +1,247 @@
+name: build-laurus-plain
+
+"on":
+  workflow_dispatch:
+    inputs:
+      kernel_branch:
+        description: "要编译的内核分支"
+        required: true
+        default: "laurus-q-oss-ci"
+      defconfig:
+        description: "defconfig（相对 arch/arm64/configs/）"
+        required: true
+        default: "vendor/laurus-perf_defconfig"
+      fortify:
+        description: "是否启用 FORTIFY_SOURCE（推荐日用 on；老 GCC 4.9 需先修触发点再开启）"
+        required: true
+        default: "off"
+        type: choice
+        options:
+          - "off"
+          - "on"
+      build_dtbo:
+        description: "是否构建 DTBO（overlay）；off 会绕过 trinket dtbo 编译失败（先确保内核能出镜像）"
+        required: true
+        default: "off"
+        type: choice
+        options:
+          - "off"
+          - "on"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    env:
+      WITH_SUKISU: "off"
+      LOCALVERSION: ""
+
+    steps:
+      - name: 检出内核源码
+        id: checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.kernel_branch || 'laurus-q-oss-ci' }}
+
+      - name: 安装依赖
+        id: deps
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            bc bison build-essential ca-certificates \
+            flex git libelf-dev libssl-dev \
+            python3 rsync unzip xz-utils \
+            device-tree-compiler zip
+
+      - name: 拉取工具链（GCC 4.9）
+        id: toolchain
+        run: |
+          set -euxo pipefail
+          GCC64_REPO="LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9"
+          GCC64_REF="lineage-19.1"
+          GCC32_REPO="LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9"
+          GCC32_REF="lineage-19.1"
+
+          git clone --depth=1 -b "$GCC64_REF" "https://github.com/${GCC64_REPO}.git" toolchain-gcc64
+          git clone --depth=1 -b "$GCC32_REF" "https://github.com/${GCC32_REPO}.git" toolchain-gcc32
+
+          echo "TOOLCHAIN_GCC64=$PWD/toolchain-gcc64" >> "$GITHUB_ENV"
+          echo "TOOLCHAIN_GCC32=$PWD/toolchain-gcc32" >> "$GITHUB_ENV"
+
+      - name: 配置 defconfig
+        id: config
+        run: |
+          set -euxo pipefail
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export PATH="$TOOLCHAIN_GCC64/bin:$TOOLCHAIN_GCC32/bin:$PATH"
+          export CROSS_COMPILE="$TOOLCHAIN_GCC64/bin/aarch64-linux-android-"
+          export CROSS_COMPILE_ARM32="$TOOLCHAIN_GCC32/bin/arm-linux-androideabi-"
+
+          DEFCONFIG="${{ github.event_name == 'workflow_dispatch' && inputs.defconfig || 'vendor/laurus-perf_defconfig' }}"
+          DEFCONFIG_PATH="arch/arm64/configs/${DEFCONFIG}"
+
+          if [ ! -f "${DEFCONFIG_PATH}" ]; then
+            echo "defconfig 不存在：${DEFCONFIG_PATH}"
+            exit 1
+          fi
+
+          mkdir -p out
+          make O=out "$DEFCONFIG"
+
+          FORTIFY="${{ github.event_name == 'workflow_dispatch' && inputs.fortify || 'off' }}"
+          if [ "$FORTIFY" = "on" ]; then
+            ./scripts/config --file out/.config -e FORTIFY_SOURCE || true
+          else
+            # GCC 4.9 下 include/linux/string.h 的 FORTIFY memcpy 会触发 __read_overflow2 编译期错误
+            ./scripts/config --file out/.config -d FORTIFY_SOURCE || true
+          fi
+
+          # 允许加载厂商预编译模块（避免签名强制导致 Wi-Fi 模块加载失败）
+          ./scripts/config --file out/.config -d MODULE_SIG_FORCE || true
+
+          # 对齐 stock 版本号（4.14.117-perf-g4732215）
+          sed -i -E 's/^SUBLEVEL = .*/SUBLEVEL = 117/' Makefile
+          ./scripts/config --file out/.config --set-str LOCALVERSION "-perf-g4732215" || true
+          ./scripts/config --file out/.config -d LOCALVERSION_AUTO || true
+
+          make O=out olddefconfig
+
+
+      - name: 编译
+        id: build
+        run: |
+          set -euxo pipefail
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export PATH="$TOOLCHAIN_GCC64/bin:$TOOLCHAIN_GCC32/bin:$PATH"
+          export CROSS_COMPILE="$TOOLCHAIN_GCC64/bin/aarch64-linux-android-"
+          export CROSS_COMPILE_ARM32="$TOOLCHAIN_GCC32/bin/arm-linux-androideabi-"
+
+          BUILD_DTBO="${{ github.event_name == 'workflow_dispatch' && inputs.build_dtbo || 'off' }}"
+
+          if [ "$BUILD_DTBO" = "on" ]; then
+            # dtbo (/plugin/;) 需要 -@ 才能生成符号/修复信息
+            make -j"$(nproc)" O=out Image.gz-dtb V=1 DTC_FLAGS="-@" 2>&1 | tee build.log
+          else
+            # 先确保能编译出内核镜像；dtbo 问题后续再单独修
+            make -j"$(nproc)" O=out Image.gz V=1 2>&1 | tee build.log
+
+            # 注意：arch/arm64/Makefile 的 %.dtb 目标要求传入“相对 dts 根目录”的路径
+            make -j"$(nproc)" O=out qcom/trinket.dtb V=1 2>&1 | tee -a build.log
+
+            # 生成 CC 9e/Trinket 专用 Image.gz-dtb（直接用于打包/刷机）
+            mkdir -p dist
+            cat out/arch/arm64/boot/Image.gz out/arch/arm64/boot/dts/qcom/trinket.dtb > dist/Image.gz-dtb
+          fi
+
+      - name: 打包 AnyKernel3（可直接刷）
+        id: package
+        if: steps.build.outcome == 'success'
+        run: |
+          set -euxo pipefail
+          mkdir -p dist
+
+          # build_dtbo=on 时，尝试复用 out 里生成的 Image.gz-dtb
+          if [ ! -f dist/Image.gz-dtb ] && [ -f out/arch/arm64/boot/Image.gz-dtb ]; then
+            cp -f out/arch/arm64/boot/Image.gz-dtb dist/Image.gz-dtb
+          fi
+
+          test -f dist/Image.gz-dtb
+
+          git clone --depth=1 https://github.com/osm0sis/AnyKernel3 anykernel3
+          cp -f dist/Image.gz-dtb anykernel3/Image.gz-dtb
+
+          # 仅做最小定制：限制设备代号（CC 9e=laurus；同平台 Mi A3=laurel_sprout）
+          sed -i \
+            -e 's/^do.devicecheck=.*/do.devicecheck=1/' \
+            -e 's/^device.name1=.*/device.name1=laurus/' \
+            -e 's/^device.name2=.*/device.name2=laurel_sprout/' \
+            anykernel3/anykernel.sh || true
+
+          (cd anykernel3 && zip -r9 ../dist/AnyKernel3-laurus-${{ github.run_id }}.zip . -x '.git/*')
+
+      - name: 写入精简日志（方便无鉴权查看）
+        if: always()
+        run: |
+          set -euxo pipefail
+          mkdir -p ci_logs
+          outfile="ci_logs/${{ github.run_id }}.txt"
+          {
+            echo "run_id=${{ github.run_id }}"
+            echo "head_sha=${{ github.sha }}"
+            echo "kernel_ref=${{ github.event_name == 'workflow_dispatch' && inputs.kernel_branch || 'laurus-q-oss-ci' }}"
+            echo "defconfig=${{ github.event_name == 'workflow_dispatch' && inputs.defconfig || 'vendor/laurus-perf_defconfig' }}"
+            echo "fortify=${{ github.event_name == 'workflow_dispatch' && inputs.fortify || 'off' }}"
+            echo "build_dtbo=${{ github.event_name == 'workflow_dispatch' && inputs.build_dtbo || 'off' }}"
+            echo "with_sukisu=${WITH_SUKISU}"
+            echo
+            echo "==== step outcomes ===="
+            echo "checkout=${{ steps.checkout.outcome }}"
+            echo "deps=${{ steps.deps.outcome }}"
+            echo "toolchain=${{ steps.toolchain.outcome }}"
+            echo "config=${{ steps.config.outcome }}"
+            echo "build=${{ steps.build.outcome }}"
+            echo "package=${{ steps.package.outcome }}"
+            echo
+            echo "==== artifacts existence ===="
+            ls -l build.log 2>&1 || true
+            ls -l out/arch/arm64/boot/Image.gz-dtb out/arch/arm64/boot/Image.gz out/arch/arm64/boot/dts/qcom/trinket.dtb 2>&1 || true
+            ls -l dist/Image.gz-dtb dist/AnyKernel3-laurus-${{ github.run_id }}.zip 2>&1 || true
+            echo
+            echo "==== build.log errors (tail 200) ===="
+            grep -nE "error:|fatal error:" build.log 2>&1 | tail -n 200 || true
+            echo
+            echo "==== make failures (tail 120) ===="
+            grep -nE "make(\[[0-9]+\])?: \*\*\*|make: \*\*\*|Error [0-9]+" build.log 2>&1 | tail -n 120 || true
+            echo
+            echo "==== dtc/dts errors (tail 200) ===="
+            grep -nE "FATAL ERROR|syntax error|parse error|Error:" build.log 2>&1 | tail -n 200 || true
+            echo
+            echo "==== forbidden warnings (tail 80) ===="
+            grep -n "warn, forbidden warning" build.log 2>&1 | tail -n 80 || true
+            echo
+            echo "==== bad_copy / fortify hits (head 200) ===="
+            grep -nE "__bad_copy_(to|from)|copy (source|destination) size is too small|__compiletime_error\(\"copy (source|destination) size is too small\"\)|__read_overflow2|FORTIFY|__check_object_size" build.log 2>&1 | head -n 200 || true
+            echo
+            echo "==== bad_copy context (first 3 hits, each +/-60 lines) ===="
+            hits="$(grep -nE "__bad_copy_(to|from)" build.log 2>/dev/null | head -n 3 | cut -d: -f1 | tr '\n' ' ' || true)"
+            if [ -n "${hits}" ]; then
+              for n in ${hits}; do
+                start=$((n-60)); end=$((n+60)); if [ "$start" -lt 1 ]; then start=1; fi
+                echo "--- context around build.log:$n (lines $start-$end) ---"
+                sed -n "${start},${end}p" build.log 2>&1 || true
+                echo
+              done
+            else
+              echo "(no __bad_copy_* strings found in build.log)"
+            fi
+            echo
+            echo "==== tail build.log (last 1200) ===="
+            tail -n 1200 build.log 2>&1 || true
+          } > "$outfile"
+
+          cp -f "$outfile" ci_logs/latest.txt
+          echo "Wrote $outfile"
+
+      - name: 上传产物（无论成功失败）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: laurus-${{ github.run_id }}
+          if-no-files-found: warn
+          path: |
+            build.log
+            out/.config
+            out/arch/arm64/boot/Image.gz-dtb
+            out/arch/arm64/boot/Image.gz
+            out/arch/arm64/boot/dts/qcom/trinket.dtb
+            dist/Image.gz-dtb
+            dist/AnyKernel3-laurus-${{ github.run_id }}.zip
+            ci_logs/${{ github.run_id }}.txt
+            ci_logs/latest.txt
