@@ -1,2 +1,2 @@
-trigger: 2025-01-20T17:40:00Z
-note: sync taskstats.c and sde_hdcp_2x.c
+trigger: 2025-01-20T17:50:00Z
+note: fix sde_hdcp_2x stream_type
