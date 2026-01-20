@@ -3358,7 +3358,7 @@ int dsi_panel_parse_white_reg_read_configs(struct dsi_panel *panel)
 /*bug430786 sijun.wt,Modify,20190423,add white point function end*/
 
 //Bug 442815 zhangxiaolong.wt,Modify,20190523,for esd error flag and get hardware id
-static bool ufshcd_get_hwlevel()
+static bool ufshcd_get_hwlevel(void)
 {
 	char *dr_mr = NULL;
 	char hwlevel[16]= {0};
