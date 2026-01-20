@@ -1,0 +1,2 @@
+trigger: 2025-01-20T17:20:00Z
+note: sync dtc-lexer.lex.c_shipped
