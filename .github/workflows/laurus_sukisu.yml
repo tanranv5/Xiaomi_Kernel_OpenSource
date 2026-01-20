@@ -55,6 +55,12 @@ name: build-laurus-sukisu
         description: "ARM GCC 4.9 工具链分支"
         required: true
         default: "lineage-19.1"
+  push:
+    branches:
+      - laurus-q-oss-ci
+    paths:
+      - ".github/workflows/laurus_sukisu.yml"
+      - "ci_trigger.txt"
 
 permissions:
   contents: write
@@ -415,8 +421,7 @@ jobs:
             echo "==== make failures (tail 120) ===="
             grep -nE "make(\\[[0-9]+\\])?: \\*\\*\\*|make: \\*\\*\\*|Error [0-9]+" build.log 2>&1 | tail -n 120 || true
             echo
-            echo "==== dtc/dts errors (tail 200) ===="
-            grep -nE "FATAL ERROR|syntax error|parse error|Error:" build.log 2>&1 | tail -n 200 || true
+            echo "==== dtc/dts errors (tail 200) ===="n            grep -nE "FATAL ERROR|syntax error|parse error|Error:" build.log 2>&1 | tail -n 200 || true
             echo
             echo "==== forbidden warnings (tail 80) ===="
             grep -n "warn, forbidden warning" build.log 2>&1 | tail -n 80 || true
