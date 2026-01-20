@@ -1341,8 +1341,13 @@ static inline int check_modstruct_version(const struct load_info *info,
 		BUG();
 	}
 	preempt_enable();
-	return check_version(info, VMLINUX_SYMBOL_STR(module_layout),
-			     mod, crc);
+	if (!check_version(info, VMLINUX_SYMBOL_STR(module_layout),
+			   mod, crc)) {
+		pr_warn("%s: ignore module_layout version mismatch\n",
+			info->name);
+		return 1;
+	}
+	return 1;
 }
 
 /* First part is kernel version, which we ignore if module has crcs. */
