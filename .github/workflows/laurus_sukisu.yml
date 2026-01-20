@@ -1,0 +1,462 @@
+name: build-laurus-sukisu
+
+"on":
+  workflow_dispatch:
+    inputs:
+      kernel_branch:
+        description: "要编译的内核分支"
+        required: true
+        default: "laurus-q-oss-ci"
+      defconfig:
+        description: "defconfig（相对 arch/arm64/configs/）"
+        required: true
+        default: "vendor/laurus-perf_defconfig"
+      sukisu_ref:
+        description: "SukiSU Ultra 引用（分支/标签/commit）"
+        required: true
+        default: "main"
+      sukisu_mode:
+        description: "SukiSU 集成模式：builtin 更适合非 GKI/老内核"
+        required: true
+        default: "builtin"
+        type: choice
+        options:
+          - builtin
+          - main
+      fortify:
+        description: "是否启用 FORTIFY_SOURCE（推荐日用 on；老 GCC 4.9 需先修触发点再开启）"
+        required: true
+        default: "off"
+        type: choice
+        options:
+          - "off"
+          - "on"
+      build_dtbo:
+        description: "是否构建 DTBO（overlay）；off 会绕过 trinket dtbo 编译失败（先确保内核能出镜像）"
+        required: true
+        default: "off"
+        type: choice
+        options:
+          - "off"
+          - "on"
+      gcc64_repo:
+        description: "AArch64 GCC 4.9 工具链仓库"
+        required: true
+        default: "LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9"
+      gcc64_ref:
+        description: "AArch64 GCC 4.9 工具链分支"
+        required: true
+        default: "lineage-19.1"
+      gcc32_repo:
+        description: "ARM GCC 4.9 工具链仓库"
+        required: true
+        default: "LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9"
+      gcc32_ref:
+        description: "ARM GCC 4.9 工具链分支"
+        required: true
+        default: "lineage-19.1"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    env:
+      WITH_SUKISU: "on"
+
+    steps:
+      - name: 检出内核源码
+        id: checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.kernel_branch || 'laurus-q-oss-ci' }}
+
+      - name: 安装依赖
+        id: deps
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            bc bison build-essential ca-certificates \
+            flex git libelf-dev libssl-dev \
+            python3 rsync unzip xz-utils \
+            device-tree-compiler zip
+
+      - name: 拉取工具链（GCC 4.9）
+        id: toolchain
+        run: |
+          set -euxo pipefail
+          GCC64_REPO="${{ github.event_name == 'workflow_dispatch' && inputs.gcc64_repo || 'LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9' }}"
+          GCC64_REF="${{ github.event_name == 'workflow_dispatch' && inputs.gcc64_ref || 'lineage-19.1' }}"
+          GCC32_REPO="${{ github.event_name == 'workflow_dispatch' && inputs.gcc32_repo || 'LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9' }}"
+          GCC32_REF="${{ github.event_name == 'workflow_dispatch' && inputs.gcc32_ref || 'lineage-19.1' }}"
+
+          git clone --depth=1 -b "$GCC64_REF" "https://github.com/${GCC64_REPO}.git" toolchain-gcc64
+          git clone --depth=1 -b "$GCC32_REF" "https://github.com/${GCC32_REPO}.git" toolchain-gcc32
+
+          echo "TOOLCHAIN_GCC64=$PWD/toolchain-gcc64" >> "$GITHUB_ENV"
+          echo "TOOLCHAIN_GCC32=$PWD/toolchain-gcc32" >> "$GITHUB_ENV"
+
+      - name: 集成 SukiSU Ultra
+        id: sukisu
+        run: |
+          set -euxo pipefail
+          if [ "${WITH_SUKISU}" != "on" ]; then
+            echo "WITH_SUKISU=${WITH_SUKISU}, skip SukiSU integrate."
+            exit 0
+          fi
+
+          ref="${{ github.event_name == 'workflow_dispatch' && inputs.sukisu_ref || 'main' }}"
+          mode="${{ github.event_name == 'workflow_dispatch' && inputs.sukisu_mode || 'builtin' }}"
+
+          # SukiSU 官方脚本
+          curl -fsSL "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/${ref}/kernel/setup.sh" | bash -s "$mode"
+
+          # 应用 manual hook 补丁（4.14）
+          patch_url="https://raw.githubusercontent.com/rksuorg/kernel_patches/master/manual_hook/kernel-4.14.patch"
+          curl -fsSL "$patch_url" -o /tmp/ksu_manual_hook.patch
+          if git apply --reverse --check /tmp/ksu_manual_hook.patch; then
+            echo "manual hook patch already applied"
+          else
+            git apply /tmp/ksu_manual_hook.patch
+          fi
+
+          # 补齐 manual hook 适配符号，避免链接错误
+          if [ -d "common/drivers" ]; then
+            ksu_dir="common/drivers/kernelsu"
+          else
+            ksu_dir="drivers/kernelsu"
+          fi
+
+          cat > "${ksu_dir}/manual_hook_adapters.c" <<'EOF'
+          #include <linux/compiler.h>
+          #include <linux/cred.h>
+          #include <linux/err.h>
+          #include <linux/fs.h>
+          #include <linux/namei.h>
+          #include <linux/printk.h>
+          #include <linux/string.h>
+          #include <linux/version.h>
+
+          #include "allowlist.h"
+          #include "app_profile.h"
+          #include "ksud.h"
+
+          struct user_arg_ptr;
+          int ksu_handle_execveat_ksud(int *fd, struct filename **filename_ptr,
+                                       struct user_arg_ptr *argv,
+                                       struct user_arg_ptr *envp, int *flags);
+
+          // 弱符号兜底，避免与 SukiSU 自带实现重复定义
+          bool ksu_execveat_hook __read_mostly __weak = true;
+          bool ksu_vfs_read_hook __read_mostly __weak = false;
+          bool ksu_input_hook __read_mostly __weak = true;
+
+          int __weak ksu_handle_execveat(int *fd, struct filename **filename_ptr,
+                                         void *argv, void *envp, int *flags)
+          {
+              struct user_arg_ptr *argv_ptr = (struct user_arg_ptr *)argv;
+              struct user_arg_ptr *envp_ptr = (struct user_arg_ptr *)envp;
+
+              ksu_handle_execveat_ksud(fd, filename_ptr, argv_ptr, envp_ptr, flags);
+
+              if (!ksu_is_allow_uid_for_current(current_uid().val)) {
+                  return 0;
+              }
+              if (!filename_ptr || !*filename_ptr || IS_ERR(*filename_ptr)) {
+                  return 0;
+              }
+
+              if (!strcmp((*filename_ptr)->name, "/system/bin/su")) {
+                  struct filename *newf = getname_kernel(KSUD_PATH);
+                  if (!IS_ERR(newf)) {
+                      putname(*filename_ptr);
+                      *filename_ptr = newf;
+                      escape_with_root_profile();
+                  }
+              }
+
+              return 0;
+          }
+
+          int __weak ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,
+                                                  void *argv, void *envp, int *flags)
+          {
+              return 0;
+          }
+
+          int __weak ksu_handle_vfs_read(struct file **file_ptr, char __user **buf_ptr,
+                                         size_t *count_ptr, loff_t **pos)
+          {
+              return 0;
+          }
+          EOF
+
+          if ! grep -q "manual_hook_adapters.o" "${ksu_dir}/Kbuild"; then
+            echo "kernelsu-objs += manual_hook_adapters.o" >> "${ksu_dir}/Kbuild"
+          fi
+
+      - name: 配置 defconfig
+        id: config
+        run: |
+          set -euxo pipefail
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export PATH="$TOOLCHAIN_GCC64/bin:$TOOLCHAIN_GCC32/bin:$PATH"
+          export CROSS_COMPILE="$TOOLCHAIN_GCC64/bin/aarch64-linux-android-"
+          export CROSS_COMPILE_ARM32="$TOOLCHAIN_GCC32/bin/arm-linux-androideabi-"
+          export LOCALVERSION=
+
+          DEFCONFIG="${{ github.event_name == 'workflow_dispatch' && inputs.defconfig || 'vendor/laurus-perf_defconfig' }}"
+          DEFCONFIG_PATH="arch/arm64/configs/${DEFCONFIG}"
+
+          if [ ! -f "${DEFCONFIG_PATH}" ]; then
+            echo "defconfig 不存在：${DEFCONFIG_PATH}"
+            exit 1
+          fi
+
+          # 对齐 vendor 模块 vermagic（避免 Wi-Fi 模块加载失败）
+          sed -i -E 's/^SUBLEVEL = .*/SUBLEVEL = 117/' Makefile
+          sed -i -E 's/^EXTRAVERSION = .*/EXTRAVERSION =/' Makefile
+          rm -f .scmversion
+
+          if [ "$WITH_SUKISU" = "on" ]; then
+            # non-GKI 使用 manual hook
+            sed -i -E '/^CONFIG_KSU=/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^# CONFIG_KSU is not set/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^CONFIG_KSU_MANUAL_HOOK/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^# CONFIG_KSU_MANUAL_HOOK is not set/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^CONFIG_KSU_MANUAL_SU/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^# CONFIG_KSU_MANUAL_SU is not set/d' "${DEFCONFIG_PATH}"
+            printf '%s\n' \
+              'CONFIG_KSU=y' \
+              'CONFIG_KSU_MANUAL_HOOK=y' \
+              '# CONFIG_KSU_MANUAL_SU is not set' \
+              'CONFIG_KPROBES=y' \
+              'CONFIG_KRETPROBES=y' \
+              'CONFIG_KPROBE_EVENTS=y' \
+              'CONFIG_KALLSYMS=y' \
+              'CONFIG_KALLSYMS_ALL=y' \
+              'CONFIG_SECURITYFS=y' \
+              'CONFIG_DEVTMPFS=y' \
+              'CONFIG_DEVTMPFS_MOUNT=y' \
+              'CONFIG_OVERLAY_FS=y' \
+              >> "${DEFCONFIG_PATH}"
+          fi
+
+          mkdir -p out
+          make O=out "$DEFCONFIG"
+
+          if [ "$WITH_SUKISU" = "on" ]; then
+            # KernelSU：manual hook 路线
+            ./scripts/config --file out/.config -e KSU || true
+            ./scripts/config --file out/.config -e KSU_MANUAL_HOOK || true
+            ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
+            ./scripts/config --file out/.config -e KPROBES || true
+            ./scripts/config --file out/.config -e KRETPROBES || true
+            ./scripts/config --file out/.config -e KPROBE_EVENTS || true
+            ./scripts/config --file out/.config -e KALLSYMS || true
+            ./scripts/config --file out/.config -e KALLSYMS_ALL || true
+            ./scripts/config --file out/.config -e SECURITYFS || true
+            ./scripts/config --file out/.config -e DEVTMPFS || true
+            ./scripts/config --file out/.config -e DEVTMPFS_MOUNT || true
+            ./scripts/config --file out/.config -e OVERLAY_FS || true
+          fi
+
+          # 保持 MODULE_SIG 以对齐 struct module，但关闭强制签名校验
+          ./scripts/config --file out/.config -e MODULE_SIG || true
+          ./scripts/config --file out/.config -d MODULE_SIG_FORCE || true
+          ./scripts/config --file out/.config -d MODULE_SIG_ALL || true
+          # 保持 MODVERSIONS，与 vendor 模块一致
+          ./scripts/config --file out/.config -e MODVERSIONS || true
+
+          # 对齐版本字符串，避免 vermagic 不匹配
+          ./scripts/config --file out/.config -d LOCALVERSION_AUTO || true
+          ./scripts/config --file out/.config --set-str LOCALVERSION "-perf-g4732215" || true
+
+          FORTIFY="${{ github.event_name == 'workflow_dispatch' && inputs.fortify || 'off' }}"
+          if [ "$FORTIFY" = "on" ]; then
+            ./scripts/config --file out/.config -e FORTIFY_SOURCE || true
+          else
+            # GCC 4.9 下 include/linux/string.h 的 FORTIFY memcpy 会触发 __read_overflow2 编译期错误
+            ./scripts/config --file out/.config -d FORTIFY_SOURCE || true
+          fi
+
+          make O=out olddefconfig
+
+          if [ "$WITH_SUKISU" = "on" ]; then
+            # olddefconfig 后确认 manual hook 仍保持开启
+            ./scripts/config --file out/.config -e KSU || true
+            ./scripts/config --file out/.config -e KSU_MANUAL_HOOK || true
+            ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
+            ./scripts/config --file out/.config -e KPROBES || true
+            ./scripts/config --file out/.config -e KRETPROBES || true
+            ./scripts/config --file out/.config -e KPROBE_EVENTS || true
+            ./scripts/config --file out/.config -e KALLSYMS || true
+            ./scripts/config --file out/.config -e KALLSYMS_ALL || true
+            ./scripts/config --file out/.config -e SECURITYFS || true
+            ./scripts/config --file out/.config -e DEVTMPFS || true
+            ./scripts/config --file out/.config -e DEVTMPFS_MOUNT || true
+            ./scripts/config --file out/.config -e OVERLAY_FS || true
+
+            # 再次确保模块签名/版本字符串设置生效
+            ./scripts/config --file out/.config -e MODULE_SIG || true
+            ./scripts/config --file out/.config -d MODULE_SIG_FORCE || true
+            ./scripts/config --file out/.config -d MODULE_SIG_ALL || true
+            ./scripts/config --file out/.config -e MODVERSIONS || true
+            ./scripts/config --file out/.config -d LOCALVERSION_AUTO || true
+            ./scripts/config --file out/.config --set-str LOCALVERSION "-perf-g4732215" || true
+
+            make O=out olddefconfig
+
+            if ! grep -q '^CONFIG_KSU_MANUAL_HOOK=y' out/.config; then
+              echo "CONFIG_KSU_MANUAL_HOOK 未开启，停止构建"
+              exit 1
+            fi
+          fi
+
+          # 保持默认版本字符串，避免 vendor 模块 vermagic 不匹配（例如 Wi-Fi 驱动）
+      - name: 编译
+        id: build
+        run: |
+          set -euxo pipefail
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export PATH="$TOOLCHAIN_GCC64/bin:$TOOLCHAIN_GCC32/bin:$PATH"
+          export CROSS_COMPILE="$TOOLCHAIN_GCC64/bin/aarch64-linux-android-"
+          export CROSS_COMPILE_ARM32="$TOOLCHAIN_GCC32/bin/arm-linux-androideabi-"
+          export LOCALVERSION=
+
+          BUILD_DTBO="${{ github.event_name == 'workflow_dispatch' && inputs.build_dtbo || 'off' }}"
+
+          if [ "$BUILD_DTBO" = "on" ]; then
+            # dtbo (/plugin/;) 需要 -@ 才能生成符号/修复信息
+            make -j"$(nproc)" O=out Image.gz-dtb V=1 DTC_FLAGS="-@" 2>&1 | tee build.log
+          else
+            # 先确保能编译出内核镜像；dtbo 问题后续再单独修
+            make -j"$(nproc)" O=out Image.gz V=1 2>&1 | tee build.log
+
+            # 注意：arch/arm64/Makefile 的 %.dtb 目标要求传入“相对 dts 根目录”的路径
+            make -j"$(nproc)" O=out qcom/trinket.dtb V=1 2>&1 | tee -a build.log
+
+            # 生成 CC 9e/Trinket 专用 Image.gz-dtb（直接用于打包/刷机）
+            mkdir -p dist
+            cat out/arch/arm64/boot/Image.gz out/arch/arm64/boot/dts/qcom/trinket.dtb > dist/Image.gz-dtb
+          fi
+
+      - name: 打包 AnyKernel3（可直接刷）
+        id: package
+        if: steps.build.outcome == 'success'
+        run: |
+          set -euxo pipefail
+          mkdir -p dist
+
+          # build_dtbo=on 时，尝试复用 out 里生成的 Image.gz-dtb
+          if [ ! -f dist/Image.gz-dtb ] && [ -f out/arch/arm64/boot/Image.gz-dtb ]; then
+            cp -f out/arch/arm64/boot/Image.gz-dtb dist/Image.gz-dtb
+          fi
+
+          test -f dist/Image.gz-dtb
+
+          git clone --depth=1 https://github.com/osm0sis/AnyKernel3 anykernel3
+          cp -f dist/Image.gz-dtb anykernel3/Image.gz-dtb
+
+          # 仅做最小定制：限制设备代号（CC 9e=laurus；同平台 Mi A3=laurel_sprout）
+          sed -i \
+            -e 's/^do.devicecheck=.*/do.devicecheck=1/' \
+            -e 's/^device.name1=.*/device.name1=laurus/' \
+            -e 's/^device.name2=.*/device.name2=laurel_sprout/' \
+            anykernel3/anykernel.sh || true
+
+          (cd anykernel3 && zip -r9 ../dist/AnyKernel3-laurus-${{ github.run_id }}.zip . -x '.git/*')
+
+      - name: 写入精简日志（方便无鉴权查看）
+        if: always()
+        run: |
+          set -euxo pipefail
+          mkdir -p ci_logs
+          outfile="ci_logs/${{ github.run_id }}.txt"
+          {
+            echo "run_id=${{ github.run_id }}"
+            echo "head_sha=${{ github.sha }}"
+            echo "kernel_ref=${{ github.event_name == 'workflow_dispatch' && inputs.kernel_branch || 'laurus-q-oss-ci' }}"
+            echo "defconfig=${{ github.event_name == 'workflow_dispatch' && inputs.defconfig || 'vendor/laurus-perf_defconfig' }}"
+            echo "fortify=${{ github.event_name == 'workflow_dispatch' && inputs.fortify || 'off' }}"
+            echo "build_dtbo=${{ github.event_name == 'workflow_dispatch' && inputs.build_dtbo || 'off' }}"
+            echo "with_sukisu=${WITH_SUKISU}"
+            echo
+            echo "==== step outcomes ===="
+            echo "checkout=${{ steps.checkout.outcome }}"
+            echo "deps=${{ steps.deps.outcome }}"
+            echo "toolchain=${{ steps.toolchain.outcome }}"
+            echo "sukisu=${{ steps.sukisu.outcome }}"
+            echo "config=${{ steps.config.outcome }}"
+            echo "build=${{ steps.build.outcome }}"
+            echo "package=${{ steps.package.outcome }}"
+            echo
+            echo "==== ksu config snapshot (out/.config) ===="
+            if [ -f out/.config ]; then
+              grep -nE "KSU|KPROBES|KRETPROBES|KPROBES_ON_FTRACE|KPROBE_EVENTS|KALLSYMS|FTRACE" out/.config 2>&1 | head -n 200 || true
+            else
+              echo "out/.config not found"
+            fi
+            echo
+            echo "==== artifacts existence ===="
+            ls -l build.log 2>&1 || true
+            ls -l out/arch/arm64/boot/Image.gz-dtb out/arch/arm64/boot/Image.gz out/arch/arm64/boot/dts/qcom/trinket.dtb 2>&1 || true
+            ls -l dist/Image.gz-dtb dist/AnyKernel3-laurus-${{ github.run_id }}.zip 2>&1 || true
+            echo
+            echo "==== build.log errors (tail 200) ===="
+            grep -nE "error:|fatal error:" build.log 2>&1 | tail -n 200 || true
+            echo
+            echo "==== make failures (tail 120) ===="
+            grep -nE "make(\\[[0-9]+\\])?: \\*\\*\\*|make: \\*\\*\\*|Error [0-9]+" build.log 2>&1 | tail -n 120 || true
+            echo
+            echo "==== dtc/dts errors (tail 200) ===="
+            grep -nE "FATAL ERROR|syntax error|parse error|Error:" build.log 2>&1 | tail -n 200 || true
+            echo
+            echo "==== forbidden warnings (tail 80) ===="
+            grep -n "warn, forbidden warning" build.log 2>&1 | tail -n 80 || true
+            echo
+            echo "==== bad_copy / fortify hits (head 200) ===="
+            grep -nE "__bad_copy_(to|from)|copy (source|destination) size is too small|__compiletime_error\\(\\\"copy (source|destination) size is too small\\\"\\)|__read_overflow2|FORTIFY|__check_object_size" build.log 2>&1 | head -n 200 || true
+            echo
+            echo "==== bad_copy context (first 3 hits, each +/-60 lines) ===="
+            hits="$(grep -nE "__bad_copy_(to|from)" build.log 2>/dev/null | head -n 3 | cut -d: -f1 | tr '\\n' ' ' || true)"
+            if [ -n "${hits}" ]; then
+              for n in ${hits}; do
+                start=$((n-60)); end=$((n+60)); if [ "$start" -lt 1 ]; then start=1; fi
+                echo "--- context around build.log:$n (lines $start-$end) ---"
+                sed -n "${start},${end}p" build.log 2>&1 || true
+                echo
+              done
+            else
+              echo "(no __bad_copy_* strings found in build.log)"
+            fi
+            echo
+            echo "==== tail build.log (last 1200) ===="
+            tail -n 1200 build.log 2>&1 || true
+          } > "$outfile"
+
+          cp -f "$outfile" ci_logs/latest.txt
+          echo "Wrote $outfile"
+
+      - name: 上传产物（无论成功失败）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: laurus-${{ github.run_id }}
+          include-hidden-files: true
+          if-no-files-found: warn
+          path: |
+            build.log
+            ci_logs/latest.txt
+            out/.config
+            out/arch/arm64/boot/Image.gz-dtb
+            out/arch/arm64/boot/Image.gz
+            out/arch/arm64/boot/dts/qcom/trinket.dtb
+            dist/Image.gz-dtb
+            dist/AnyKernel3-laurus-${{ github.run_id }}.zip
