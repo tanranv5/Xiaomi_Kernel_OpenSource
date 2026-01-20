@@ -1,2 +1,2 @@
-trigger: 2026-01-20T18:15:00Z
-note: fix dsi_panel strict-prototypes
+trigger: 2026-01-20T18:45:00Z
+note: fix ipa3_write copy_from_user size
