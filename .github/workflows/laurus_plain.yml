@@ -192,6 +192,7 @@ jobs:
         if: steps.build.outcome == 'success'
         run: |
           set -euxo pipefail
+          exec > >(tee bootimg.log) 2>&1
           mkdir -p dist
           test -f out/arch/arm64/boot/Image.gz
 
@@ -225,7 +226,7 @@ jobs:
               fi
             done
           fi
-          ls -lh repack/out/dtb
+          ls -lh dist/dtb dist/Image.gz-dtb repack/out/dtb
 
           # 下载 AOSP mkbootimg.py 并生成 boot.img
           mkdir -p .tmp
@@ -256,6 +257,7 @@ jobs:
           # laurus boot 分区固定 64MB，做一次 truncate 与 stock 对齐
           truncate -s 64M dist/boot.img
           ls -lh dist/boot.img
+          test -f dist/boot.img
 
       - name: 写入精简日志（方便无鉴权查看）
         if: always()
@@ -282,8 +284,9 @@ jobs:
             echo
             echo "==== artifacts existence ===="
             ls -l build.log 2>&1 || true
+            ls -l bootimg.log 2>&1 || true
             ls -l out/arch/arm64/boot/Image.gz-dtb out/arch/arm64/boot/Image.gz out/arch/arm64/boot/dts/qcom/trinket.dtb 2>&1 || true
-            ls -l dist/Image.gz-dtb dist/AnyKernel3-laurus-${{ github.run_id }}.zip dist/boot.img 2>&1 || true
+            ls -l dist/dtb dist/Image.gz-dtb dist/AnyKernel3-laurus-${{ github.run_id }}.zip dist/boot.img 2>&1 || true
             echo
             echo "==== build.log errors (tail 200) ===="
             grep -nE "error:|fatal error:" build.log 2>&1 | tail -n 200 || true
@@ -293,6 +296,9 @@ jobs:
             echo
             echo "==== dtc/dts errors (tail 200) ===="
             grep -nE "FATAL ERROR|syntax error|parse error|Error:" build.log 2>&1 | tail -n 200 || true
+            echo
+            echo "==== bootimg.log (tail 200) ===="
+            tail -n 200 bootimg.log 2>&1 || true
             echo
             echo "==== forbidden warnings (tail 80) ===="
             grep -n "warn, forbidden warning" build.log 2>&1 | tail -n 80 || true
@@ -322,6 +328,7 @@ jobs:
 
       - name: 提交日志到仓库
         if: always()
+        continue-on-error: true
         run: |
           set -euxo pipefail
           git config user.name "github-actions[bot]"
@@ -343,10 +350,12 @@ jobs:
           if-no-files-found: warn
           path: |
             build.log
+            bootimg.log
             out/.config
             out/arch/arm64/boot/Image.gz-dtb
             out/arch/arm64/boot/Image.gz
             out/arch/arm64/boot/dts/qcom/trinket.dtb
+            dist/dtb
             dist/Image.gz-dtb
             dist/AnyKernel3-laurus-${{ github.run_id }}.zip
             dist/boot.img
