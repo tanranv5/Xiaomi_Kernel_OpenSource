@@ -1,5 +1,5 @@
-run_id=21200045165
-head_sha=3d4803d6d3c82cbb0f0083d60783189fb3126d0f
+run_id=21202627342
+head_sha=80885cda4c95cfc451c516d9a613d81506b32d6c
 kernel_ref=laurus-q-oss-ci
 defconfig=vendor/laurus-perf_defconfig
 fortify=off
@@ -11,99 +11,101 @@ checkout=success
 deps=success
 toolchain=success
 config=success
-build=failure
-package=skipped
+build=success
+package=success
 
 ==== artifacts existence ====
--rw-r--r-- 1 runner runner 4728292 Jan 21 06:56 build.log
+-rw-r--r-- 1 runner runner 4790875 Jan 21 08:44 build.log
 ls: cannot access 'out/arch/arm64/boot/Image.gz-dtb': No such file or directory
-ls: cannot access 'out/arch/arm64/boot/dts/qcom/trinket.dtb': No such file or directory
--rw-r--r-- 1 runner runner 12728276 Jan 21 06:56 out/arch/arm64/boot/Image.gz
-ls: cannot access 'dist/Image.gz-dtb': No such file or directory
-ls: cannot access 'dist/AnyKernel3-laurus-21200045165.zip': No such file or directory
+-rw-r--r-- 1 runner runner 12728270 Jan 21 08:43 out/arch/arm64/boot/Image.gz
+-rw-r--r-- 1 runner runner   261613 Jan 21 08:43 out/arch/arm64/boot/dts/qcom/trinket.dtb
 ls: cannot access 'dist/boot.img': No such file or directory
+-rw-r--r-- 1 runner runner 16209059 Jan 21 08:44 dist/AnyKernel3-laurus-21202627342.zip
+-rw-r--r-- 1 runner runner 15004090 Jan 21 08:44 dist/Image.gz-dtb
 
 ==== build.log errors (tail 200) ====
 
 ==== make failures (tail 120) ====
-8361:make[2]: *** [scripts/Makefile.lib:325: arch/arm64/boot/dts/qcom/trinket-external-codec-idp.dtb] Error 1
-8362:make[1]: *** [arch/arm64/Makefile:182: qcom/trinket-external-codec-idp.dtb] Error 2
-8364:make: *** [Makefile:146: sub-make] Error 2
+8402:make[2]: *** [scripts/Makefile.lib:325: arch/arm64/boot/dts/qcom/trinket-external-codec-idp.dtb] Error 1
+8403:make[1]: *** [arch/arm64/Makefile:182: qcom/trinket-external-codec-idp.dtb] Error 2
+8405:make: *** [Makefile:146: sub-make] Error 2
 
 ==== dtc/dts errors (tail 200) ====
-8358:Error: ../arch/arm64/boot/dts/qcom/trinket-tasha-codec-audio-overlay.dtsi:26.1-18 Label or path cdc_dmic01_gpios not found
-8359:Error: ../arch/arm64/boot/dts/qcom/trinket-tasha-codec-audio-overlay.dtsi:30.1-18 Label or path cdc_dmic23_gpios not found
-8360:FATAL ERROR: Syntax error parsing input tree
+8399:Error: ../arch/arm64/boot/dts/qcom/trinket-tasha-codec-audio-overlay.dtsi:26.1-18 Label or path cdc_dmic01_gpios not found
+8400:Error: ../arch/arm64/boot/dts/qcom/trinket-tasha-codec-audio-overlay.dtsi:30.1-18 Label or path cdc_dmic23_gpios not found
+8401:FATAL ERROR: Syntax error parsing input tree
 
 ==== forbidden warnings (tail 80) ====
-5110:warn, forbidden warning: ipa_rt.c:1194
-5120:warn, forbidden warning: ipa_rt.c:1194
-5130:warn, forbidden warning: ipa_rt.c:1194
-5141:warn, forbidden warning: ipa_rt.c:1208
+5087:warn, forbidden warning: ipa_rt.c:1194
+5097:warn, forbidden warning: ipa_rt.c:1194
+5107:warn, forbidden warning: ipa_rt.c:1194
+5118:warn, forbidden warning: ipa_rt.c:1208
+5131:warn, forbidden warning: ipa_rt.c:1208
+5144:warn, forbidden warning: ipa_rt.c:1208
 5154:warn, forbidden warning: ipa_rt.c:1208
-5167:warn, forbidden warning: ipa_rt.c:1208
-5177:warn, forbidden warning: ipa_rt.c:1208
-5187:warn, forbidden warning: ipa_rt.c:1208
-5197:warn, forbidden warning: ipa_rt.c:1208
-5208:warn, forbidden warning: ipa_rt.c:1225
+5164:warn, forbidden warning: ipa_rt.c:1208
+5174:warn, forbidden warning: ipa_rt.c:1208
+5185:warn, forbidden warning: ipa_rt.c:1225
+5198:warn, forbidden warning: ipa_rt.c:1225
+5211:warn, forbidden warning: ipa_rt.c:1225
 5221:warn, forbidden warning: ipa_rt.c:1225
-5234:warn, forbidden warning: ipa_rt.c:1225
-5244:warn, forbidden warning: ipa_rt.c:1225
-5254:warn, forbidden warning: ipa_rt.c:1225
-5264:warn, forbidden warning: ipa_rt.c:1225
-5288:warn, forbidden warning: sps_rm.c:241
-5292:warn, forbidden warning: sps_rm.c:240
-5342:warn, forbidden warning: dynamic_debug.h:75
-5412:warn, forbidden warning: dynamic_debug.h:75
-5431:warn, forbidden warning: dynamic_debug.h:75
-5450:warn, forbidden warning: dynamic_debug.h:75
-5481:warn, forbidden warning: ipa_hw_stats.c:1137
-5494:warn, forbidden warning: ipa_hw_stats.c:1137
-5504:warn, forbidden warning: ipa_hw_stats.c:1137
-5531:warn, forbidden warning: spi-geni-qcom.c:1643
-5545:warn, forbidden warning: ipa_wigig_i.c:838
-5549:warn, forbidden warning: ipa_wigig_i.c:838
-5551:warn, forbidden warning: ipa_wigig_i.c:838
-5554:warn, forbidden warning: ipa_wigig_i.c:980
-5558:warn, forbidden warning: ipa_wigig_i.c:980
-5560:warn, forbidden warning: ipa_wigig_i.c:980
-5562:warn, forbidden warning: ipa_wigig_i.c:980
-5564:warn, forbidden warning: ipa_wigig_i.c:980
-5566:warn, forbidden warning: ipa_wigig_i.c:980
-5568:warn, forbidden warning: ipa_wigig_i.c:1019
-5572:warn, forbidden warning: ipa_wigig_i.c:1019
-5574:warn, forbidden warning: ipa_wigig_i.c:1019
-5576:warn, forbidden warning: ipa_wigig_i.c:1019
-5578:warn, forbidden warning: ipa_wigig_i.c:1019
-5580:warn, forbidden warning: ipa_wigig_i.c:1019
+5231:warn, forbidden warning: ipa_rt.c:1225
+5241:warn, forbidden warning: ipa_rt.c:1225
+5272:warn, forbidden warning: sps_rm.c:241
+5276:warn, forbidden warning: sps_rm.c:240
+5346:warn, forbidden warning: ipa_hw_stats.c:1137
+5359:warn, forbidden warning: ipa_hw_stats.c:1137
+5369:warn, forbidden warning: ipa_hw_stats.c:1137
+5391:warn, forbidden warning: dynamic_debug.h:75
+5431:warn, forbidden warning: ipa_wigig_i.c:838
+5435:warn, forbidden warning: ipa_wigig_i.c:838
+5437:warn, forbidden warning: ipa_wigig_i.c:838
+5440:warn, forbidden warning: ipa_wigig_i.c:980
+5444:warn, forbidden warning: ipa_wigig_i.c:980
+5446:warn, forbidden warning: ipa_wigig_i.c:980
+5448:warn, forbidden warning: ipa_wigig_i.c:980
+5450:warn, forbidden warning: ipa_wigig_i.c:980
+5452:warn, forbidden warning: ipa_wigig_i.c:980
+5454:warn, forbidden warning: ipa_wigig_i.c:1019
+5458:warn, forbidden warning: ipa_wigig_i.c:1019
+5460:warn, forbidden warning: ipa_wigig_i.c:1019
+5462:warn, forbidden warning: ipa_wigig_i.c:1019
+5464:warn, forbidden warning: ipa_wigig_i.c:1019
+5466:warn, forbidden warning: ipa_wigig_i.c:1019
+5476:warn, forbidden warning: dynamic_debug.h:75
+5495:warn, forbidden warning: dynamic_debug.h:75
+5514:warn, forbidden warning: dynamic_debug.h:75
+5552:warn, forbidden warning: dynamic_debug.h:75
+5571:warn, forbidden warning: dynamic_debug.h:75
 5590:warn, forbidden warning: dynamic_debug.h:75
 5609:warn, forbidden warning: dynamic_debug.h:75
 5628:warn, forbidden warning: dynamic_debug.h:75
-5655:warn, forbidden warning: dynamic_debug.h:75
-5674:warn, forbidden warning: dynamic_debug.h:75
-5693:warn, forbidden warning: dynamic_debug.h:75
-5712:warn, forbidden warning: dynamic_debug.h:75
-5731:warn, forbidden warning: dynamic_debug.h:75
-5750:warn, forbidden warning: dynamic_debug.h:75
-5788:warn, forbidden warning: spmi-sim.c:979
-5793:warn, forbidden warning: spmi-sim.c:925
-5798:warn, forbidden warning: spmi-sim.c:378
-5811:warn, forbidden warning: ufshcd.c:3823
-5816:warn, forbidden warning: ion.c:1226
-5820:warn, forbidden warning: ion.c:1227
-5824:warn, forbidden warning: ion.c:1228
-5915:warn, forbidden warning: peripheral-loader.c:287
-6041:warn, forbidden warning: rpm_stats.c:199
-6055:warn, forbidden warning: debug_ipc.c:157
-6059:warn, forbidden warning: debug_ipc.c:157
-6061:warn, forbidden warning: debug_ipc.c:157
-6064:warn, forbidden warning: debug_ipc.c:168
-6068:warn, forbidden warning: debug_ipc.c:168
-6071:warn, forbidden warning: debug_ipc.c:179
-6075:warn, forbidden warning: debug_ipc.c:179
-6092:warn, forbidden warning: gadget.c:854
-6126:warn, forbidden warning: mem-offline.c:309
-6131:warn, forbidden warning: mem-offline.c:355
+5647:warn, forbidden warning: dynamic_debug.h:75
+5679:warn, forbidden warning: dynamic_debug.h:75
+5698:warn, forbidden warning: dynamic_debug.h:75
+5717:warn, forbidden warning: dynamic_debug.h:75
+5757:warn, forbidden warning: spi-geni-qcom.c:1643
+5779:warn, forbidden warning: ion.c:1226
+5783:warn, forbidden warning: ion.c:1227
+5787:warn, forbidden warning: ion.c:1228
+5801:warn, forbidden warning: spmi-sim.c:979
+5807:warn, forbidden warning: spmi-sim.c:925
+5814:warn, forbidden warning: spmi-sim.c:378
+5847:warn, forbidden warning: ufshcd.c:3823
+5958:warn, forbidden warning: peripheral-loader.c:287
+6019:warn, forbidden warning: debug_ipc.c:157
+6023:warn, forbidden warning: debug_ipc.c:157
+6025:warn, forbidden warning: debug_ipc.c:157
+6028:warn, forbidden warning: debug_ipc.c:168
+6032:warn, forbidden warning: debug_ipc.c:168
+6035:warn, forbidden warning: debug_ipc.c:179
+6039:warn, forbidden warning: debug_ipc.c:179
+6055:warn, forbidden warning: gadget.c:854
+6073:warn, forbidden warning: rpm_stats.c:199
+6088:warn, forbidden warning: dwc3-msm.c:1165
+6098:warn, forbidden warning: dynamic_debug.h:75
+6125:warn, forbidden warning: mem-offline.c:309
+6130:warn, forbidden warning: mem-offline.c:355
 6143:warn, forbidden warning: dynamic_debug.h:75
 6159:warn, forbidden warning: dynamic_debug.h:75
 6175:warn, forbidden warning: dynamic_debug.h:75
@@ -111,377 +113,32 @@ ls: cannot access 'dist/boot.img': No such file or directory
 6207:warn, forbidden warning: mem-offline.c:409
 6211:warn, forbidden warning: mem-offline.c:409
 6214:warn, forbidden warning: mem-offline.c:590
-6240:warn, forbidden warning: dwc3-msm.c:1165
-6250:warn, forbidden warning: dynamic_debug.h:75
-6346:warn, forbidden warning: phy-msm-qusb.c:1031
-6350:warn, forbidden warning: phy-msm-qusb.c:1039
-6394:warn, forbidden warning: f_gsi.c:2634
+6343:warn, forbidden warning: phy-msm-qusb.c:1031
+6347:warn, forbidden warning: phy-msm-qusb.c:1039
+6377:warn, forbidden warning: f_gsi.c:2634
 
 ==== bad_copy / fortify hits (head 200) ====
-2234:  python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -Wp,-MD,drivers/firmware/efi/libstub/.arm-stub.o.d -nostdinc -isystem /home/runner/work/laurus/laurus/toolchain-gcc64/bin/../lib/gcc/aarch64-linux-android/4.9.x/include -I../arch/arm64/include -I./arch/arm64/include/generated  -I../include -I./include -I../arch/arm64/include/uapi -I./arch/arm64/include/generated/uapi -I../include/uapi -I./include/generated/uapi -include ../include/linux/kconfig.h  -I../drivers/firmware/efi/libstub -Idrivers/firmware/efi/libstub -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -fno-PIE -mgeneral-regs-only -DCONFIG_AS_LSE=1 -fno-asynchronous-unwind-tables -fno-pic -mabi=lp64 -fno-delete-null-pointer-checks -O2 --param=allow-store-data-races=0 -DCC_HAVE_ASM_GOTO -Wframe-larger-than=2048 -fstack-protector-strong -fno-delete-null-pointer-checks -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fno-merge-all-constants -fmerge-constants -fno-stack-check -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -Werror=date-time -fpie  -I../scripts/dtc/libfdt -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY -ffreestanding -fno-stack-protector    -DKBUILD_BASENAME='"arm_stub"'  -DKBUILD_MODNAME='"arm_stub"' -c -o drivers/firmware/efi/libstub/.tmp_arm-stub.o ../drivers/firmware/efi/libstub/arm-stub.c
-2240:  python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -Wp,-MD,drivers/firmware/efi/libstub/.arm64-stub.o.d -nostdinc -isystem /home/runner/work/laurus/laurus/toolchain-gcc64/bin/../lib/gcc/aarch64-linux-android/4.9.x/include -I../arch/arm64/include -I./arch/arm64/include/generated  -I../include -I./include -I../arch/arm64/include/uapi -I./arch/arm64/include/generated/uapi -I../include/uapi -I./include/generated/uapi -include ../include/linux/kconfig.h  -I../drivers/firmware/efi/libstub -Idrivers/firmware/efi/libstub -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -fno-PIE -mgeneral-regs-only -DCONFIG_AS_LSE=1 -fno-asynchronous-unwind-tables -fno-pic -mabi=lp64 -fno-delete-null-pointer-checks -O2 --param=allow-store-data-races=0 -DCC_HAVE_ASM_GOTO -Wframe-larger-than=2048 -fstack-protector-strong -fno-delete-null-pointer-checks -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fno-merge-all-constants -fmerge-constants -fno-stack-check -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -Werror=date-time -fpie  -I../scripts/dtc/libfdt -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY -ffreestanding -fno-stack-protector -DTEXT_OFFSET=0x00080000    -DKBUILD_BASENAME='"arm64_stub"'  -DKBUILD_MODNAME='"arm64_stub"' -c -o drivers/firmware/efi/libstub/.tmp_arm64-stub.o ../drivers/firmware/efi/libstub/arm64-stub.c
-2241:  python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -Wp,-MD,drivers/firmware/efi/libstub/.efi-stub-helper.o.d -nostdinc -isystem /home/runner/work/laurus/laurus/toolchain-gcc64/bin/../lib/gcc/aarch64-linux-android/4.9.x/include -I../arch/arm64/include -I./arch/arm64/include/generated  -I../include -I./include -I../arch/arm64/include/uapi -I./arch/arm64/include/generated/uapi -I../include/uapi -I./include/generated/uapi -include ../include/linux/kconfig.h  -I../drivers/firmware/efi/libstub -Idrivers/firmware/efi/libstub -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -fno-PIE -mgeneral-regs-only -DCONFIG_AS_LSE=1 -fno-asynchronous-unwind-tables -fno-pic -mabi=lp64 -fno-delete-null-pointer-checks -O2 --param=allow-store-data-races=0 -DCC_HAVE_ASM_GOTO -Wframe-larger-than=2048 -fstack-protector-strong -fno-delete-null-pointer-checks -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fno-merge-all-constants -fmerge-constants -fno-stack-check -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -Werror=date-time -fpie  -I../scripts/dtc/libfdt -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY -ffreestanding -fno-stack-protector    -DKBUILD_BASENAME='"efi_stub_helper"'  -DKBUILD_MODNAME='"efi_stub_helper"' -c -o drivers/firmware/efi/libstub/.tmp_efi-stub-helper.o ../drivers/firmware/efi/libstub/efi-stub-helper.c
-2244:  python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -Wp,-MD,drivers/firmware/efi/libstub/.fdt.o.d -nostdinc -isystem /home/runner/work/laurus/laurus/toolchain-gcc64/bin/../lib/gcc/aarch64-linux-android/4.9.x/include -I../arch/arm64/include -I./arch/arm64/include/generated  -I../include -I./include -I../arch/arm64/include/uapi -I./arch/arm64/include/generated/uapi -I../include/uapi -I./include/generated/uapi -include ../include/linux/kconfig.h  -I../drivers/firmware/efi/libstub -Idrivers/firmware/efi/libstub -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -fno-PIE -mgeneral-regs-only -DCONFIG_AS_LSE=1 -fno-asynchronous-unwind-tables -fno-pic -mabi=lp64 -fno-delete-null-pointer-checks -O2 --param=allow-store-data-races=0 -DCC_HAVE_ASM_GOTO -Wframe-larger-than=2048 -fstack-protector-strong -fno-delete-null-pointer-checks -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fno-merge-all-constants -fmerge-constants -fno-stack-check -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -Werror=date-time -fpie  -I../scripts/dtc/libfdt -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY -ffreestanding -fno-stack-protector    -DKBUILD_BASENAME='"fdt"'  -DKBUILD_MODNAME='"fdt"' -c -o drivers/firmware/efi/libstub/.tmp_fdt.o ../drivers/firmware/efi/libstub/fdt.c
-2245:  python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -Wp,-MD,drivers/firmware/efi/libstub/.gop.o.d -nostdinc -isystem /home/runner/work/laurus/laurus/toolchain-gcc64/bin/../lib/gcc/aarch64-linux-android/4.9.x/include -I../arch/arm64/include -I./arch/arm64/include/generated  -I../include -I./include -I../arch/arm64/include/uapi -I./arch/arm64/include/generated/uapi -I../include/uapi -I./include/generated/uapi -include ../include/linux/kconfig.h  -I../drivers/firmware/efi/libstub -Idrivers/firmware/efi/libstub -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -fno-PIE -mgeneral-regs-only -DCONFIG_AS_LSE=1 -fno-asynchronous-unwind-tables -fno-pic -mabi=lp64 -fno-delete-null-pointer-checks -O2 --param=allow-store-data-races=0 -DCC_HAVE_ASM_GOTO -Wframe-larger-than=2048 -fstack-protector-strong -fno-delete-null-pointer-checks -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fno-merge-all-constants -fmerge-constants -fno-stack-check -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -Werror=date-time -fpie  -I../scripts/dtc/libfdt -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY -ffreestanding -fno-stack-protector    -DKBUILD_BASENAME='"gop"'  -DKBUILD_MODNAME='"gop"' -c -o drivers/firmware/efi/libstub/.tmp_gop.o ../drivers/firmware/efi/libstub/gop.c
-2246:  python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -Wp,-MD,drivers/firmware/efi/libstub/.lib-fdt.o.d -nostdinc -isystem /home/runner/work/laurus/laurus/toolchain-gcc64/bin/../lib/gcc/aarch64-linux-android/4.9.x/include -I../arch/arm64/include -I./arch/arm64/include/generated  -I../include -I./include -I../arch/arm64/include/uapi -I./arch/arm64/include/generated/uapi -I../include/uapi -I./include/generated/uapi -include ../include/linux/kconfig.h  -I../drivers/firmware/efi/libstub -Idrivers/firmware/efi/libstub -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -fno-PIE -mgeneral-regs-only -DCONFIG_AS_LSE=1 -fno-asynchronous-unwind-tables -fno-pic -mabi=lp64 -fno-delete-null-pointer-checks -O2 --param=allow-store-data-races=0 -DCC_HAVE_ASM_GOTO -Wframe-larger-than=2048 -fstack-protector-strong -fno-delete-null-pointer-checks -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fno-merge-all-constants -fmerge-constants -fno-stack-check -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -Werror=date-time -fpie  -I../scripts/dtc/libfdt -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY -ffreestanding -fno-stack-protector    -DKBUILD_BASENAME='"lib_fdt"'  -DKBUILD_MODNAME='"lib_fdt"' -c -o drivers/firmware/efi/libstub/.tmp_lib-fdt.o ../lib/fdt.c
-2247:  python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -Wp,-MD,drivers/firmware/efi/libstub/.lib-fdt_empty_tree.o.d -nostdinc -isystem /home/runner/work/laurus/laurus/toolchain-gcc64/bin/../lib/gcc/aarch64-linux-android/4.9.x/include -I../arch/arm64/include -I./arch/arm64/include/generated  -I../include -I./include -I../arch/arm64/include/uapi -I./arch/arm64/include/generated/uapi -I../include/uapi -I./include/generated/uapi -include ../include/linux/kconfig.h  -I../drivers/firmware/efi/libstub -Idrivers/firmware/efi/libstub -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -fno-PIE -mgeneral-regs-only -DCONFIG_AS_LSE=1 -fno-asynchronous-unwind-tables -fno-pic -mabi=lp64 -fno-delete-null-pointer-checks -O2 --param=allow-store-data-races=0 -DCC_HAVE_ASM_GOTO -Wframe-larger-than=2048 -fstack-protector-strong -fno-delete-null-pointer-checks -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fno-merge-all-constants -fmerge-constants -fno-stack-check -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -Werror=date-time -fpie  -I../scripts/dtc/libfdt -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY -ffreestanding -fno-stack-protector    -DKBUILD_BASENAME='"lib_fdt_empty_tree"'  -DKBUILD_MODNAME='"lib_fdt_empty_tree"' -c -o drivers/firmware/efi/libstub/.tmp_lib-fdt_empty_tree.o ../lib/fdt_empty_tree.c
-2248:  python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -Wp,-MD,drivers/firmware/efi/libstub/.lib-fdt_ro.o.d -nostdinc -isystem /home/runner/work/laurus/laurus/toolchain-gcc64/bin/../lib/gcc/aarch64-linux-android/4.9.x/include -I../arch/arm64/include -I./arch/arm64/include/generated  -I../include -I./include -I../arch/arm64/include/uapi -I./arch/arm64/include/generated/uapi -I../include/uapi -I./include/generated/uapi -include ../include/linux/kconfig.h  -I../drivers/firmware/efi/libstub -Idrivers/firmware/efi/libstub -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -fno-PIE -mgeneral-regs-only -DCONFIG_AS_LSE=1 -fno-asynchronous-unwind-tables -fno-pic -mabi=lp64 -fno-delete-null-pointer-checks -O2 --param=allow-store-data-races=0 -DCC_HAVE_ASM_GOTO -Wframe-larger-than=2048 -fstack-protector-strong -fno-delete-null-pointer-checks -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fno-merge-all-constants -fmerge-constants -fno-stack-check -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -Werror=date-time -fpie  -I../scripts/dtc/libfdt -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY -ffreestanding -fno-stack-protector    -DKBUILD_BASENAME='"lib_fdt_ro"'  -DKBUILD_MODNAME='"lib_fdt_ro"' -c -o drivers/firmware/efi/libstub/.tmp_lib-fdt_ro.o ../lib/fdt_ro.c
-2249:  python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -Wp,-MD,drivers/firmware/efi/libstub/.lib-fdt_rw.o.d -nostdinc -isystem /home/runner/work/laurus/laurus/toolchain-gcc64/bin/../lib/gcc/aarch64-linux-android/4.9.x/include -I../arch/arm64/include -I./arch/arm64/include/generated  -I../include -I./include -I../arch/arm64/include/uapi -I./arch/arm64/include/generated/uapi -I../include/uapi -I./include/generated/uapi -include ../include/linux/kconfig.h  -I../drivers/firmware/efi/libstub -Idrivers/firmware/efi/libstub -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -fno-PIE -mgeneral-regs-only -DCONFIG_AS_LSE=1 -fno-asynchronous-unwind-tables -fno-pic -mabi=lp64 -fno-delete-null-pointer-checks -O2 --param=allow-store-data-races=0 -DCC_HAVE_ASM_GOTO -Wframe-larger-than=2048 -fstack-protector-strong -fno-delete-null-pointer-checks -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fno-merge-all-constants -fmerge-constants -fno-stack-check -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -Werror=date-time -fpie  -I../scripts/dtc/libfdt -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY -ffreestanding -fno-stack-protector    -DKBUILD_BASENAME='"lib_fdt_rw"'  -DKBUILD_MODNAME='"lib_fdt_rw"' -c -o drivers/firmware/efi/libstub/.tmp_lib-fdt_rw.o ../lib/fdt_rw.c
-2252:  python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -Wp,-MD,drivers/firmware/efi/libstub/.lib-fdt_sw.o.d -nostdinc -isystem /home/runner/work/laurus/laurus/toolchain-gcc64/bin/../lib/gcc/aarch64-linux-android/4.9.x/include -I../arch/arm64/include -I./arch/arm64/include/generated  -I../include -I./include -I../arch/arm64/include/uapi -I./arch/arm64/include/generated/uapi -I../include/uapi -I./include/generated/uapi -include ../include/linux/kconfig.h  -I../drivers/firmware/efi/libstub -Idrivers/firmware/efi/libstub -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -fno-PIE -mgeneral-regs-only -DCONFIG_AS_LSE=1 -fno-asynchronous-unwind-tables -fno-pic -mabi=lp64 -fno-delete-null-pointer-checks -O2 --param=allow-store-data-races=0 -DCC_HAVE_ASM_GOTO -Wframe-larger-than=2048 -fstack-protector-strong -fno-delete-null-pointer-checks -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fno-merge-all-constants -fmerge-constants -fno-stack-check -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -Werror=date-time -fpie  -I../scripts/dtc/libfdt -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY -ffreestanding -fno-stack-protector    -DKBUILD_BASENAME='"lib_fdt_sw"'  -DKBUILD_MODNAME='"lib_fdt_sw"' -c -o drivers/firmware/efi/libstub/.tmp_lib-fdt_sw.o ../lib/fdt_sw.c
-2253:  python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -Wp,-MD,drivers/firmware/efi/libstub/.lib-fdt_wip.o.d -nostdinc -isystem /home/runner/work/laurus/laurus/toolchain-gcc64/bin/../lib/gcc/aarch64-linux-android/4.9.x/include -I../arch/arm64/include -I./arch/arm64/include/generated  -I../include -I./include -I../arch/arm64/include/uapi -I./arch/arm64/include/generated/uapi -I../include/uapi -I./include/generated/uapi -include ../include/linux/kconfig.h  -I../drivers/firmware/efi/libstub -Idrivers/firmware/efi/libstub -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -fno-PIE -mgeneral-regs-only -DCONFIG_AS_LSE=1 -fno-asynchronous-unwind-tables -fno-pic -mabi=lp64 -fno-delete-null-pointer-checks -O2 --param=allow-store-data-races=0 -DCC_HAVE_ASM_GOTO -Wframe-larger-than=2048 -fstack-protector-strong -fno-delete-null-pointer-checks -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fno-merge-all-constants -fmerge-constants -fno-stack-check -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -Werror=date-time -fpie  -I../scripts/dtc/libfdt -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY -ffreestanding -fno-stack-protector    -DKBUILD_BASENAME='"lib_fdt_wip"'  -DKBUILD_MODNAME='"lib_fdt_wip"' -c -o drivers/firmware/efi/libstub/.tmp_lib-fdt_wip.o ../lib/fdt_wip.c
-2257:  python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -Wp,-MD,drivers/firmware/efi/libstub/.lib-sort.o.d -nostdinc -isystem /home/runner/work/laurus/laurus/toolchain-gcc64/bin/../lib/gcc/aarch64-linux-android/4.9.x/include -I../arch/arm64/include -I./arch/arm64/include/generated  -I../include -I./include -I../arch/arm64/include/uapi -I./arch/arm64/include/generated/uapi -I../include/uapi -I./include/generated/uapi -include ../include/linux/kconfig.h  -I../drivers/firmware/efi/libstub -Idrivers/firmware/efi/libstub -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -fno-PIE -mgeneral-regs-only -DCONFIG_AS_LSE=1 -fno-asynchronous-unwind-tables -fno-pic -mabi=lp64 -fno-delete-null-pointer-checks -O2 --param=allow-store-data-races=0 -DCC_HAVE_ASM_GOTO -Wframe-larger-than=2048 -fstack-protector-strong -fno-delete-null-pointer-checks -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fno-merge-all-constants -fmerge-constants -fno-stack-check -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -Werror=date-time -fpie  -I../scripts/dtc/libfdt -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY -ffreestanding -fno-stack-protector    -DKBUILD_BASENAME='"lib_sort"'  -DKBUILD_MODNAME='"lib_sort"' -c -o drivers/firmware/efi/libstub/.tmp_lib-sort.o ../lib/sort.c
-2258:  python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -Wp,-MD,drivers/firmware/efi/libstub/.random.o.d -nostdinc -isystem /home/runner/work/laurus/laurus/toolchain-gcc64/bin/../lib/gcc/aarch64-linux-android/4.9.x/include -I../arch/arm64/include -I./arch/arm64/include/generated  -I../include -I./include -I../arch/arm64/include/uapi -I./arch/arm64/include/generated/uapi -I../include/uapi -I./include/generated/uapi -include ../include/linux/kconfig.h  -I../drivers/firmware/efi/libstub -Idrivers/firmware/efi/libstub -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -fno-PIE -mgeneral-regs-only -DCONFIG_AS_LSE=1 -fno-asynchronous-unwind-tables -fno-pic -mabi=lp64 -fno-delete-null-pointer-checks -O2 --param=allow-store-data-races=0 -DCC_HAVE_ASM_GOTO -Wframe-larger-than=2048 -fstack-protector-strong -fno-delete-null-pointer-checks -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fno-merge-all-constants -fmerge-constants -fno-stack-check -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -Werror=date-time -fpie  -I../scripts/dtc/libfdt -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY -ffreestanding -fno-stack-protector    -DKBUILD_BASENAME='"random"'  -DKBUILD_MODNAME='"random"' -c -o drivers/firmware/efi/libstub/.tmp_random.o ../drivers/firmware/efi/libstub/random.c
-2260:  python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -Wp,-MD,drivers/firmware/efi/libstub/.secureboot.o.d -nostdinc -isystem /home/runner/work/laurus/laurus/toolchain-gcc64/bin/../lib/gcc/aarch64-linux-android/4.9.x/include -I../arch/arm64/include -I./arch/arm64/include/generated  -I../include -I./include -I../arch/arm64/include/uapi -I./arch/arm64/include/generated/uapi -I../include/uapi -I./include/generated/uapi -include ../include/linux/kconfig.h  -I../drivers/firmware/efi/libstub -Idrivers/firmware/efi/libstub -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -fno-PIE -mgeneral-regs-only -DCONFIG_AS_LSE=1 -fno-asynchronous-unwind-tables -fno-pic -mabi=lp64 -fno-delete-null-pointer-checks -O2 --param=allow-store-data-races=0 -DCC_HAVE_ASM_GOTO -Wframe-larger-than=2048 -fstack-protector-strong -fno-delete-null-pointer-checks -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fno-merge-all-constants -fmerge-constants -fno-stack-check -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -Werror=date-time -fpie  -I../scripts/dtc/libfdt -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY -ffreestanding -fno-stack-protector    -DKBUILD_BASENAME='"secureboot"'  -DKBUILD_MODNAME='"secureboot"' -c -o drivers/firmware/efi/libstub/.tmp_secureboot.o ../drivers/firmware/efi/libstub/secureboot.c
-2262:  python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -Wp,-MD,drivers/firmware/efi/libstub/.string.o.d -nostdinc -isystem /home/runner/work/laurus/laurus/toolchain-gcc64/bin/../lib/gcc/aarch64-linux-android/4.9.x/include -I../arch/arm64/include -I./arch/arm64/include/generated  -I../include -I./include -I../arch/arm64/include/uapi -I./arch/arm64/include/generated/uapi -I../include/uapi -I./include/generated/uapi -include ../include/linux/kconfig.h  -I../drivers/firmware/efi/libstub -Idrivers/firmware/efi/libstub -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -fno-PIE -mgeneral-regs-only -DCONFIG_AS_LSE=1 -fno-asynchronous-unwind-tables -fno-pic -mabi=lp64 -fno-delete-null-pointer-checks -O2 --param=allow-store-data-races=0 -DCC_HAVE_ASM_GOTO -Wframe-larger-than=2048 -fstack-protector-strong -fno-delete-null-pointer-checks -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fno-merge-all-constants -fmerge-constants -fno-stack-check -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -Werror=date-time -fpie  -I../scripts/dtc/libfdt -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY -ffreestanding -fno-stack-protector    -DKBUILD_BASENAME='"string"'  -DKBUILD_MODNAME='"string"' -c -o drivers/firmware/efi/libstub/.tmp_string.o ../drivers/firmware/efi/libstub/string.c
+2182:  python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -Wp,-MD,drivers/firmware/efi/libstub/.arm-stub.o.d -nostdinc -isystem /home/runner/work/laurus/laurus/toolchain-gcc64/bin/../lib/gcc/aarch64-linux-android/4.9.x/include -I../arch/arm64/include -I./arch/arm64/include/generated  -I../include -I./include -I../arch/arm64/include/uapi -I./arch/arm64/include/generated/uapi -I../include/uapi -I./include/generated/uapi -include ../include/linux/kconfig.h  -I../drivers/firmware/efi/libstub -Idrivers/firmware/efi/libstub -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -fno-PIE -mgeneral-regs-only -DCONFIG_AS_LSE=1 -fno-asynchronous-unwind-tables -fno-pic -mabi=lp64 -fno-delete-null-pointer-checks -O2 --param=allow-store-data-races=0 -DCC_HAVE_ASM_GOTO -Wframe-larger-than=2048 -fstack-protector-strong -fno-delete-null-pointer-checks -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fno-merge-all-constants -fmerge-constants -fno-stack-check -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -Werror=date-time -fpie  -I../scripts/dtc/libfdt -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY -ffreestanding -fno-stack-protector    -DKBUILD_BASENAME='"arm_stub"'  -DKBUILD_MODNAME='"arm_stub"' -c -o drivers/firmware/efi/libstub/.tmp_arm-stub.o ../drivers/firmware/efi/libstub/arm-stub.c
+2184:  python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -Wp,-MD,drivers/firmware/efi/libstub/.arm64-stub.o.d -nostdinc -isystem /home/runner/work/laurus/laurus/toolchain-gcc64/bin/../lib/gcc/aarch64-linux-android/4.9.x/include -I../arch/arm64/include -I./arch/arm64/include/generated  -I../include -I./include -I../arch/arm64/include/uapi -I./arch/arm64/include/generated/uapi -I../include/uapi -I./include/generated/uapi -include ../include/linux/kconfig.h  -I../drivers/firmware/efi/libstub -Idrivers/firmware/efi/libstub -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -fno-PIE -mgeneral-regs-only -DCONFIG_AS_LSE=1 -fno-asynchronous-unwind-tables -fno-pic -mabi=lp64 -fno-delete-null-pointer-checks -O2 --param=allow-store-data-races=0 -DCC_HAVE_ASM_GOTO -Wframe-larger-than=2048 -fstack-protector-strong -fno-delete-null-pointer-checks -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fno-merge-all-constants -fmerge-constants -fno-stack-check -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -Werror=date-time -fpie  -I../scripts/dtc/libfdt -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY -ffreestanding -fno-stack-protector -DTEXT_OFFSET=0x00080000    -DKBUILD_BASENAME='"arm64_stub"'  -DKBUILD_MODNAME='"arm64_stub"' -c -o drivers/firmware/efi/libstub/.tmp_arm64-stub.o ../drivers/firmware/efi/libstub/arm64-stub.c
+2187:  python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -Wp,-MD,drivers/firmware/efi/libstub/.efi-stub-helper.o.d -nostdinc -isystem /home/runner/work/laurus/laurus/toolchain-gcc64/bin/../lib/gcc/aarch64-linux-android/4.9.x/include -I../arch/arm64/include -I./arch/arm64/include/generated  -I../include -I./include -I../arch/arm64/include/uapi -I./arch/arm64/include/generated/uapi -I../include/uapi -I./include/generated/uapi -include ../include/linux/kconfig.h  -I../drivers/firmware/efi/libstub -Idrivers/firmware/efi/libstub -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -fno-PIE -mgeneral-regs-only -DCONFIG_AS_LSE=1 -fno-asynchronous-unwind-tables -fno-pic -mabi=lp64 -fno-delete-null-pointer-checks -O2 --param=allow-store-data-races=0 -DCC_HAVE_ASM_GOTO -Wframe-larger-than=2048 -fstack-protector-strong -fno-delete-null-pointer-checks -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fno-merge-all-constants -fmerge-constants -fno-stack-check -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -Werror=date-time -fpie  -I../scripts/dtc/libfdt -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY -ffreestanding -fno-stack-protector    -DKBUILD_BASENAME='"efi_stub_helper"'  -DKBUILD_MODNAME='"efi_stub_helper"' -c -o drivers/firmware/efi/libstub/.tmp_efi-stub-helper.o ../drivers/firmware/efi/libstub/efi-stub-helper.c
+2194:  python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -Wp,-MD,drivers/firmware/efi/libstub/.fdt.o.d -nostdinc -isystem /home/runner/work/laurus/laurus/toolchain-gcc64/bin/../lib/gcc/aarch64-linux-android/4.9.x/include -I../arch/arm64/include -I./arch/arm64/include/generated  -I../include -I./include -I../arch/arm64/include/uapi -I./arch/arm64/include/generated/uapi -I../include/uapi -I./include/generated/uapi -include ../include/linux/kconfig.h  -I../drivers/firmware/efi/libstub -Idrivers/firmware/efi/libstub -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -fno-PIE -mgeneral-regs-only -DCONFIG_AS_LSE=1 -fno-asynchronous-unwind-tables -fno-pic -mabi=lp64 -fno-delete-null-pointer-checks -O2 --param=allow-store-data-races=0 -DCC_HAVE_ASM_GOTO -Wframe-larger-than=2048 -fstack-protector-strong -fno-delete-null-pointer-checks -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fno-merge-all-constants -fmerge-constants -fno-stack-check -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -Werror=date-time -fpie  -I../scripts/dtc/libfdt -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY -ffreestanding -fno-stack-protector    -DKBUILD_BASENAME='"fdt"'  -DKBUILD_MODNAME='"fdt"' -c -o drivers/firmware/efi/libstub/.tmp_fdt.o ../drivers/firmware/efi/libstub/fdt.c
+2196:  python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -Wp,-MD,drivers/firmware/efi/libstub/.gop.o.d -nostdinc -isystem /home/runner/work/laurus/laurus/toolchain-gcc64/bin/../lib/gcc/aarch64-linux-android/4.9.x/include -I../arch/arm64/include -I./arch/arm64/include/generated  -I../include -I./include -I../arch/arm64/include/uapi -I./arch/arm64/include/generated/uapi -I../include/uapi -I./include/generated/uapi -include ../include/linux/kconfig.h  -I../drivers/firmware/efi/libstub -Idrivers/firmware/efi/libstub -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -fno-PIE -mgeneral-regs-only -DCONFIG_AS_LSE=1 -fno-asynchronous-unwind-tables -fno-pic -mabi=lp64 -fno-delete-null-pointer-checks -O2 --param=allow-store-data-races=0 -DCC_HAVE_ASM_GOTO -Wframe-larger-than=2048 -fstack-protector-strong -fno-delete-null-pointer-checks -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fno-merge-all-constants -fmerge-constants -fno-stack-check -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -Werror=date-time -fpie  -I../scripts/dtc/libfdt -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY -ffreestanding -fno-stack-protector    -DKBUILD_BASENAME='"gop"'  -DKBUILD_MODNAME='"gop"' -c -o drivers/firmware/efi/libstub/.tmp_gop.o ../drivers/firmware/efi/libstub/gop.c
+2199:  python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -Wp,-MD,drivers/firmware/efi/libstub/.lib-fdt.o.d -nostdinc -isystem /home/runner/work/laurus/laurus/toolchain-gcc64/bin/../lib/gcc/aarch64-linux-android/4.9.x/include -I../arch/arm64/include -I./arch/arm64/include/generated  -I../include -I./include -I../arch/arm64/include/uapi -I./arch/arm64/include/generated/uapi -I../include/uapi -I./include/generated/uapi -include ../include/linux/kconfig.h  -I../drivers/firmware/efi/libstub -Idrivers/firmware/efi/libstub -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -fno-PIE -mgeneral-regs-only -DCONFIG_AS_LSE=1 -fno-asynchronous-unwind-tables -fno-pic -mabi=lp64 -fno-delete-null-pointer-checks -O2 --param=allow-store-data-races=0 -DCC_HAVE_ASM_GOTO -Wframe-larger-than=2048 -fstack-protector-strong -fno-delete-null-pointer-checks -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fno-merge-all-constants -fmerge-constants -fno-stack-check -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -Werror=date-time -fpie  -I../scripts/dtc/libfdt -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY -ffreestanding -fno-stack-protector    -DKBUILD_BASENAME='"lib_fdt"'  -DKBUILD_MODNAME='"lib_fdt"' -c -o drivers/firmware/efi/libstub/.tmp_lib-fdt.o ../lib/fdt.c
+2201:  python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -Wp,-MD,drivers/firmware/efi/libstub/.lib-fdt_empty_tree.o.d -nostdinc -isystem /home/runner/work/laurus/laurus/toolchain-gcc64/bin/../lib/gcc/aarch64-linux-android/4.9.x/include -I../arch/arm64/include -I./arch/arm64/include/generated  -I../include -I./include -I../arch/arm64/include/uapi -I./arch/arm64/include/generated/uapi -I../include/uapi -I./include/generated/uapi -include ../include/linux/kconfig.h  -I../drivers/firmware/efi/libstub -Idrivers/firmware/efi/libstub -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -fno-PIE -mgeneral-regs-only -DCONFIG_AS_LSE=1 -fno-asynchronous-unwind-tables -fno-pic -mabi=lp64 -fno-delete-null-pointer-checks -O2 --param=allow-store-data-races=0 -DCC_HAVE_ASM_GOTO -Wframe-larger-than=2048 -fstack-protector-strong -fno-delete-null-pointer-checks -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fno-merge-all-constants -fmerge-constants -fno-stack-check -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -Werror=date-time -fpie  -I../scripts/dtc/libfdt -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY -ffreestanding -fno-stack-protector    -DKBUILD_BASENAME='"lib_fdt_empty_tree"'  -DKBUILD_MODNAME='"lib_fdt_empty_tree"' -c -o drivers/firmware/efi/libstub/.tmp_lib-fdt_empty_tree.o ../lib/fdt_empty_tree.c
+2202:  python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -Wp,-MD,drivers/firmware/efi/libstub/.lib-fdt_ro.o.d -nostdinc -isystem /home/runner/work/laurus/laurus/toolchain-gcc64/bin/../lib/gcc/aarch64-linux-android/4.9.x/include -I../arch/arm64/include -I./arch/arm64/include/generated  -I../include -I./include -I../arch/arm64/include/uapi -I./arch/arm64/include/generated/uapi -I../include/uapi -I./include/generated/uapi -include ../include/linux/kconfig.h  -I../drivers/firmware/efi/libstub -Idrivers/firmware/efi/libstub -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -fno-PIE -mgeneral-regs-only -DCONFIG_AS_LSE=1 -fno-asynchronous-unwind-tables -fno-pic -mabi=lp64 -fno-delete-null-pointer-checks -O2 --param=allow-store-data-races=0 -DCC_HAVE_ASM_GOTO -Wframe-larger-than=2048 -fstack-protector-strong -fno-delete-null-pointer-checks -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fno-merge-all-constants -fmerge-constants -fno-stack-check -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -Werror=date-time -fpie  -I../scripts/dtc/libfdt -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY -ffreestanding -fno-stack-protector    -DKBUILD_BASENAME='"lib_fdt_ro"'  -DKBUILD_MODNAME='"lib_fdt_ro"' -c -o drivers/firmware/efi/libstub/.tmp_lib-fdt_ro.o ../lib/fdt_ro.c
+2207:  python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -Wp,-MD,drivers/firmware/efi/libstub/.lib-fdt_rw.o.d -nostdinc -isystem /home/runner/work/laurus/laurus/toolchain-gcc64/bin/../lib/gcc/aarch64-linux-android/4.9.x/include -I../arch/arm64/include -I./arch/arm64/include/generated  -I../include -I./include -I../arch/arm64/include/uapi -I./arch/arm64/include/generated/uapi -I../include/uapi -I./include/generated/uapi -include ../include/linux/kconfig.h  -I../drivers/firmware/efi/libstub -Idrivers/firmware/efi/libstub -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -fno-PIE -mgeneral-regs-only -DCONFIG_AS_LSE=1 -fno-asynchronous-unwind-tables -fno-pic -mabi=lp64 -fno-delete-null-pointer-checks -O2 --param=allow-store-data-races=0 -DCC_HAVE_ASM_GOTO -Wframe-larger-than=2048 -fstack-protector-strong -fno-delete-null-pointer-checks -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fno-merge-all-constants -fmerge-constants -fno-stack-check -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -Werror=date-time -fpie  -I../scripts/dtc/libfdt -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY -ffreestanding -fno-stack-protector    -DKBUILD_BASENAME='"lib_fdt_rw"'  -DKBUILD_MODNAME='"lib_fdt_rw"' -c -o drivers/firmware/efi/libstub/.tmp_lib-fdt_rw.o ../lib/fdt_rw.c
+2208:  python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -Wp,-MD,drivers/firmware/efi/libstub/.lib-fdt_sw.o.d -nostdinc -isystem /home/runner/work/laurus/laurus/toolchain-gcc64/bin/../lib/gcc/aarch64-linux-android/4.9.x/include -I../arch/arm64/include -I./arch/arm64/include/generated  -I../include -I./include -I../arch/arm64/include/uapi -I./arch/arm64/include/generated/uapi -I../include/uapi -I./include/generated/uapi -include ../include/linux/kconfig.h  -I../drivers/firmware/efi/libstub -Idrivers/firmware/efi/libstub -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -fno-PIE -mgeneral-regs-only -DCONFIG_AS_LSE=1 -fno-asynchronous-unwind-tables -fno-pic -mabi=lp64 -fno-delete-null-pointer-checks -O2 --param=allow-store-data-races=0 -DCC_HAVE_ASM_GOTO -Wframe-larger-than=2048 -fstack-protector-strong -fno-delete-null-pointer-checks -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fno-merge-all-constants -fmerge-constants -fno-stack-check -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -Werror=date-time -fpie  -I../scripts/dtc/libfdt -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY -ffreestanding -fno-stack-protector    -DKBUILD_BASENAME='"lib_fdt_sw"'  -DKBUILD_MODNAME='"lib_fdt_sw"' -c -o drivers/firmware/efi/libstub/.tmp_lib-fdt_sw.o ../lib/fdt_sw.c
+2210:  python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -Wp,-MD,drivers/firmware/efi/libstub/.lib-fdt_wip.o.d -nostdinc -isystem /home/runner/work/laurus/laurus/toolchain-gcc64/bin/../lib/gcc/aarch64-linux-android/4.9.x/include -I../arch/arm64/include -I./arch/arm64/include/generated  -I../include -I./include -I../arch/arm64/include/uapi -I./arch/arm64/include/generated/uapi -I../include/uapi -I./include/generated/uapi -include ../include/linux/kconfig.h  -I../drivers/firmware/efi/libstub -Idrivers/firmware/efi/libstub -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -fno-PIE -mgeneral-regs-only -DCONFIG_AS_LSE=1 -fno-asynchronous-unwind-tables -fno-pic -mabi=lp64 -fno-delete-null-pointer-checks -O2 --param=allow-store-data-races=0 -DCC_HAVE_ASM_GOTO -Wframe-larger-than=2048 -fstack-protector-strong -fno-delete-null-pointer-checks -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fno-merge-all-constants -fmerge-constants -fno-stack-check -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -Werror=date-time -fpie  -I../scripts/dtc/libfdt -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY -ffreestanding -fno-stack-protector    -DKBUILD_BASENAME='"lib_fdt_wip"'  -DKBUILD_MODNAME='"lib_fdt_wip"' -c -o drivers/firmware/efi/libstub/.tmp_lib-fdt_wip.o ../lib/fdt_wip.c
+2212:  python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -Wp,-MD,drivers/firmware/efi/libstub/.lib-sort.o.d -nostdinc -isystem /home/runner/work/laurus/laurus/toolchain-gcc64/bin/../lib/gcc/aarch64-linux-android/4.9.x/include -I../arch/arm64/include -I./arch/arm64/include/generated  -I../include -I./include -I../arch/arm64/include/uapi -I./arch/arm64/include/generated/uapi -I../include/uapi -I./include/generated/uapi -include ../include/linux/kconfig.h  -I../drivers/firmware/efi/libstub -Idrivers/firmware/efi/libstub -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -fno-PIE -mgeneral-regs-only -DCONFIG_AS_LSE=1 -fno-asynchronous-unwind-tables -fno-pic -mabi=lp64 -fno-delete-null-pointer-checks -O2 --param=allow-store-data-races=0 -DCC_HAVE_ASM_GOTO -Wframe-larger-than=2048 -fstack-protector-strong -fno-delete-null-pointer-checks -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fno-merge-all-constants -fmerge-constants -fno-stack-check -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -Werror=date-time -fpie  -I../scripts/dtc/libfdt -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY -ffreestanding -fno-stack-protector    -DKBUILD_BASENAME='"lib_sort"'  -DKBUILD_MODNAME='"lib_sort"' -c -o drivers/firmware/efi/libstub/.tmp_lib-sort.o ../lib/sort.c
+2213:  python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -Wp,-MD,drivers/firmware/efi/libstub/.random.o.d -nostdinc -isystem /home/runner/work/laurus/laurus/toolchain-gcc64/bin/../lib/gcc/aarch64-linux-android/4.9.x/include -I../arch/arm64/include -I./arch/arm64/include/generated  -I../include -I./include -I../arch/arm64/include/uapi -I./arch/arm64/include/generated/uapi -I../include/uapi -I./include/generated/uapi -include ../include/linux/kconfig.h  -I../drivers/firmware/efi/libstub -Idrivers/firmware/efi/libstub -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -fno-PIE -mgeneral-regs-only -DCONFIG_AS_LSE=1 -fno-asynchronous-unwind-tables -fno-pic -mabi=lp64 -fno-delete-null-pointer-checks -O2 --param=allow-store-data-races=0 -DCC_HAVE_ASM_GOTO -Wframe-larger-than=2048 -fstack-protector-strong -fno-delete-null-pointer-checks -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fno-merge-all-constants -fmerge-constants -fno-stack-check -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -Werror=date-time -fpie  -I../scripts/dtc/libfdt -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY -ffreestanding -fno-stack-protector    -DKBUILD_BASENAME='"random"'  -DKBUILD_MODNAME='"random"' -c -o drivers/firmware/efi/libstub/.tmp_random.o ../drivers/firmware/efi/libstub/random.c
+2215:  python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -Wp,-MD,drivers/firmware/efi/libstub/.secureboot.o.d -nostdinc -isystem /home/runner/work/laurus/laurus/toolchain-gcc64/bin/../lib/gcc/aarch64-linux-android/4.9.x/include -I../arch/arm64/include -I./arch/arm64/include/generated  -I../include -I./include -I../arch/arm64/include/uapi -I./arch/arm64/include/generated/uapi -I../include/uapi -I./include/generated/uapi -include ../include/linux/kconfig.h  -I../drivers/firmware/efi/libstub -Idrivers/firmware/efi/libstub -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -fno-PIE -mgeneral-regs-only -DCONFIG_AS_LSE=1 -fno-asynchronous-unwind-tables -fno-pic -mabi=lp64 -fno-delete-null-pointer-checks -O2 --param=allow-store-data-races=0 -DCC_HAVE_ASM_GOTO -Wframe-larger-than=2048 -fstack-protector-strong -fno-delete-null-pointer-checks -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fno-merge-all-constants -fmerge-constants -fno-stack-check -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -Werror=date-time -fpie  -I../scripts/dtc/libfdt -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY -ffreestanding -fno-stack-protector    -DKBUILD_BASENAME='"secureboot"'  -DKBUILD_MODNAME='"secureboot"' -c -o drivers/firmware/efi/libstub/.tmp_secureboot.o ../drivers/firmware/efi/libstub/secureboot.c
+2219:  python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -Wp,-MD,drivers/firmware/efi/libstub/.string.o.d -nostdinc -isystem /home/runner/work/laurus/laurus/toolchain-gcc64/bin/../lib/gcc/aarch64-linux-android/4.9.x/include -I../arch/arm64/include -I./arch/arm64/include/generated  -I../include -I./include -I../arch/arm64/include/uapi -I./arch/arm64/include/generated/uapi -I../include/uapi -I./include/generated/uapi -include ../include/linux/kconfig.h  -I../drivers/firmware/efi/libstub -Idrivers/firmware/efi/libstub -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -fno-PIE -mgeneral-regs-only -DCONFIG_AS_LSE=1 -fno-asynchronous-unwind-tables -fno-pic -mabi=lp64 -fno-delete-null-pointer-checks -O2 --param=allow-store-data-races=0 -DCC_HAVE_ASM_GOTO -Wframe-larger-than=2048 -fstack-protector-strong -fno-delete-null-pointer-checks -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fno-merge-all-constants -fmerge-constants -fno-stack-check -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -Werror=date-time -fpie  -I../scripts/dtc/libfdt -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY -ffreestanding -fno-stack-protector    -DKBUILD_BASENAME='"string"'  -DKBUILD_MODNAME='"string"' -c -o drivers/firmware/efi/libstub/.tmp_string.o ../drivers/firmware/efi/libstub/string.c
 6581:++ CONFIG_ARCH_HAS_FORTIFY_SOURCE=y
 
 ==== bad_copy context (first 3 hits, each +/-60 lines) ====
 (no __bad_copy_* strings found in build.log)
 
 ==== tail build.log (last 1200) ====
-++ CONFIG_TUN=y
-++ CONFIG_VETH=y
-++ CONFIG_ETHERNET=y
-++ CONFIG_NET_VENDOR_3COM=y
-++ CONFIG_NET_VENDOR_ADAPTEC=y
-++ CONFIG_NET_VENDOR_AGERE=y
-++ CONFIG_NET_VENDOR_ALACRITECH=y
-++ CONFIG_NET_VENDOR_ALTEON=y
-++ CONFIG_NET_VENDOR_AMAZON=y
-++ CONFIG_NET_VENDOR_AMD=y
-++ CONFIG_NET_VENDOR_AQUANTIA=y
-++ CONFIG_NET_VENDOR_ARC=y
-++ CONFIG_NET_VENDOR_ATHEROS=y
-++ CONFIG_NET_CADENCE=y
-++ CONFIG_NET_VENDOR_BROADCOM=y
-++ CONFIG_NET_VENDOR_BROCADE=y
-++ CONFIG_NET_VENDOR_CAVIUM=y
-++ CONFIG_NET_VENDOR_CHELSIO=y
-++ CONFIG_NET_VENDOR_CISCO=y
-++ CONFIG_NET_VENDOR_DEC=y
-++ CONFIG_NET_VENDOR_DLINK=y
-++ CONFIG_NET_VENDOR_EMULEX=y
-++ CONFIG_NET_VENDOR_EZCHIP=y
-++ CONFIG_NET_VENDOR_EXAR=y
-++ CONFIG_NET_VENDOR_HISILICON=y
-++ CONFIG_NET_VENDOR_HP=y
-++ CONFIG_NET_VENDOR_HUAWEI=y
-++ CONFIG_NET_VENDOR_INTEL=y
-++ CONFIG_NET_VENDOR_I825XX=y
-++ CONFIG_NET_VENDOR_MARVELL=y
-++ CONFIG_NET_VENDOR_MELLANOX=y
-++ CONFIG_NET_VENDOR_MICREL=y
-++ CONFIG_NET_VENDOR_MICROCHIP=y
-++ CONFIG_NET_VENDOR_MYRI=y
-++ CONFIG_NET_VENDOR_NATSEMI=y
-++ CONFIG_NET_VENDOR_NETRONOME=y
-++ CONFIG_NET_VENDOR_8390=y
-++ CONFIG_NET_VENDOR_NVIDIA=y
-++ CONFIG_NET_VENDOR_OKI=y
-++ CONFIG_NET_PACKET_ENGINE=y
-++ CONFIG_NET_VENDOR_QLOGIC=y
-++ CONFIG_NET_VENDOR_QUALCOMM=y
-++ CONFIG_RMNET=y
-++ CONFIG_NET_VENDOR_REALTEK=y
-++ CONFIG_NET_VENDOR_RENESAS=y
-++ CONFIG_NET_VENDOR_RDC=y
-++ CONFIG_NET_VENDOR_ROCKER=y
-++ CONFIG_NET_VENDOR_SAMSUNG=y
-++ CONFIG_NET_VENDOR_SEEQ=y
-++ CONFIG_NET_VENDOR_SILAN=y
-++ CONFIG_NET_VENDOR_SIS=y
-++ CONFIG_NET_VENDOR_SOLARFLARE=y
-++ CONFIG_NET_VENDOR_SMSC=y
-++ CONFIG_NET_VENDOR_STMICRO=y
-++ CONFIG_NET_VENDOR_SUN=y
-++ CONFIG_NET_VENDOR_TEHUTI=y
-++ CONFIG_NET_VENDOR_TI=y
-++ CONFIG_NET_VENDOR_VIA=y
-++ CONFIG_NET_VENDOR_WIZNET=y
-++ CONFIG_NET_VENDOR_SYNOPSYS=y
-++ CONFIG_MDIO_DEVICE=y
-++ CONFIG_MDIO_BUS=y
-++ CONFIG_PHYLIB=y
-++ CONFIG_SWPHY=y
-++ CONFIG_FIXED_PHY=y
-++ CONFIG_PPP=y
-++ CONFIG_PPP_BSDCOMP=y
-++ CONFIG_PPP_DEFLATE=y
-++ CONFIG_PPP_FILTER=y
-++ CONFIG_PPP_MPPE=y
-++ CONFIG_PPP_MULTILINK=y
-++ CONFIG_PPPOE=y
-++ CONFIG_PPTP=y
-++ CONFIG_PPPOL2TP=y
-++ CONFIG_PPPOLAC=y
-++ CONFIG_PPPOPNS=y
-++ CONFIG_PPP_ASYNC=y
-++ CONFIG_PPP_SYNC_TTY=y
-++ CONFIG_SLHC=y
-++ CONFIG_USB_NET_DRIVERS=y
-++ CONFIG_USB_RTL8152=y
-++ CONFIG_USB_USBNET=y
-++ CONFIG_USB_NET_AX8817X=y
-++ CONFIG_USB_NET_AX88179_178A=y
-++ CONFIG_USB_NET_CDCETHER=y
-++ CONFIG_USB_NET_CDC_NCM=y
-++ CONFIG_USB_NET_NET1080=y
-++ CONFIG_USB_NET_CDC_SUBSET_ENABLE=y
-++ CONFIG_USB_NET_CDC_SUBSET=y
-++ CONFIG_USB_BELKIN=y
-++ CONFIG_USB_ARMLINUX=y
-++ CONFIG_USB_NET_ZAURUS=y
-++ CONFIG_WLAN=y
-++ CONFIG_WLAN_VENDOR_ADMTEK=y
-++ CONFIG_WLAN_VENDOR_ATH=y
-++ CONFIG_WIL6210=m
-++ CONFIG_WIL6210_ISR_COR=y
-++ CONFIG_WIL6210_TRACING=y
-++ CONFIG_WIL6210_PLATFORM_MSM=y
-++ CONFIG_WIL6210_DEBUGFS=y
-++ CONFIG_WIL6210_WRITE_IOCTL=y
-++ CONFIG_WLAN_VENDOR_ATMEL=y
-++ CONFIG_WLAN_VENDOR_BROADCOM=y
-++ CONFIG_WLAN_VENDOR_CISCO=y
-++ CONFIG_WLAN_VENDOR_INTEL=y
-++ CONFIG_WLAN_VENDOR_INTERSIL=y
-++ CONFIG_WLAN_VENDOR_MARVELL=y
-++ CONFIG_WLAN_VENDOR_MEDIATEK=y
-++ CONFIG_WLAN_VENDOR_RALINK=y
-++ CONFIG_WLAN_VENDOR_REALTEK=y
-++ CONFIG_WLAN_VENDOR_RSI=y
-++ CONFIG_WLAN_VENDOR_ST=y
-++ CONFIG_WLAN_VENDOR_TI=y
-++ CONFIG_WLAN_VENDOR_ZYDAS=y
-++ CONFIG_WLAN_VENDOR_QUANTENNA=y
-++ CONFIG_WCNSS_MEM_PRE_ALLOC=y
-++ CONFIG_CLD_LL_CORE=y
-++ CONFIG_CNSS_UTILS=y
-++ CONFIG_CNSS_GENL=y
-++ CONFIG_INPUT=y
-++ CONFIG_INPUT_LEDS=y
-++ CONFIG_INPUT_EVDEV=y
-++ CONFIG_GOODIX_FINGERPRINT=y
-++ CONFIG_INPUT_KEYBOARD=y
-++ CONFIG_KEYBOARD_ATKBD=y
-++ CONFIG_KEYBOARD_GPIO=y
-++ CONFIG_INPUT_TOUCHSCREEN=y
-++ CONFIG_TOUCHSCREEN_PROPERTIES=y
-++ CONFIG_TOUCHSCREEN_GOODIX_GTX8=y
-++ CONFIG_TOUCHSCREEN_GOODIX_GTX8_UPDATE=y
-++ CONFIG_TOUCHSCREEN_GOODIX_GTX8_GESTURE=y
-++ CONFIG_TOUCHSCREEN_GOODIX_GTX8_TOOLS=y
-++ CONFIG_TOUCHSCREEN_FTS=y
-++ CONFIG_TOUCHSCREEN_FTS_DIRECTORY=focaltech_touch
-++ CONFIG_TOUCHSCREEN_XIAOMI_TOUCHFEATURE=y
-++ CONFIG_TOUCHSCREEN_XIAOMI_TOUCHFEATURE_GAMEMODE=y
-++ CONFIG_TOUCHSCREEN_TID_SUPPORT=y
-++ CONFIG_TOUCHSCREEN_TID_PROC_SUPPORT=y
-++ CONFIG_TOUCHSCREEN_TID_OPENSHORT_TEST=y
-++ CONFIG_TOUCHSCREEN_TID_OPENSHORT_TEST_STORE_RESULT=y
-++ CONFIG_TOUCHSCREEN_TID_LOCKDOWNINFO_SUPPORT=y
-++ CONFIG_INPUT_MISC=y
-++ CONFIG_INPUT_QPNP_POWER_ON=y
-++ CONFIG_INPUT_UINPUT=y
-++ CONFIG_FINGERPRINT_GOODIX_FOD=y
-++ CONFIG_SERIO=y
-++ CONFIG_SERIO_LIBPS2=y
-++ CONFIG_PRESS_KEY_TRIGGER_PANIC=y
-++ CONFIG_TTY=y
-++ CONFIG_UNIX98_PTYS=y
-++ CONFIG_LDISC_AUTOLOAD=y
-++ CONFIG_SERIAL_CORE=y
-++ CONFIG_SERIAL_MSM_GENI=y
-++ CONFIG_HW_RANDOM=y
-++ CONFIG_HW_RANDOM_MSM_LEGACY=y
-++ CONFIG_HW_RANDOM_CAVIUM=y
-++ CONFIG_DIAG_CHAR=y
-++ CONFIG_DIAG_OVER_USB=y
-++ CONFIG_MSM_ADSPRPC=y
-++ CONFIG_MSM_RDBG=m
-++ CONFIG_I2C=y
-++ CONFIG_I2C_BOARDINFO=y
-++ CONFIG_I2C_COMPAT=y
-++ CONFIG_I2C_CHARDEV=y
-++ CONFIG_I2C_MUX=y
-++ CONFIG_I2C_HELPER_AUTO=y
-++ CONFIG_I2C_ALGOBIT=y
-++ CONFIG_I2C_QCOM_GENI=y
-++ CONFIG_SPI=y
-++ CONFIG_SPI_MASTER=y
-++ CONFIG_SPI_QCOM_GENI=y
-++ CONFIG_SPI_SPIDEV=y
-++ CONFIG_SPMI=y
-++ CONFIG_SPMI_MSM_PMIC_ARB=y
-++ CONFIG_SPMI_SIMULATOR=y
-++ CONFIG_SLIMBUS=y
-++ CONFIG_SLIMBUS_MSM_NGD=y
-++ CONFIG_PINCTRL=y
-++ CONFIG_PINMUX=y
-++ CONFIG_PINCONF=y
-++ CONFIG_GENERIC_PINCONF=y
-++ CONFIG_PINCTRL_MSM=y
-++ CONFIG_PINCTRL_QCOM_SPMI_PMIC=y
-++ CONFIG_PINCTRL_TRINKET=y
-++ CONFIG_GPIOLIB=y
-++ CONFIG_OF_GPIO=y
-++ CONFIG_GPIOLIB_IRQCHIP=y
-++ CONFIG_GPIO_SYSFS=y
-++ CONFIG_POWER_RESET=y
-++ CONFIG_POWER_RESET_QCOM=y
-++ CONFIG_QCOM_DLOAD_MODE=y
-++ CONFIG_POWER_RESET_XGENE=y
-++ CONFIG_POWER_RESET_SYSCON=y
-++ CONFIG_POWER_SUPPLY=y
-++ CONFIG_QPNP_QG=y
-++ CONFIG_SMB1355_SLAVE_CHARGER=y
-++ CONFIG_QPNP_SMB5=y
-++ CONFIG_SMB1390_CHARGE_PUMP=y
-++ CONFIG_HWMON=y
-++ CONFIG_THERMAL=y
-++ CONFIG_THERMAL_EMERGENCY_POWEROFF_DELAY_MS=0
-++ CONFIG_THERMAL_HWMON=y
-++ CONFIG_THERMAL_OF=y
-++ CONFIG_THERMAL_WRITABLE_TRIPS=y
-++ CONFIG_THERMAL_DEFAULT_GOV_STEP_WISE=y
-++ CONFIG_THERMAL_GOV_STEP_WISE=y
-++ CONFIG_THERMAL_GOV_USER_SPACE=y
-++ CONFIG_THERMAL_GOV_LOW_LIMITS=y
-++ CONFIG_CPU_THERMAL=y
-++ CONFIG_DEVFREQ_THERMAL=y
-++ CONFIG_QCOM_SPMI_TEMP_ALARM=y
-++ CONFIG_THERMAL_TSENS=y
-++ CONFIG_QTI_THERMAL_LIMITS_DCVS=y
-++ CONFIG_QTI_VIRTUAL_SENSOR=y
-++ CONFIG_QTI_QMI_COOLING_DEVICE=y
-++ CONFIG_REGULATOR_COOLING_DEVICE=y
-++ CONFIG_QTI_BCL_PMIC5=y
-++ CONFIG_QTI_BCL_SOC_DRIVER=y
-++ CONFIG_QTI_ADC_TM=y
-++ CONFIG_QTI_CX_IPEAK_COOLING_DEVICE=y
-++ CONFIG_SSB_POSSIBLE=y
-++ CONFIG_BCMA_POSSIBLE=y
-++ CONFIG_MFD_CORE=y
-++ CONFIG_MFD_I2C_PMIC=y
-++ CONFIG_MFD_SPMI_PMIC=y
-++ CONFIG_MFD_SYSCON=y
-++ CONFIG_REGULATOR=y
-++ CONFIG_REGULATOR_FIXED_VOLTAGE=y
-++ CONFIG_REGULATOR_PROXY_CONSUMER=y
-++ CONFIG_REGULATOR_GPIO=y
-++ CONFIG_REGULATOR_PM8008=y
-++ CONFIG_REGULATOR_QPNP_LCDB=y
-++ CONFIG_REGULATOR_REFGEN=y
-++ CONFIG_REGULATOR_RPM_SMD=y
-++ CONFIG_REGULATOR_STUB=y
-++ CONFIG_RC_CORE=y
-++ CONFIG_RC_MAP=y
-++ CONFIG_RC_DECODERS=y
-++ CONFIG_IR_NEC_DECODER=y
-++ CONFIG_IR_RC5_DECODER=y
-++ CONFIG_IR_RC6_DECODER=y
-++ CONFIG_IR_JVC_DECODER=y
-++ CONFIG_IR_SONY_DECODER=y
-++ CONFIG_IR_SANYO_DECODER=y
-++ CONFIG_IR_SHARP_DECODER=y
-++ CONFIG_IR_MCE_KBD_DECODER=y
-++ CONFIG_IR_XMP_DECODER=y
-++ CONFIG_IR_MSM_GENI=m
-++ CONFIG_MEDIA_SUPPORT=y
-++ CONFIG_MEDIA_CAMERA_SUPPORT=y
-++ CONFIG_MEDIA_DIGITAL_TV_SUPPORT=y
-++ CONFIG_MEDIA_CONTROLLER=y
-++ CONFIG_VIDEO_DEV=y
-++ CONFIG_VIDEO_V4L2_SUBDEV_API=y
-++ CONFIG_VIDEO_V4L2=y
-++ CONFIG_VIDEO_ADV_DEBUG=y
-++ CONFIG_VIDEO_FIXED_MINOR_RANGES=y
-++ CONFIG_V4L2_MEM2MEM_DEV=y
-++ CONFIG_VIDEOBUF2_CORE=y
-++ CONFIG_DVB_CORE=y
-++ CONFIG_DVB_NET=y
-++ CONFIG_DVB_MAX_ADAPTERS=16
-++ CONFIG_V4L_PLATFORM_DRIVERS=y
-++ CONFIG_MSM_CAMERA=y
-++ CONFIG_MSMB_CAMERA=y
-++ CONFIG_MSM_CAMERA_SENSOR=y
-++ CONFIG_MSM_CPP=y
-++ CONFIG_MSM_CCI=y
-++ CONFIG_MSM_CSI20_HEADER=y
-++ CONFIG_MSM_CSI22_HEADER=y
-++ CONFIG_MSM_CSI30_HEADER=y
-++ CONFIG_MSM_CSI31_HEADER=y
-++ CONFIG_MSM_CSIPHY=y
-++ CONFIG_MSM_CSID=y
-++ CONFIG_MSM_EEPROM=y
-++ CONFIG_MSM_ISPIF=y
-++ CONFIG_MSM_DUAL_ISP_SYNC=y
-++ CONFIG_IMX134=y
-++ CONFIG_IMX132=y
-++ CONFIG_OV9724=y
-++ CONFIG_OV5648=y
-++ CONFIG_GC0339=y
-++ CONFIG_OV8825=y
-++ CONFIG_OV8865=y
-++ CONFIG_s5k4e1=y
-++ CONFIG_OV12830=y
-++ CONFIG_MSM_V4L2_VIDEO_OVERLAY_DEVICE=y
-++ CONFIG_MSMB_JPEG=y
-++ CONFIG_MSM_FD=y
-++ CONFIG_MSM_JPEGDMA=y
-++ CONFIG_MSM_SEC_CCI_TA_NAME=seccamdemo64
-++ CONFIG_MSM_VIDC_V4L2=y
-++ CONFIG_MSM_VIDC_GOVERNORS=y
-++ CONFIG_MSM_SDE_ROTATOR=y
-++ CONFIG_MSM_SDE_ROTATOR_EVTLOG_DEBUG=y
-++ CONFIG_DVB_MPQ=m
-++ CONFIG_DVB_MPQ_DEMUX=m
-++ CONFIG_DVB_MPQ_NUM_DMX_DEVICES=4
-++ CONFIG_DVB_MPQ_SW=y
-++ CONFIG_MEDIA_SUBDRV_AUTOSELECT=y
-++ CONFIG_MEDIA_ATTACH=y
-++ CONFIG_VIDEO_IR_I2C=y
-++ CONFIG_MEDIA_TUNER=y
-++ CONFIG_MEDIA_TUNER_SIMPLE=y
-++ CONFIG_MEDIA_TUNER_TDA8290=y
-++ CONFIG_MEDIA_TUNER_TDA827X=y
-++ CONFIG_MEDIA_TUNER_TDA18271=y
-++ CONFIG_MEDIA_TUNER_TDA9887=y
-++ CONFIG_MEDIA_TUNER_MT20XX=y
-++ CONFIG_MEDIA_TUNER_XC2028=y
-++ CONFIG_MEDIA_TUNER_XC5000=y
-++ CONFIG_MEDIA_TUNER_XC4000=y
-++ CONFIG_MEDIA_TUNER_MC44S803=y
-++ CONFIG_VGA_ARB=y
-++ CONFIG_VGA_ARB_MAX_GPUS=16
-++ CONFIG_DRM=y
-++ CONFIG_DRM_MIPI_DSI=y
-++ CONFIG_DRM_KMS_HELPER=y
-++ CONFIG_DRM_MSM=y
-++ CONFIG_DRM_MSM_REGISTER_LOGGING=y
-++ CONFIG_DRM_MSM_DSI_STAGING=y
-++ CONFIG_DSI_PARSER=y
-++ CONFIG_DRM_SDE_WB=y
-++ CONFIG_DRM_SDE_EVTLOG_DEBUG=y
-++ CONFIG_DRM_SDE_RSC=y
-++ CONFIG_DRM_PANEL=y
-++ CONFIG_DRM_BRIDGE=y
-++ CONFIG_DRM_PANEL_BRIDGE=y
-++ CONFIG_FB=y
-++ CONFIG_FB_CMDLINE=y
-++ CONFIG_FB_NOTIFY=y
-++ CONFIG_FB_CFB_FILLRECT=y
-++ CONFIG_FB_CFB_COPYAREA=y
-++ CONFIG_FB_CFB_IMAGEBLIT=y
-++ CONFIG_FB_SYS_FILLRECT=y
-++ CONFIG_FB_SYS_COPYAREA=y
-++ CONFIG_FB_SYS_IMAGEBLIT=y
-++ CONFIG_FB_SYS_FOPS=y
-++ CONFIG_FB_MODE_HELPERS=y
-++ CONFIG_FB_ARMCLCD=y
-++ CONFIG_FB_VIRTUAL=y
-++ CONFIG_BACKLIGHT_LCD_SUPPORT=y
-++ CONFIG_LCD_CLASS_DEVICE=m
 ++ CONFIG_BACKLIGHT_CLASS_DEVICE=y
 ++ CONFIG_BACKLIGHT_GENERIC=y
 ++ CONFIG_BACKLIGHT_QCOM_SPMI_WLED=y
@@ -1255,6 +912,47 @@ find: ‘arch/arm64/boot/dts/’: No such file or directory
   (cat arch/arm64/boot/Image | gzip -n -f -9 > arch/arm64/boot/Image.gz) || (rm -f arch/arm64/boot/Image.gz ; false)
 make[1]: Leaving directory '/home/runner/work/laurus/laurus/out'
 make -C /home/runner/work/laurus/laurus/out KBUILD_SRC=/home/runner/work/laurus/laurus \
+-f /home/runner/work/laurus/laurus/Makefile qcom/trinket.dtb
+make[1]: Entering directory '/home/runner/work/laurus/laurus/out'
+make -f ../scripts/Makefile.build obj=scripts/basic
+make -f ../scripts/Makefile.asm-generic \
+            src=uapi/asm obj=arch/arm64/include/generated/uapi/asm
+rm -f .tmp_quiet_recordmcount
+make -f ../scripts/Makefile.asm-generic \
+            src=asm obj=arch/arm64/include/generated/asm
+make -f ../scripts/Makefile.build obj=scripts
+make -f ../scripts/Makefile.build obj=scripts/dtc
+make -f ../scripts/Makefile.build obj=scripts/genksyms
+make -f ../scripts/Makefile.build obj=scripts/mod
+make -f ../scripts/Makefile.build obj=scripts/selinux
+make -f ../scripts/Makefile.build obj=scripts/selinux/genheaders
+set -e; : '  CHK     scripts/mod/devicetable-offsets.h'; mkdir -p scripts/mod/; 	(set -e; echo "#ifndef __DEVICETABLE_OFFSETS_H__"; echo "#define __DEVICETABLE_OFFSETS_H__"; echo "/*"; echo " * DO NOT MODIFY."; echo " *"; echo " * This file was generated by Kbuild"; echo " */"; echo ""; sed -ne 	's:^[[:space:]]*\.ascii[[:space:]]*"\(.*\)".*:\1:; /^->/{s:->#\(.*\):/* \1 */:; s:^->\([^ ]*\) [\$#]*\([^ ]*\) \(.*\):#define \1 \2 /* \3 */:; s:->::; p;}'; echo ""; echo "#endif" ) < scripts/mod/devicetable-offsets.s > scripts/mod/devicetable-offsets.h.tmp; if [ -r scripts/mod/devicetable-offsets.h ] && cmp -s scripts/mod/devicetable-offsets.h scripts/mod/devicetable-offsets.h.tmp; then rm -f scripts/mod/devicetable-offsets.h.tmp; else : '  UPD     scripts/mod/devicetable-offsets.h'; mv -f scripts/mod/devicetable-offsets.h.tmp scripts/mod/devicetable-offsets.h; fi
+make -f ../scripts/Makefile.build obj=scripts/selinux/mdp
+make -f ../scripts/Makefile.build obj=arch/arm64/boot/dts arch/arm64/boot/dts/qcom/trinket.dtb
+  mkdir -p arch/arm64/boot/dts/qcom/ ; python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -E -Wp,-MD,arch/arm64/boot/dts/qcom/.trinket.dtb.d.pre.tmp -nostdinc -I../scripts/dtc/include-prefixes -undef -D__DTS__ -x assembler-with-cpp -o arch/arm64/boot/dts/qcom/.trinket.dtb.dts.tmp ../arch/arm64/boot/dts/qcom/trinket.dts ; ./scripts/dtc/dtc -O dtb -o arch/arm64/boot/dts/qcom/trinket.dtb -b 0 -i../arch/arm64/boot/dts/qcom/ -i../scripts/dtc/include-prefixes -Wno-unit_address_vs_reg -Wno-simple_bus_reg -Wno-unit_address_format -Wno-pci_bridge -Wno-pci_device_bus_num -Wno-pci_device_reg  -d arch/arm64/boot/dts/qcom/.trinket.dtb.d.dtc.tmp arch/arm64/boot/dts/qcom/.trinket.dtb.dts.tmp ; cat arch/arm64/boot/dts/qcom/.trinket.dtb.d.pre.tmp arch/arm64/boot/dts/qcom/.trinket.dtb.d.dtc.tmp > arch/arm64/boot/dts/qcom/.trinket.dtb.d
+arch/arm64/boot/dts/qcom/trinket.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l1@4000 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l2@4100 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l3@4200 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l4@4300 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l5@4400 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l6@4400 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l7@4400 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l1@4000
+arch/arm64/boot/dts/qcom/trinket.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l1@4000
+arch/arm64/boot/dts/qcom/trinket.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l2@4100
+arch/arm64/boot/dts/qcom/trinket.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l2@4100
+arch/arm64/boot/dts/qcom/trinket.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l3@4200
+arch/arm64/boot/dts/qcom/trinket.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l3@4200
+arch/arm64/boot/dts/qcom/trinket.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l4@4300
+arch/arm64/boot/dts/qcom/trinket.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l4@4300
+arch/arm64/boot/dts/qcom/trinket.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l5@4400
+arch/arm64/boot/dts/qcom/trinket.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l5@4400
+arch/arm64/boot/dts/qcom/trinket.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l6@4400
+arch/arm64/boot/dts/qcom/trinket.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l6@4400
+arch/arm64/boot/dts/qcom/trinket.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l7@4400
+arch/arm64/boot/dts/qcom/trinket.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l7@4400
+make[1]: Leaving directory '/home/runner/work/laurus/laurus/out'
+make -C /home/runner/work/laurus/laurus/out KBUILD_SRC=/home/runner/work/laurus/laurus \
 -f /home/runner/work/laurus/laurus/Makefile qcom/trinket-dp-idp.dtb
 make[1]: Entering directory '/home/runner/work/laurus/laurus/out'
 make -f ../scripts/Makefile.build obj=scripts/basic
@@ -1339,3 +1037,305 @@ make[2]: *** [scripts/Makefile.lib:325: arch/arm64/boot/dts/qcom/trinket-externa
 make[1]: *** [arch/arm64/Makefile:182: qcom/trinket-external-codec-idp.dtb] Error 2
 make[1]: Leaving directory '/home/runner/work/laurus/laurus/out'
 make: *** [Makefile:146: sub-make] Error 2
+skip dtb build failed: trinket-external-codec-idp.dtb
+make -C /home/runner/work/laurus/laurus/out KBUILD_SRC=/home/runner/work/laurus/laurus \
+-f /home/runner/work/laurus/laurus/Makefile qcom/trinket-idp.dtb
+make[1]: Entering directory '/home/runner/work/laurus/laurus/out'
+make -f ../scripts/Makefile.build obj=scripts/basic
+make -f ../scripts/Makefile.asm-generic \
+            src=uapi/asm obj=arch/arm64/include/generated/uapi/asm
+rm -f .tmp_quiet_recordmcount
+make -f ../scripts/Makefile.asm-generic \
+            src=asm obj=arch/arm64/include/generated/asm
+make -f ../scripts/Makefile.build obj=scripts
+make -f ../scripts/Makefile.build obj=scripts/dtc
+make -f ../scripts/Makefile.build obj=scripts/genksyms
+make -f ../scripts/Makefile.build obj=scripts/mod
+make -f ../scripts/Makefile.build obj=scripts/selinux
+make -f ../scripts/Makefile.build obj=scripts/selinux/genheaders
+set -e; : '  CHK     scripts/mod/devicetable-offsets.h'; mkdir -p scripts/mod/; 	(set -e; echo "#ifndef __DEVICETABLE_OFFSETS_H__"; echo "#define __DEVICETABLE_OFFSETS_H__"; echo "/*"; echo " * DO NOT MODIFY."; echo " *"; echo " * This file was generated by Kbuild"; echo " */"; echo ""; sed -ne 	's:^[[:space:]]*\.ascii[[:space:]]*"\(.*\)".*:\1:; /^->/{s:->#\(.*\):/* \1 */:; s:^->\([^ ]*\) [\$#]*\([^ ]*\) \(.*\):#define \1 \2 /* \3 */:; s:->::; p;}'; echo ""; echo "#endif" ) < scripts/mod/devicetable-offsets.s > scripts/mod/devicetable-offsets.h.tmp; if [ -r scripts/mod/devicetable-offsets.h ] && cmp -s scripts/mod/devicetable-offsets.h scripts/mod/devicetable-offsets.h.tmp; then rm -f scripts/mod/devicetable-offsets.h.tmp; else : '  UPD     scripts/mod/devicetable-offsets.h'; mv -f scripts/mod/devicetable-offsets.h.tmp scripts/mod/devicetable-offsets.h; fi
+make -f ../scripts/Makefile.build obj=scripts/selinux/mdp
+make -f ../scripts/Makefile.build obj=arch/arm64/boot/dts arch/arm64/boot/dts/qcom/trinket-idp.dtb
+  mkdir -p arch/arm64/boot/dts/qcom/ ; python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -E -Wp,-MD,arch/arm64/boot/dts/qcom/.trinket-idp.dtb.d.pre.tmp -nostdinc -I../scripts/dtc/include-prefixes -undef -D__DTS__ -x assembler-with-cpp -o arch/arm64/boot/dts/qcom/.trinket-idp.dtb.dts.tmp ../arch/arm64/boot/dts/qcom/trinket-idp.dts ; ./scripts/dtc/dtc -O dtb -o arch/arm64/boot/dts/qcom/trinket-idp.dtb -b 0 -i../arch/arm64/boot/dts/qcom/ -i../scripts/dtc/include-prefixes -Wno-unit_address_vs_reg -Wno-simple_bus_reg -Wno-unit_address_format -Wno-pci_bridge -Wno-pci_device_bus_num -Wno-pci_device_reg  -d arch/arm64/boot/dts/qcom/.trinket-idp.dtb.d.dtc.tmp arch/arm64/boot/dts/qcom/.trinket-idp.dtb.dts.tmp ; cat arch/arm64/boot/dts/qcom/.trinket-idp.dtb.d.pre.tmp arch/arm64/boot/dts/qcom/.trinket-idp.dtb.d.dtc.tmp > arch/arm64/boot/dts/qcom/.trinket-idp.dtb.d
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l1@4000 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l2@4100 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l3@4200 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l4@4300 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l5@4400 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l6@4400 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l7@4400 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (reg_format): "reg" property in /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@0 has invalid length (4 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (reg_format): "reg" property in /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@1 has invalid length (4 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (reg_format): "reg" property in /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@2 has invalid length (4 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (reg_format): "reg" property in /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@0 has invalid length (4 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (reg_format): "reg" property in /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@1 has invalid length (4 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (reg_format): "reg" property in /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@2 has invalid length (4 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l1@4000
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l1@4000
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l2@4100
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l2@4100
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l3@4200
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l3@4200
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l4@4300
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l4@4300
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l5@4400
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l5@4400
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l6@4400
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l6@4400
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l7@4400
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l7@4400
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@0
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@0
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@1
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@1
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@2
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@2
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@0
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@0
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@1
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@1
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@2
+arch/arm64/boot/dts/qcom/trinket-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@2
+make[1]: Leaving directory '/home/runner/work/laurus/laurus/out'
+make -C /home/runner/work/laurus/laurus/out KBUILD_SRC=/home/runner/work/laurus/laurus \
+-f /home/runner/work/laurus/laurus/Makefile qcom/trinket-qrd.dtb
+make[1]: Entering directory '/home/runner/work/laurus/laurus/out'
+make -f ../scripts/Makefile.build obj=scripts/basic
+make -f ../scripts/Makefile.asm-generic \
+            src=uapi/asm obj=arch/arm64/include/generated/uapi/asm
+rm -f .tmp_quiet_recordmcount
+make -f ../scripts/Makefile.asm-generic \
+            src=asm obj=arch/arm64/include/generated/asm
+make -f ../scripts/Makefile.build obj=scripts
+make -f ../scripts/Makefile.build obj=scripts/dtc
+make -f ../scripts/Makefile.build obj=scripts/genksyms
+make -f ../scripts/Makefile.build obj=scripts/mod
+make -f ../scripts/Makefile.build obj=scripts/selinux
+make -f ../scripts/Makefile.build obj=scripts/selinux/genheaders
+set -e; : '  CHK     scripts/mod/devicetable-offsets.h'; mkdir -p scripts/mod/; 	(set -e; echo "#ifndef __DEVICETABLE_OFFSETS_H__"; echo "#define __DEVICETABLE_OFFSETS_H__"; echo "/*"; echo " * DO NOT MODIFY."; echo " *"; echo " * This file was generated by Kbuild"; echo " */"; echo ""; sed -ne 	's:^[[:space:]]*\.ascii[[:space:]]*"\(.*\)".*:\1:; /^->/{s:->#\(.*\):/* \1 */:; s:^->\([^ ]*\) [\$#]*\([^ ]*\) \(.*\):#define \1 \2 /* \3 */:; s:->::; p;}'; echo ""; echo "#endif" ) < scripts/mod/devicetable-offsets.s > scripts/mod/devicetable-offsets.h.tmp; if [ -r scripts/mod/devicetable-offsets.h ] && cmp -s scripts/mod/devicetable-offsets.h scripts/mod/devicetable-offsets.h.tmp; then rm -f scripts/mod/devicetable-offsets.h.tmp; else : '  UPD     scripts/mod/devicetable-offsets.h'; mv -f scripts/mod/devicetable-offsets.h.tmp scripts/mod/devicetable-offsets.h; fi
+make -f ../scripts/Makefile.build obj=scripts/selinux/mdp
+make -f ../scripts/Makefile.build obj=arch/arm64/boot/dts arch/arm64/boot/dts/qcom/trinket-qrd.dtb
+  mkdir -p arch/arm64/boot/dts/qcom/ ; python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -E -Wp,-MD,arch/arm64/boot/dts/qcom/.trinket-qrd.dtb.d.pre.tmp -nostdinc -I../scripts/dtc/include-prefixes -undef -D__DTS__ -x assembler-with-cpp -o arch/arm64/boot/dts/qcom/.trinket-qrd.dtb.dts.tmp ../arch/arm64/boot/dts/qcom/trinket-qrd.dts ; ./scripts/dtc/dtc -O dtb -o arch/arm64/boot/dts/qcom/trinket-qrd.dtb -b 0 -i../arch/arm64/boot/dts/qcom/ -i../scripts/dtc/include-prefixes -Wno-unit_address_vs_reg -Wno-simple_bus_reg -Wno-unit_address_format -Wno-pci_bridge -Wno-pci_device_bus_num -Wno-pci_device_reg  -d arch/arm64/boot/dts/qcom/.trinket-qrd.dtb.d.dtc.tmp arch/arm64/boot/dts/qcom/.trinket-qrd.dtb.dts.tmp ; cat arch/arm64/boot/dts/qcom/.trinket-qrd.dtb.d.pre.tmp arch/arm64/boot/dts/qcom/.trinket-qrd.dtb.d.dtc.tmp > arch/arm64/boot/dts/qcom/.trinket-qrd.dtb.d
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l1@4000 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l2@4100 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l3@4200 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l4@4300 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l5@4400 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l6@4400 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l7@4400 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (reg_format): "reg" property in /soc/qcom,msm-audio-apr/qcom,q6core-audio/bolero-cdc/tx-macro@0a460000 has invalid length (8 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (reg_format): "reg" property in /soc/qcom,msm-audio-apr/qcom,q6core-audio/bolero-cdc/rx-macro@0a440000 has invalid length (8 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (reg_format): "reg" property in /soc/qcom,msm-audio-apr/qcom,q6core-audio/bolero-cdc/wsa-macro@0a480000 has invalid length (8 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (reg_format): "reg" property in /soc/qcom,msm-audio-apr/qcom,q6core-audio/bolero-cdc/va-macro@0a4a0000 has invalid length (8 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (reg_format): "reg" property in /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@0 has invalid length (4 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (reg_format): "reg" property in /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@1 has invalid length (4 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (reg_format): "reg" property in /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@2 has invalid length (4 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (reg_format): "reg" property in /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@0 has invalid length (4 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (reg_format): "reg" property in /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@1 has invalid length (4 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (reg_format): "reg" property in /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@2 has invalid length (4 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l1@4000
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l1@4000
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l2@4100
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l2@4100
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l3@4200
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l3@4200
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l4@4300
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l4@4300
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l5@4400
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l5@4400
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l6@4400
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l6@4400
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l7@4400
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l7@4400
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/qcom,msm-audio-apr/qcom,q6core-audio/bolero-cdc/tx-macro@0a460000
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/qcom,msm-audio-apr/qcom,q6core-audio/bolero-cdc/tx-macro@0a460000
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/qcom,msm-audio-apr/qcom,q6core-audio/bolero-cdc/rx-macro@0a440000
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/qcom,msm-audio-apr/qcom,q6core-audio/bolero-cdc/rx-macro@0a440000
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/qcom,msm-audio-apr/qcom,q6core-audio/bolero-cdc/wsa-macro@0a480000
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/qcom,msm-audio-apr/qcom,q6core-audio/bolero-cdc/wsa-macro@0a480000
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/qcom,msm-audio-apr/qcom,q6core-audio/bolero-cdc/va-macro@0a4a0000
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/qcom,msm-audio-apr/qcom,q6core-audio/bolero-cdc/va-macro@0a4a0000
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@0
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@0
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@1
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@1
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@2
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@2
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@0
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@0
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@1
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@1
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@2
+arch/arm64/boot/dts/qcom/trinket-qrd.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@2
+make[1]: Leaving directory '/home/runner/work/laurus/laurus/out'
+make -C /home/runner/work/laurus/laurus/out KBUILD_SRC=/home/runner/work/laurus/laurus \
+-f /home/runner/work/laurus/laurus/Makefile qcom/trinket-rumi.dtb
+make[1]: Entering directory '/home/runner/work/laurus/laurus/out'
+make -f ../scripts/Makefile.build obj=scripts/basic
+make -f ../scripts/Makefile.asm-generic \
+            src=uapi/asm obj=arch/arm64/include/generated/uapi/asm
+rm -f .tmp_quiet_recordmcount
+make -f ../scripts/Makefile.asm-generic \
+            src=asm obj=arch/arm64/include/generated/asm
+make -f ../scripts/Makefile.build obj=scripts
+make -f ../scripts/Makefile.build obj=scripts/dtc
+make -f ../scripts/Makefile.build obj=scripts/genksyms
+make -f ../scripts/Makefile.build obj=scripts/mod
+make -f ../scripts/Makefile.build obj=scripts/selinux
+make -f ../scripts/Makefile.build obj=scripts/selinux/genheaders
+set -e; : '  CHK     scripts/mod/devicetable-offsets.h'; mkdir -p scripts/mod/; 	(set -e; echo "#ifndef __DEVICETABLE_OFFSETS_H__"; echo "#define __DEVICETABLE_OFFSETS_H__"; echo "/*"; echo " * DO NOT MODIFY."; echo " *"; echo " * This file was generated by Kbuild"; echo " */"; echo ""; sed -ne 	's:^[[:space:]]*\.ascii[[:space:]]*"\(.*\)".*:\1:; /^->/{s:->#\(.*\):/* \1 */:; s:^->\([^ ]*\) [\$#]*\([^ ]*\) \(.*\):#define \1 \2 /* \3 */:; s:->::; p;}'; echo ""; echo "#endif" ) < scripts/mod/devicetable-offsets.s > scripts/mod/devicetable-offsets.h.tmp; if [ -r scripts/mod/devicetable-offsets.h ] && cmp -s scripts/mod/devicetable-offsets.h scripts/mod/devicetable-offsets.h.tmp; then rm -f scripts/mod/devicetable-offsets.h.tmp; else : '  UPD     scripts/mod/devicetable-offsets.h'; mv -f scripts/mod/devicetable-offsets.h.tmp scripts/mod/devicetable-offsets.h; fi
+make -f ../scripts/Makefile.build obj=scripts/selinux/mdp
+make -f ../scripts/Makefile.build obj=arch/arm64/boot/dts arch/arm64/boot/dts/qcom/trinket-rumi.dtb
+  mkdir -p arch/arm64/boot/dts/qcom/ ; python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -E -Wp,-MD,arch/arm64/boot/dts/qcom/.trinket-rumi.dtb.d.pre.tmp -nostdinc -I../scripts/dtc/include-prefixes -undef -D__DTS__ -x assembler-with-cpp -o arch/arm64/boot/dts/qcom/.trinket-rumi.dtb.dts.tmp ../arch/arm64/boot/dts/qcom/trinket-rumi.dts ; ./scripts/dtc/dtc -O dtb -o arch/arm64/boot/dts/qcom/trinket-rumi.dtb -b 0 -i../arch/arm64/boot/dts/qcom/ -i../scripts/dtc/include-prefixes -Wno-unit_address_vs_reg -Wno-simple_bus_reg -Wno-unit_address_format -Wno-pci_bridge -Wno-pci_device_bus_num -Wno-pci_device_reg  -d arch/arm64/boot/dts/qcom/.trinket-rumi.dtb.d.dtc.tmp arch/arm64/boot/dts/qcom/.trinket-rumi.dtb.dts.tmp ; cat arch/arm64/boot/dts/qcom/.trinket-rumi.dtb.d.pre.tmp arch/arm64/boot/dts/qcom/.trinket-rumi.dtb.d.dtc.tmp > arch/arm64/boot/dts/qcom/.trinket-rumi.dtb.d
+arch/arm64/boot/dts/qcom/trinket-rumi.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l1@4000 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-rumi.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l2@4100 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-rumi.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l3@4200 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-rumi.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l4@4300 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-rumi.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l5@4400 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-rumi.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l6@4400 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-rumi.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l7@4400 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-rumi.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l1@4000
+arch/arm64/boot/dts/qcom/trinket-rumi.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l1@4000
+arch/arm64/boot/dts/qcom/trinket-rumi.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l2@4100
+arch/arm64/boot/dts/qcom/trinket-rumi.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l2@4100
+arch/arm64/boot/dts/qcom/trinket-rumi.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l3@4200
+arch/arm64/boot/dts/qcom/trinket-rumi.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l3@4200
+arch/arm64/boot/dts/qcom/trinket-rumi.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l4@4300
+arch/arm64/boot/dts/qcom/trinket-rumi.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l4@4300
+arch/arm64/boot/dts/qcom/trinket-rumi.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l5@4400
+arch/arm64/boot/dts/qcom/trinket-rumi.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l5@4400
+arch/arm64/boot/dts/qcom/trinket-rumi.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l6@4400
+arch/arm64/boot/dts/qcom/trinket-rumi.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l6@4400
+arch/arm64/boot/dts/qcom/trinket-rumi.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l7@4400
+arch/arm64/boot/dts/qcom/trinket-rumi.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l7@4400
+make[1]: Leaving directory '/home/runner/work/laurus/laurus/out'
+make -C /home/runner/work/laurus/laurus/out KBUILD_SRC=/home/runner/work/laurus/laurus \
+-f /home/runner/work/laurus/laurus/Makefile qcom/trinket-usbc-external-codec-idp.dtb
+make[1]: Entering directory '/home/runner/work/laurus/laurus/out'
+make -f ../scripts/Makefile.build obj=scripts/basic
+make -f ../scripts/Makefile.asm-generic \
+            src=uapi/asm obj=arch/arm64/include/generated/uapi/asm
+rm -f .tmp_quiet_recordmcount
+make -f ../scripts/Makefile.asm-generic \
+            src=asm obj=arch/arm64/include/generated/asm
+make -f ../scripts/Makefile.build obj=scripts
+make -f ../scripts/Makefile.build obj=scripts/dtc
+make -f ../scripts/Makefile.build obj=scripts/genksyms
+make -f ../scripts/Makefile.build obj=scripts/mod
+make -f ../scripts/Makefile.build obj=scripts/selinux
+make -f ../scripts/Makefile.build obj=scripts/selinux/genheaders
+set -e; : '  CHK     scripts/mod/devicetable-offsets.h'; mkdir -p scripts/mod/; 	(set -e; echo "#ifndef __DEVICETABLE_OFFSETS_H__"; echo "#define __DEVICETABLE_OFFSETS_H__"; echo "/*"; echo " * DO NOT MODIFY."; echo " *"; echo " * This file was generated by Kbuild"; echo " */"; echo ""; sed -ne 	's:^[[:space:]]*\.ascii[[:space:]]*"\(.*\)".*:\1:; /^->/{s:->#\(.*\):/* \1 */:; s:^->\([^ ]*\) [\$#]*\([^ ]*\) \(.*\):#define \1 \2 /* \3 */:; s:->::; p;}'; echo ""; echo "#endif" ) < scripts/mod/devicetable-offsets.s > scripts/mod/devicetable-offsets.h.tmp; if [ -r scripts/mod/devicetable-offsets.h ] && cmp -s scripts/mod/devicetable-offsets.h scripts/mod/devicetable-offsets.h.tmp; then rm -f scripts/mod/devicetable-offsets.h.tmp; else : '  UPD     scripts/mod/devicetable-offsets.h'; mv -f scripts/mod/devicetable-offsets.h.tmp scripts/mod/devicetable-offsets.h; fi
+make -f ../scripts/Makefile.build obj=scripts/selinux/mdp
+make -f ../scripts/Makefile.build obj=arch/arm64/boot/dts arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb
+  mkdir -p arch/arm64/boot/dts/qcom/ ; python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -E -Wp,-MD,arch/arm64/boot/dts/qcom/.trinket-usbc-external-codec-idp.dtb.d.pre.tmp -nostdinc -I../scripts/dtc/include-prefixes -undef -D__DTS__ -x assembler-with-cpp -o arch/arm64/boot/dts/qcom/.trinket-usbc-external-codec-idp.dtb.dts.tmp ../arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dts ; ./scripts/dtc/dtc -O dtb -o arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb -b 0 -i../arch/arm64/boot/dts/qcom/ -i../scripts/dtc/include-prefixes -Wno-unit_address_vs_reg -Wno-simple_bus_reg -Wno-unit_address_format -Wno-pci_bridge -Wno-pci_device_bus_num -Wno-pci_device_reg  -d arch/arm64/boot/dts/qcom/.trinket-usbc-external-codec-idp.dtb.d.dtc.tmp arch/arm64/boot/dts/qcom/.trinket-usbc-external-codec-idp.dtb.dts.tmp ; cat arch/arm64/boot/dts/qcom/.trinket-usbc-external-codec-idp.dtb.d.pre.tmp arch/arm64/boot/dts/qcom/.trinket-usbc-external-codec-idp.dtb.d.dtc.tmp > arch/arm64/boot/dts/qcom/.trinket-usbc-external-codec-idp.dtb.d
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l1@4000 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l2@4100 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l3@4200 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l4@4300 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l5@4400 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l6@4400 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l7@4400 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (reg_format): "reg" property in /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@0 has invalid length (4 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (reg_format): "reg" property in /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@1 has invalid length (4 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (reg_format): "reg" property in /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@2 has invalid length (4 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (reg_format): "reg" property in /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@0 has invalid length (4 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (reg_format): "reg" property in /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@1 has invalid length (4 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (reg_format): "reg" property in /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@2 has invalid length (4 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l1@4000
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l1@4000
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l2@4100
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l2@4100
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l3@4200
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l3@4200
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l4@4300
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l4@4300
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l5@4400
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l5@4400
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l6@4400
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l6@4400
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l7@4400
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l7@4400
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@0
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@0
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@1
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@1
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@2
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@2
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@0
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@0
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@1
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@1
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@2
+arch/arm64/boot/dts/qcom/trinket-usbc-external-codec-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@2
+make[1]: Leaving directory '/home/runner/work/laurus/laurus/out'
+make -C /home/runner/work/laurus/laurus/out KBUILD_SRC=/home/runner/work/laurus/laurus \
+-f /home/runner/work/laurus/laurus/Makefile qcom/trinket-usbc-idp.dtb
+make[1]: Entering directory '/home/runner/work/laurus/laurus/out'
+make -f ../scripts/Makefile.build obj=scripts/basic
+make -f ../scripts/Makefile.asm-generic \
+            src=uapi/asm obj=arch/arm64/include/generated/uapi/asm
+rm -f .tmp_quiet_recordmcount
+make -f ../scripts/Makefile.asm-generic \
+            src=asm obj=arch/arm64/include/generated/asm
+make -f ../scripts/Makefile.build obj=scripts
+make -f ../scripts/Makefile.build obj=scripts/dtc
+make -f ../scripts/Makefile.build obj=scripts/genksyms
+make -f ../scripts/Makefile.build obj=scripts/mod
+make -f ../scripts/Makefile.build obj=scripts/selinux
+make -f ../scripts/Makefile.build obj=scripts/selinux/genheaders
+set -e; : '  CHK     scripts/mod/devicetable-offsets.h'; mkdir -p scripts/mod/; 	(set -e; echo "#ifndef __DEVICETABLE_OFFSETS_H__"; echo "#define __DEVICETABLE_OFFSETS_H__"; echo "/*"; echo " * DO NOT MODIFY."; echo " *"; echo " * This file was generated by Kbuild"; echo " */"; echo ""; sed -ne 	's:^[[:space:]]*\.ascii[[:space:]]*"\(.*\)".*:\1:; /^->/{s:->#\(.*\):/* \1 */:; s:^->\([^ ]*\) [\$#]*\([^ ]*\) \(.*\):#define \1 \2 /* \3 */:; s:->::; p;}'; echo ""; echo "#endif" ) < scripts/mod/devicetable-offsets.s > scripts/mod/devicetable-offsets.h.tmp; if [ -r scripts/mod/devicetable-offsets.h ] && cmp -s scripts/mod/devicetable-offsets.h scripts/mod/devicetable-offsets.h.tmp; then rm -f scripts/mod/devicetable-offsets.h.tmp; else : '  UPD     scripts/mod/devicetable-offsets.h'; mv -f scripts/mod/devicetable-offsets.h.tmp scripts/mod/devicetable-offsets.h; fi
+make -f ../scripts/Makefile.build obj=scripts/selinux/mdp
+make -f ../scripts/Makefile.build obj=arch/arm64/boot/dts arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb
+  mkdir -p arch/arm64/boot/dts/qcom/ ; python ../scripts/gcc-wrapper.py /home/runner/work/laurus/laurus/toolchain-gcc64/bin/aarch64-linux-android-gcc -E -Wp,-MD,arch/arm64/boot/dts/qcom/.trinket-usbc-idp.dtb.d.pre.tmp -nostdinc -I../scripts/dtc/include-prefixes -undef -D__DTS__ -x assembler-with-cpp -o arch/arm64/boot/dts/qcom/.trinket-usbc-idp.dtb.dts.tmp ../arch/arm64/boot/dts/qcom/trinket-usbc-idp.dts ; ./scripts/dtc/dtc -O dtb -o arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb -b 0 -i../arch/arm64/boot/dts/qcom/ -i../scripts/dtc/include-prefixes -Wno-unit_address_vs_reg -Wno-simple_bus_reg -Wno-unit_address_format -Wno-pci_bridge -Wno-pci_device_bus_num -Wno-pci_device_reg  -d arch/arm64/boot/dts/qcom/.trinket-usbc-idp.dtb.d.dtc.tmp arch/arm64/boot/dts/qcom/.trinket-usbc-idp.dtb.dts.tmp ; cat arch/arm64/boot/dts/qcom/.trinket-usbc-idp.dtb.d.pre.tmp arch/arm64/boot/dts/qcom/.trinket-usbc-idp.dtb.d.dtc.tmp > arch/arm64/boot/dts/qcom/.trinket-usbc-idp.dtb.d
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l1@4000 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l2@4100 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l3@4200 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l4@4300 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l5@4400 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l6@4400 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (reg_format): "reg" property in /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l7@4400 has invalid length (2 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (reg_format): "reg" property in /soc/qcom,msm-audio-apr/qcom,q6core-audio/bolero-cdc/tx-macro@0a460000 has invalid length (8 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (reg_format): "reg" property in /soc/qcom,msm-audio-apr/qcom,q6core-audio/bolero-cdc/rx-macro@0a440000 has invalid length (8 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (reg_format): "reg" property in /soc/qcom,msm-audio-apr/qcom,q6core-audio/bolero-cdc/wsa-macro@0a480000 has invalid length (8 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (reg_format): "reg" property in /soc/qcom,msm-audio-apr/qcom,q6core-audio/bolero-cdc/va-macro@0a4a0000 has invalid length (8 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (reg_format): "reg" property in /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@0 has invalid length (4 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (reg_format): "reg" property in /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@1 has invalid length (4 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (reg_format): "reg" property in /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@2 has invalid length (4 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (reg_format): "reg" property in /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@0 has invalid length (4 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (reg_format): "reg" property in /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@1 has invalid length (4 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (reg_format): "reg" property in /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@2 has invalid length (4 bytes) (#address-cells == 2, #size-cells == 1)
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l1@4000
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l1@4000
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l2@4100
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l2@4100
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l3@4200
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l3@4200
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l4@4300
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l4@4300
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l5@4400
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l5@4400
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l6@4400
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l6@4400
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l7@4400
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/i2c@4a84000/qcom,pm8008@9/qcom,pm8008-regulator/qcom,pm8008-l7@4400
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/qcom,msm-audio-apr/qcom,q6core-audio/bolero-cdc/tx-macro@0a460000
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/qcom,msm-audio-apr/qcom,q6core-audio/bolero-cdc/tx-macro@0a460000
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/qcom,msm-audio-apr/qcom,q6core-audio/bolero-cdc/rx-macro@0a440000
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/qcom,msm-audio-apr/qcom,q6core-audio/bolero-cdc/rx-macro@0a440000
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/qcom,msm-audio-apr/qcom,q6core-audio/bolero-cdc/wsa-macro@0a480000
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/qcom,msm-audio-apr/qcom,q6core-audio/bolero-cdc/wsa-macro@0a480000
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/qcom,msm-audio-apr/qcom,q6core-audio/bolero-cdc/va-macro@0a4a0000
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/qcom,msm-audio-apr/qcom,q6core-audio/bolero-cdc/va-macro@0a4a0000
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@0
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@0
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@1
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@1
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@2
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/dsi_panel_pwr_supply_samsung/qcom,panel-supply-entry@2
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@0
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@0
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@1
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@1
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #address-cells value for /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@2
+arch/arm64/boot/dts/qcom/trinket-usbc-idp.dtb: Warning (avoid_default_addr_size): Relying on default #size-cells value for /soc/dsi_panel_pwr_supply_gvo/qcom,panel-supply-entry@2
+make[1]: Leaving directory '/home/runner/work/laurus/laurus/out'
