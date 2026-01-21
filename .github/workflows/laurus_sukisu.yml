@@ -408,22 +408,30 @@ jobs:
           : > repack/out/ramdisk
 
           # 生成 trinket 多 DTB 拼接（更接近 stock 的“多 DTB”布局，避免单 DTB 不匹配）
-          : > repack/out/dtb
-          required_dtb="trinket.dtb"
-          make -j"$(nproc)" O=out "qcom/${required_dtb}" V=1
-          cat "out/arch/arm64/boot/dts/qcom/${required_dtb}" >> repack/out/dtb
-
-          for dts in $(find arch/arm64/boot/dts/qcom -maxdepth 1 -name 'trinket*.dts' ! -name '*-overlay.dts' -print | sort); do
-            dtb="$(basename "${dts%.dts}.dtb")"
-            if [ "$dtb" = "$required_dtb" ]; then
-              continue
-            fi
-            if make -j"$(nproc)" O=out "qcom/${dtb}" V=1; then
-              cat "out/arch/arm64/boot/dts/qcom/${dtb}" >> repack/out/dtb
+          if [ -f dist/dtb ]; then
+            cp -f dist/dtb repack/out/dtb
+          else
+            : > repack/out/dtb
+            required_dtb="trinket.dtb"
+            if make -j"$(nproc)" O=out "qcom/${required_dtb}" V=1; then
+              cat "out/arch/arm64/boot/dts/qcom/${required_dtb}" >> repack/out/dtb
             else
-              echo "skip dtb build failed: ${dtb}" | tee -a build.log
+              echo "required dtb build failed: ${required_dtb}" | tee -a build.log
+              exit 1
             fi
-          done
+
+            for dts in $(find arch/arm64/boot/dts/qcom -maxdepth 1 -name 'trinket*.dts' ! -name '*-overlay.dts' -print | sort); do
+              dtb="$(basename "${dts%.dts}.dtb")"
+              if [ "$dtb" = "$required_dtb" ]; then
+                continue
+              fi
+              if make -j"$(nproc)" O=out "qcom/${dtb}" V=1; then
+                cat "out/arch/arm64/boot/dts/qcom/${dtb}" >> repack/out/dtb
+              else
+                echo "skip dtb build failed: ${dtb}" | tee -a build.log
+              fi
+            done
+          fi
           ls -lh repack/out/dtb
 
           # 下载 AOSP mkbootimg.py 并生成 boot.img
