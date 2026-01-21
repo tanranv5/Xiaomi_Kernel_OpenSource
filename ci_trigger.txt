@@ -1,1 +1,1 @@
-trigger: dtb reuse for bootimg 2026-01-21T16:20:00+08:00
+trigger: bootimg log capture 2026-01-21T18:05:00+08:00
