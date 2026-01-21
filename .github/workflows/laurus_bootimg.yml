@@ -1,0 +1,239 @@
+name: build-laurus-bootimg
+
+"on":
+  workflow_dispatch:
+    inputs:
+      kernel_branch:
+        description: "要编译的内核分支"
+        required: true
+        default: "laurus-p-oss-ci"
+      defconfig:
+        description: "defconfig（相对 arch/arm64/configs/）"
+        required: true
+        default: "vendor/laurus-perf_defconfig"
+      with_sukisu:
+        description: "是否集成 SukiSU（KernelSU 兼容）"
+        required: true
+        default: "off"
+        type: choice
+        options:
+          - "off"
+          - "on"
+      sukisu_ref:
+        description: "SukiSU-Ultra 仓库 ref（branch/tag）"
+        required: false
+        default: "main"
+      sukisu_mode:
+        description: "SukiSU 集成模式（参考官方文档）"
+        required: true
+        default: "builtin"
+        type: choice
+        options:
+          - "builtin"
+          - "overlay"
+      fortify:
+        description: "是否启用 FORTIFY_SOURCE（推荐日用 on；老 GCC 4.9 需先修触发点再开启）"
+        required: true
+        default: "off"
+        type: choice
+        options:
+          - "off"
+          - "on"
+      build_dtbo:
+        description: "是否构建 DTBO（overlay）；off 会绕过 trinket dtbo 编译失败（先确保内核能出镜像）"
+        required: true
+        default: "off"
+        type: choice
+        options:
+          - "off"
+          - "on"
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+
+    steps:
+      - name: 检出内核源码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          ref: ${{ inputs.kernel_branch }}
+
+      - name: 安装依赖
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            bc bison build-essential ca-certificates \
+            curl flex git libelf-dev libssl-dev \
+            python3 rsync unzip xz-utils \
+            device-tree-compiler zip
+
+      - name: 拉取工具链（GCC 4.9）
+        run: |
+          set -euxo pipefail
+          GCC64_REPO="LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9"
+          GCC64_REF="lineage-19.1"
+          GCC32_REPO="LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9"
+          GCC32_REF="lineage-19.1"
+
+          git clone --depth=1 -b "$GCC64_REF" "https://github.com/${GCC64_REPO}.git" toolchain-gcc64
+          git clone --depth=1 -b "$GCC32_REF" "https://github.com/${GCC32_REPO}.git" toolchain-gcc32
+
+          echo "TOOLCHAIN_GCC64=$PWD/toolchain-gcc64" >> "$GITHUB_ENV"
+          echo "TOOLCHAIN_GCC32=$PWD/toolchain-gcc32" >> "$GITHUB_ENV"
+
+      - name: 集成 SukiSU（可选）
+        if: inputs.with_sukisu == 'on'
+        run: |
+          set -euxo pipefail
+          ref="${{ inputs.sukisu_ref }}"
+          mode="${{ inputs.sukisu_mode }}"
+          curl -fsSL "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/${ref}/kernel/setup.sh" | bash -s "$mode"
+
+      - name: 配置 defconfig
+        run: |
+          set -euxo pipefail
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export PATH="$TOOLCHAIN_GCC64/bin:$TOOLCHAIN_GCC32/bin:$PATH"
+          export CROSS_COMPILE="$TOOLCHAIN_GCC64/bin/aarch64-linux-android-"
+          export CROSS_COMPILE_ARM32="$TOOLCHAIN_GCC32/bin/arm-linux-androideabi-"
+
+          DEFCONFIG="${{ inputs.defconfig }}"
+          DEFCONFIG_PATH="arch/arm64/configs/${DEFCONFIG}"
+          if [ ! -f "${DEFCONFIG_PATH}" ]; then
+            echo "defconfig 不存在：${DEFCONFIG_PATH}"
+            exit 1
+          fi
+
+          mkdir -p out
+          make O=out "$DEFCONFIG"
+
+          # 允许加载厂商预编译模块（避免签名强制导致 Wi-Fi 模块加载失败）
+          ./scripts/config --file out/.config -d MODULE_SIG_FORCE || true
+
+          # 对齐 stock 版本号（4.14.117-perf-g4732215），避免外部模块 vermagic 不匹配
+          sed -i -E 's/^SUBLEVEL = .*/SUBLEVEL = 117/' Makefile
+          ./scripts/config --file out/.config --set-str LOCALVERSION "-perf-g4732215" || true
+          ./scripts/config --file out/.config -d LOCALVERSION_AUTO || true
+
+          FORTIFY="${{ inputs.fortify }}"
+          if [ "$FORTIFY" = "on" ]; then
+            ./scripts/config --file out/.config -e FORTIFY_SOURCE || true
+          else
+            ./scripts/config --file out/.config -d FORTIFY_SOURCE || true
+          fi
+
+          if [ "${{ inputs.with_sukisu }}" = "on" ]; then
+            # 确保 hook 依赖开启（老内核更稳）
+            ./scripts/config --file out/.config -e KSU || true
+            ./scripts/config --file out/.config -e KPROBES || true
+            ./scripts/config --file out/.config -e KRETPROBES || true
+            ./scripts/config --file out/.config -e KPROBES_ON_FTRACE || true
+            ./scripts/config --file out/.config -e KPROBE_EVENTS || true
+            ./scripts/config --file out/.config -e KALLSYMS || true
+            ./scripts/config --file out/.config -e KALLSYMS_ALL || true
+          fi
+
+          make O=out olddefconfig
+
+      - name: 编译
+        run: |
+          set -euxo pipefail
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export PATH="$TOOLCHAIN_GCC64/bin:$TOOLCHAIN_GCC32/bin:$PATH"
+          export CROSS_COMPILE="$TOOLCHAIN_GCC64/bin/aarch64-linux-android-"
+          export CROSS_COMPILE_ARM32="$TOOLCHAIN_GCC32/bin/arm-linux-androideabi-"
+
+          BUILD_DTBO="${{ inputs.build_dtbo }}"
+          mkdir -p dist
+
+          if [ "$BUILD_DTBO" = "on" ]; then
+            make -j"$(nproc)" O=out Image.gz-dtb V=1 DTC_FLAGS="-@" 2>&1 | tee build.log
+            cp -f out/arch/arm64/boot/Image.gz-dtb dist/Image.gz-dtb
+          else
+            make -j"$(nproc)" O=out Image.gz V=1 2>&1 | tee build.log
+            make -j"$(nproc)" O=out qcom/trinket.dtb V=1 2>&1 | tee -a build.log
+            cat out/arch/arm64/boot/Image.gz out/arch/arm64/boot/dts/qcom/trinket.dtb > dist/Image.gz-dtb
+          fi
+
+      - name: 打包 AnyKernel3（可选，方便 Recovery/第三方刷入）
+        if: always()
+        run: |
+          set -euxo pipefail
+          test -f dist/Image.gz-dtb
+          rm -rf anykernel3
+          git clone --depth=1 https://github.com/osm0sis/AnyKernel3 anykernel3
+          cp -f dist/Image.gz-dtb anykernel3/Image.gz-dtb
+          sed -i \
+            -e 's/^do.devicecheck=.*/do.devicecheck=1/' \
+            -e 's/^device.name1=.*/device.name1=laurus/' \
+            -e 's/^device.name2=.*/device.name2=laurel_sprout/' \
+            anykernel3/anykernel.sh || true
+          (cd anykernel3 && zip -r9 ../dist/AnyKernel3-laurus-${{ github.run_id }}.zip . -x '.git/*')
+
+      - name: 生成 boot.img（fastboot 刷入）
+        if: always()
+        run: |
+          set -euxo pipefail
+          test -f out/arch/arm64/boot/Image.gz
+          mkdir -p dist
+
+          rm -rf repack
+          mkdir -p repack/out
+          cp -f out/arch/arm64/boot/Image.gz repack/out/kernel
+          : > repack/out/ramdisk
+
+          # 生成 trinket 多 DTB 拼接（更接近 stock 的“多 DTB”布局，避免单 DTB 不匹配）
+          : > repack/out/dtb
+          for dts in $(find arch/arm64/boot/dts/qcom -maxdepth 1 -name 'trinket*.dts' ! -name '*-overlay.dts' -print | sort); do
+            dtb="$(basename "${dts%.dts}.dtb")"
+            make -j"$(nproc)" O=out "qcom/${dtb}" V=1
+            cat "out/arch/arm64/boot/dts/qcom/${dtb}" >> repack/out/dtb
+          done
+
+          mkdir -p .tmp
+          curl -fsSL \
+            "https://raw.githubusercontent.com/aosp-mirror/platform_system_tools_mkbootimg/master/mkbootimg.py" \
+            -o .tmp/mkbootimg.py
+
+          CMDLINE="console=ttyMSM0,115200n8 androidboot.hardware=qcom androidboot.console=ttyMSM0 androidboot.memcg=1 lpm_levels.sleep_disabled=1 video=vfb:640x400,bpp=32,memsize=3072000 msm_rtb.filter=0x237 service_locator.enable=1 swiotlb=1 earlycon=msm_geni_serial,0x4a90000 loop.max_part=7 cgroup.memory=nokmem,nosocket androidboot.selinux=enforcing buildvariant=user"
+
+          (cd repack && python3 ../.tmp/mkbootimg.py \
+            --header_version 2 \
+            --os_version 10.0.0 \
+            --os_patch_level 2021-09 \
+            --kernel out/kernel \
+            --ramdisk out/ramdisk \
+            --dtb out/dtb \
+            --pagesize 0x00001000 \
+            --base 0x00000000 \
+            --kernel_offset 0x00008000 \
+            --ramdisk_offset 0x01000000 \
+            --second_offset 0x00f00000 \
+            --tags_offset 0x00000100 \
+            --dtb_offset 0x0000000001f00000 \
+            --board "" \
+            --cmdline "$CMDLINE" \
+            -o ../dist/boot.img)
+
+          # laurus boot 分区固定 64MB，做一次 truncate 与 stock 对齐
+          truncate -s 64M dist/boot.img
+          ls -lh dist/boot.img
+
+      - name: 上传产物
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: laurus-bootimg-${{ github.run_id }}
+          if-no-files-found: warn
+          path: |
+            build.log
+            out/.config
+            out/arch/arm64/boot/Image.gz
+            dist/Image.gz-dtb
+            dist/AnyKernel3-laurus-${{ github.run_id }}.zip
+            dist/boot.img
