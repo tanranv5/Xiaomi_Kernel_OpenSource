@@ -133,27 +133,33 @@ jobs:
             make -j"$(nproc)" O=out Image.gz V=1 2>&1 | tee build.log
 
             mkdir -p dist
-            : > dist/dtb
-            # 注意：arch/arm64/Makefile 的 %.dtb 目标要求传入“相对 dts 根目录”的路径
-            required_dtb="trinket.dtb"
-            if make -j"$(nproc)" O=out "qcom/${required_dtb}" V=1 2>&1 | tee -a build.log; then
-              cat "out/arch/arm64/boot/dts/qcom/${required_dtb}" >> dist/dtb
-            else
-              echo "required dtb build failed: ${required_dtb}" | tee -a build.log
-              exit 1
-            fi
+            rm -f dist/dtb
 
+            # 编译 trinket 相关 dtb（失败跳过，后续按 size 白名单拼接）
             for dts in $(find arch/arm64/boot/dts/qcom -maxdepth 1 -name 'trinket*.dts' ! -name '*-overlay.dts' -print | sort); do
               dtb="$(basename "${dts%.dts}.dtb")"
-              if [ "$dtb" = "${required_dtb}" ]; then
-                continue
-              fi
               if make -j"$(nproc)" O=out "qcom/${dtb}" V=1 2>&1 | tee -a build.log; then
-                cat "out/arch/arm64/boot/dts/qcom/${dtb}" >> dist/dtb
+                echo "built dtb: ${dtb}" | tee -a build.log
               else
-                echo "skip dtb ${dtb} (build failed)" | tee -a build.log
+                echo "skip dtb build failed: ${dtb}" | tee -a build.log
               fi
             done
+
+            # 根据 stock dtb 的 size 列表重建 dtb blob（P 版本）
+            STOCK_DTB_SIZES=("4065" "54743" "4753" "323654" "33249" "27359" "46749" "5306" "173")
+            tmp_map="$(mktemp)"
+            find out/arch/arm64/boot/dts/qcom -maxdepth 1 -name 'trinket*.dtb' -print0 | xargs -0 -I{} stat -c '%s %n' {} | sort > "${tmp_map}"
+
+            : > dist/dtb
+            for size in "${STOCK_DTB_SIZES[@]}"; do
+              match="$(awk -v s="${size}" '$1==s{print $2; exit}' "${tmp_map}")"
+              if [ -z "${match}" ]; then
+                echo "missing dtb size: ${size}" | tee -a build.log
+                exit 1
+              fi
+              cat "${match}" >> dist/dtb
+            done
+            rm -f "${tmp_map}"
 
             # 生成 CC 9e/Trinket 多 DTB Image.gz-dtb（直接用于打包/刷机）
             cat out/arch/arm64/boot/Image.gz dist/dtb > dist/Image.gz-dtb
