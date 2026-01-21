@@ -60,7 +60,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             bc bison build-essential ca-certificates \
-            flex git libelf-dev libssl-dev \
+            curl flex git libelf-dev libssl-dev \
             python3 rsync unzip xz-utils \
             device-tree-compiler zip
 
@@ -138,12 +138,17 @@ jobs:
             # 先确保能编译出内核镜像；dtbo 问题后续再单独修
             make -j"$(nproc)" O=out Image.gz V=1 2>&1 | tee build.log
 
-            # 注意：arch/arm64/Makefile 的 %.dtb 目标要求传入“相对 dts 根目录”的路径
-            make -j"$(nproc)" O=out qcom/trinket.dtb V=1 2>&1 | tee -a build.log
-
-            # 生成 CC 9e/Trinket 专用 Image.gz-dtb（直接用于打包/刷机）
             mkdir -p dist
-            cat out/arch/arm64/boot/Image.gz out/arch/arm64/boot/dts/qcom/trinket.dtb > dist/Image.gz-dtb
+            : > dist/dtb
+            # 注意：arch/arm64/Makefile 的 %.dtb 目标要求传入“相对 dts 根目录”的路径
+            for dts in $(find arch/arm64/boot/dts/qcom -maxdepth 1 -name 'trinket*.dts' ! -name '*-overlay.dts' -print | sort); do
+              dtb="$(basename "${dts%.dts}.dtb")"
+              make -j"$(nproc)" O=out "qcom/${dtb}" V=1 2>&1 | tee -a build.log
+              cat "out/arch/arm64/boot/dts/qcom/${dtb}" >> dist/dtb
+            done
+
+            # 生成 CC 9e/Trinket 多 DTB Image.gz-dtb（直接用于打包/刷机）
+            cat out/arch/arm64/boot/Image.gz dist/dtb > dist/Image.gz-dtb
           fi
 
       - name: 打包 AnyKernel3（可直接刷）
@@ -172,6 +177,58 @@ jobs:
 
           (cd anykernel3 && zip -r9 ../dist/AnyKernel3-laurus-${{ github.run_id }}.zip . -x '.git/*')
 
+      - name: 生成 boot.img（可 fastboot 刷入）
+        id: bootimg
+        if: steps.build.outcome == 'success'
+        run: |
+          set -euxo pipefail
+          mkdir -p dist
+          test -f out/arch/arm64/boot/Image.gz
+
+          rm -rf repack
+          mkdir -p repack/out
+          cp -f out/arch/arm64/boot/Image.gz repack/out/kernel
+          : > repack/out/ramdisk
+
+          # 生成 trinket 多 DTB 拼接（更接近 stock 的“多 DTB”布局，避免单 DTB 不匹配）
+          : > repack/out/dtb
+          for dts in $(find arch/arm64/boot/dts/qcom -maxdepth 1 -name 'trinket*.dts' ! -name '*-overlay.dts' -print | sort); do
+            dtb="$(basename "${dts%.dts}.dtb")"
+            make -j"$(nproc)" O=out "qcom/${dtb}" V=1
+            cat "out/arch/arm64/boot/dts/qcom/${dtb}" >> repack/out/dtb
+          done
+          ls -lh repack/out/dtb
+
+          # 下载 AOSP mkbootimg.py 并生成 boot.img
+          mkdir -p .tmp
+          curl -fsSL \
+            "https://raw.githubusercontent.com/aosp-mirror/platform_system_tools_mkbootimg/master/mkbootimg.py" \
+            -o .tmp/mkbootimg.py
+
+          CMDLINE="console=ttyMSM0,115200n8 androidboot.hardware=qcom androidboot.console=ttyMSM0 androidboot.memcg=1 lpm_levels.sleep_disabled=1 video=vfb:640x400,bpp=32,memsize=3072000 msm_rtb.filter=0x237 service_locator.enable=1 swiotlb=1 earlycon=msm_geni_serial,0x4a90000 loop.max_part=7 cgroup.memory=nokmem,nosocket androidboot.selinux=enforcing buildvariant=user"
+
+          (cd repack && python3 ../.tmp/mkbootimg.py \
+            --header_version 2 \
+            --os_version 10.0.0 \
+            --os_patch_level 2021-09 \
+            --kernel out/kernel \
+            --ramdisk out/ramdisk \
+            --dtb out/dtb \
+            --pagesize 0x00001000 \
+            --base 0x00000000 \
+            --kernel_offset 0x00008000 \
+            --ramdisk_offset 0x01000000 \
+            --second_offset 0x00f00000 \
+            --tags_offset 0x00000100 \
+            --dtb_offset 0x0000000001f00000 \
+            --board "" \
+            --cmdline "$CMDLINE" \
+            -o ../dist/boot.img)
+
+          # laurus boot 分区固定 64MB，做一次 truncate 与 stock 对齐
+          truncate -s 64M dist/boot.img
+          ls -lh dist/boot.img
+
       - name: 写入精简日志（方便无鉴权查看）
         if: always()
         run: |
@@ -198,7 +255,7 @@ jobs:
             echo "==== artifacts existence ===="
             ls -l build.log 2>&1 || true
             ls -l out/arch/arm64/boot/Image.gz-dtb out/arch/arm64/boot/Image.gz out/arch/arm64/boot/dts/qcom/trinket.dtb 2>&1 || true
-            ls -l dist/Image.gz-dtb dist/AnyKernel3-laurus-${{ github.run_id }}.zip 2>&1 || true
+            ls -l dist/Image.gz-dtb dist/AnyKernel3-laurus-${{ github.run_id }}.zip dist/boot.img 2>&1 || true
             echo
             echo "==== build.log errors (tail 200) ===="
             grep -nE "error:|fatal error:" build.log 2>&1 | tail -n 200 || true
@@ -264,5 +321,6 @@ jobs:
             out/arch/arm64/boot/dts/qcom/trinket.dtb
             dist/Image.gz-dtb
             dist/AnyKernel3-laurus-${{ github.run_id }}.zip
+            dist/boot.img
             ci_logs/${{ github.run_id }}.txt
             ci_logs/latest.txt
