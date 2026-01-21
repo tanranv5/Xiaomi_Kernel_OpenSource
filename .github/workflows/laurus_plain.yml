@@ -141,10 +141,20 @@ jobs:
             mkdir -p dist
             : > dist/dtb
             # 注意：arch/arm64/Makefile 的 %.dtb 目标要求传入“相对 dts 根目录”的路径
+            required_dtb="trinket.dtb"
+            make -j"$(nproc)" O=out "qcom/${required_dtb}" V=1 2>&1 | tee -a build.log
+            cat "out/arch/arm64/boot/dts/qcom/${required_dtb}" >> dist/dtb
+
             for dts in $(find arch/arm64/boot/dts/qcom -maxdepth 1 -name 'trinket*.dts' ! -name '*-overlay.dts' -print | sort); do
               dtb="$(basename "${dts%.dts}.dtb")"
-              make -j"$(nproc)" O=out "qcom/${dtb}" V=1 2>&1 | tee -a build.log
-              cat "out/arch/arm64/boot/dts/qcom/${dtb}" >> dist/dtb
+              if [ "$dtb" = "$required_dtb" ]; then
+                continue
+              fi
+              if make -j"$(nproc)" O=out "qcom/${dtb}" V=1 2>&1 | tee -a build.log; then
+                cat "out/arch/arm64/boot/dts/qcom/${dtb}" >> dist/dtb
+              else
+                echo "skip dtb build failed: ${dtb}" | tee -a build.log
+              fi
             done
 
             # 生成 CC 9e/Trinket 多 DTB Image.gz-dtb（直接用于打包/刷机）
@@ -192,10 +202,20 @@ jobs:
 
           # 生成 trinket 多 DTB 拼接（更接近 stock 的“多 DTB”布局，避免单 DTB 不匹配）
           : > repack/out/dtb
+          required_dtb="trinket.dtb"
+          make -j"$(nproc)" O=out "qcom/${required_dtb}" V=1
+          cat "out/arch/arm64/boot/dts/qcom/${required_dtb}" >> repack/out/dtb
+
           for dts in $(find arch/arm64/boot/dts/qcom -maxdepth 1 -name 'trinket*.dts' ! -name '*-overlay.dts' -print | sort); do
             dtb="$(basename "${dts%.dts}.dtb")"
-            make -j"$(nproc)" O=out "qcom/${dtb}" V=1
-            cat "out/arch/arm64/boot/dts/qcom/${dtb}" >> repack/out/dtb
+            if [ "$dtb" = "$required_dtb" ]; then
+              continue
+            fi
+            if make -j"$(nproc)" O=out "qcom/${dtb}" V=1; then
+              cat "out/arch/arm64/boot/dts/qcom/${dtb}" >> repack/out/dtb
+            else
+              echo "skip dtb build failed: ${dtb}" | tee -a build.log
+            fi
           done
           ls -lh repack/out/dtb
 
