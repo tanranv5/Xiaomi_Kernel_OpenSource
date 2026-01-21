@@ -434,15 +434,12 @@ jobs:
           fi
           ls -lh repack/out/dtb
 
-          # 下载 AOSP mkbootimg.py 并生成 boot.img（从 googlesource 获取）
-          mkdir -p .tmp
-          curl -fsSL \
-            "https://android.googlesource.com/platform/system/tools/mkbootimg/+/refs/heads/master/mkbootimg.py?format=TEXT" \
-            | base64 -d > .tmp/mkbootimg.py
+          # 使用仓库自带 mkbootimg.py 生成 boot.img
+          test -f tools/mkbootimg.py
 
           CMDLINE="console=ttyMSM0,115200n8 androidboot.hardware=qcom androidboot.console=ttyMSM0 androidboot.memcg=1 lpm_levels.sleep_disabled=1 video=vfb:640x400,bpp=32,memsize=3072000 msm_rtb.filter=0x237 service_locator.enable=1 swiotlb=1 earlycon=msm_geni_serial,0x4a90000 loop.max_part=7 cgroup.memory=nokmem,nosocket androidboot.selinux=enforcing buildvariant=user"
 
-          (cd repack && python3 ../.tmp/mkbootimg.py \
+          (cd repack && python3 ../tools/mkbootimg.py \
             --header_version 2 \
             --os_version 10.0.0 \
             --os_patch_level 2021-09 \
