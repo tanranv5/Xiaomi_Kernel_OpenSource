@@ -1,1 +1,1 @@
-trigger: ignore modversion mismatches 2026-01-20T20:25:00+08:00
+trigger: dtb reuse for bootimg 2026-01-21T16:20:00+08:00
