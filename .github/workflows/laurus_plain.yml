@@ -148,7 +148,11 @@ jobs:
             STOCK_DTB_B64="ci_assets/laurus_q_dtb.bin.gz.b64"
             if [ -f "${STOCK_DTB_B64}" ]; then
               # 优先使用 stock dtb blob，避免 trinket dtb 编译失败
-              base64 -d "${STOCK_DTB_B64}" | gzip -d > dist/dtb
+              if gzip -t "${STOCK_DTB_B64}" >/dev/null 2>&1; then
+                gzip -dc "${STOCK_DTB_B64}" > dist/dtb
+              else
+                base64 -d "${STOCK_DTB_B64}" | gzip -d > dist/dtb
+              fi
             else
               # 编译 trinket 相关 dtb（失败跳过，后续按 size 白名单拼接）
               set +e
