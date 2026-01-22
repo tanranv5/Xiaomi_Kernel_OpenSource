@@ -241,6 +241,8 @@ jobs:
               'CONFIG_KSU=y' \
               'CONFIG_KSU_MANUAL_HOOK=y' \
               '# CONFIG_KSU_MANUAL_SU is not set' \
+              'CONFIG_KPM=y' \
+              'CONFIG_KSU_SUSFS=y' \
               'CONFIG_KPROBES=y' \
               'CONFIG_KRETPROBES=y' \
               'CONFIG_KPROBE_EVENTS=y' \
@@ -261,6 +263,8 @@ jobs:
             ./scripts/config --file out/.config -e KSU || true
             ./scripts/config --file out/.config -e KSU_MANUAL_HOOK || true
             ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
+            ./scripts/config --file out/.config -e KPM || true
+            ./scripts/config --file out/.config -e KSU_SUSFS || true
             ./scripts/config --file out/.config -e KPROBES || true
             ./scripts/config --file out/.config -e KRETPROBES || true
             ./scripts/config --file out/.config -e KPROBE_EVENTS || true
@@ -302,6 +306,8 @@ jobs:
             ./scripts/config --file out/.config -e KSU || true
             ./scripts/config --file out/.config -e KSU_MANUAL_HOOK || true
             ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
+            ./scripts/config --file out/.config -e KPM || true
+            ./scripts/config --file out/.config -e KSU_SUSFS || true
             ./scripts/config --file out/.config -e KPROBES || true
             ./scripts/config --file out/.config -e KRETPROBES || true
             ./scripts/config --file out/.config -e KPROBE_EVENTS || true
@@ -490,7 +496,7 @@ jobs:
             echo
             echo "==== ksu config snapshot (out/.config) ===="
             if [ -f out/.config ]; then
-              grep -nE "KSU|KPROBES|KRETPROBES|KPROBES_ON_FTRACE|KPROBE_EVENTS|KALLSYMS|FTRACE" out/.config 2>&1 | head -n 200 || true
+              grep -nE "KSU|KPM|SUSFS|KPROBES|KRETPROBES|KPROBES_ON_FTRACE|KPROBE_EVENTS|KALLSYMS|FTRACE" out/.config 2>&1 | head -n 200 || true
             else
               echo "out/.config not found"
             fi
