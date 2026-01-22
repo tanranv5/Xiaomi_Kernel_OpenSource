@@ -302,6 +302,20 @@ jobs:
             ksu_dir="drivers/kernelsu"
           fi
 
+          python3 - <<PY
+          from pathlib import Path
+
+          path = Path("${ksu_dir}") / "supercalls.c"
+          text = path.read_text()
+          if "susfs_def.h" not in text:
+              key = "#include <linux/version.h>\n"
+              if key in text:
+                  text = text.replace(key, key + "#include <linux/susfs_def.h>\n", 1)
+              else:
+                  text = "#include <linux/susfs_def.h>\n" + text
+              path.write_text(text)
+          PY
+
           cat > "${ksu_dir}/manual_hook_adapters.c" <<'EOF'
           #include <linux/compiler.h>
           #include <linux/cred.h>
