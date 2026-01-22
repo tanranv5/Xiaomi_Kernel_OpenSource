@@ -146,44 +146,52 @@ jobs:
             patch -p1 < /tmp/susfs_kernel.patch || susfs_patch_failed=1
           fi
 
-          cat <<'PATCH' | sed 's/^          //' > /tmp/susfs_open_fix.patch
-          diff --git a/fs/open.c b/fs/open.c
-          index 8a2674c3cf6b..8a2674c3cf6b 100644
-          --- a/fs/open.c
-          +++ b/fs/open.c
-          @@ -381,6 +381,12 @@ SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)
-          	struct inode *inode;
-          	struct vfsmount *mnt;
-          	int res;
-          	unsigned int lookup_flags = LOOKUP_FOLLOW;
-          
-          +#ifdef CONFIG_KSU_SUSFS_SUS_PATH
-          +	struct filename *fname;
-          +	int status;
-          +	int error;
-          +#endif
-          +
-          @@ -385,6 +395,12 @@ SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)
-          #ifdef CONFIG_KSU
-          	ksu_handle_faccessat(&dfd, &filename, &mode, NULL);
-          #endif
-          
-          +#ifdef CONFIG_KSU_SUSFS_SUS_PATH
-          +	fname = getname_safe(filename);
-          +	status = susfs_sus_path_by_filename(fname, &error, SYSCALL_FAMILY_ALL_ENOENT);
-          +	putname_safe(fname);
-          +
-          +	if (status) {
-          +		return error;
-          +	}
-          +#endif
-          PATCH
+          python3 - <<'PY'
+          from pathlib import Path
 
-          if patch -p1 -R --dry-run < /tmp/susfs_open_fix.patch >/dev/null 2>&1; then
-            echo "susfs open.c fix already applied"
-          else
-            patch -p1 < /tmp/susfs_open_fix.patch
-          fi
+          path = Path("fs/open.c")
+          text = path.read_text()
+          marker = "SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)"
+          start = text.find(marker)
+          if start == -1:
+              raise SystemExit("faccessat not found")
+
+          end = text.find("if (mode & ~S_IRWXO)", start)
+          if end == -1:
+              raise SystemExit("faccessat body not found")
+
+          segment = text[start:end]
+          if "susfs_sus_path_by_filename" not in segment:
+              segment = segment.replace(
+                  "unsigned int lookup_flags = LOOKUP_FOLLOW;\n",
+                  "unsigned int lookup_flags = LOOKUP_FOLLOW;\n\n"
+                  "#ifdef CONFIG_KSU_SUSFS_SUS_PATH\n"
+                  "\tstruct filename *fname;\n"
+                  "\tint status;\n"
+                  "\tint error;\n"
+                  "#endif\n",
+                  1,
+              )
+              segment = segment.replace(
+                  "#ifdef CONFIG_KSU\n"
+                  "\tksu_handle_faccessat(&dfd, &filename, &mode, NULL);\n"
+                  "#endif\n",
+                  "#ifdef CONFIG_KSU\n"
+                  "\tksu_handle_faccessat(&dfd, &filename, &mode, NULL);\n"
+                  "#endif\n\n"
+                  "#ifdef CONFIG_KSU_SUSFS_SUS_PATH\n"
+                  "\tfname = getname_safe(filename);\n"
+                  "\tstatus = susfs_sus_path_by_filename(fname, &error, SYSCALL_FAMILY_ALL_ENOENT);\n"
+                  "\tputname_safe(fname);\n\n"
+                  "\tif (status) {\n"
+                  "\t\treturn error;\n"
+                  "\t}\n"
+                  "#endif\n",
+                  1,
+              )
+              text = text[:start] + segment + text[end:]
+              path.write_text(text)
+          PY
 
           if [ "$susfs_patch_failed" -ne 0 ]; then
             echo "susfs kernel patch had rejects; applied open.c fix"
