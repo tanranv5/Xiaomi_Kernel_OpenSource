@@ -116,6 +116,10 @@ jobs:
           ./scripts/config --file out/.config --set-str LOCALVERSION "-perf-g4732215" || true
           ./scripts/config --file out/.config -d LOCALVERSION_AUTO || true
 
+          # 避免 Image.gz 触发 dtb 全量编译（dtc 错误会导致构建失败）
+          ./scripts/config --file out/.config -d BUILD_ARM64_DTBS || true
+          ./scripts/config --file out/.config -d BUILD_ARM64_APPENDED_DTB_IMAGE || true
+
           make O=out olddefconfig
 
 
