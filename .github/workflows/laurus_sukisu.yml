@@ -130,6 +130,28 @@ jobs:
             git apply /tmp/ksu_manual_hook.patch
           fi
 
+          # 集成 SUSFS（KernelSU + kernel），提供 KPM/SUSFS 支持
+          susfs_dir="/tmp/susfs4ksu"
+          rm -rf "$susfs_dir"
+          git clone --depth=1 https://gitlab.com/simonpunk/susfs4ksu "$susfs_dir"
+
+          cp -f "$susfs_dir/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch" KernelSU/
+          cp -f "$susfs_dir/kernel_patches/50_add_susfs_in_kernel-4.14.patch" /tmp/susfs_kernel.patch
+          cp -f "$susfs_dir/kernel_patches/fs/susfs.c" fs/
+          cp -f "$susfs_dir/kernel_patches/include/linux/susfs.h" include/linux/
+
+          if (cd KernelSU && patch -p1 -R --dry-run < 10_enable_susfs_for_ksu.patch >/dev/null 2>&1); then
+            echo "susfs ksu patch already applied"
+          else
+            (cd KernelSU && patch -p1 < 10_enable_susfs_for_ksu.patch)
+          fi
+
+          if patch -p1 -R --dry-run < /tmp/susfs_kernel.patch >/dev/null 2>&1; then
+            echo "susfs kernel patch already applied"
+          else
+            patch -p1 < /tmp/susfs_kernel.patch
+          fi
+
           # 补齐 manual hook 适配符号，避免链接错误
           if [ -d "common/drivers" ]; then
             ksu_dir="common/drivers/kernelsu"
