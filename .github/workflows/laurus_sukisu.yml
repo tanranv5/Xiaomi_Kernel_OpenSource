@@ -142,7 +142,9 @@ jobs:
           #ifndef KSU_SUSFS_DEF_H
           #define KSU_SUSFS_DEF_H
 
-          #include <linux/bits.h>
+          #include <linux/bitops.h>
+          #include <linux/sched.h>
+          #include <linux/thread_info.h>
           #include <linux/susfs.h>
 
           /********/
