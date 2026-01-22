@@ -352,20 +352,23 @@ jobs:
             mkdir -p dist
             rm -f dist/dtb
 
-            # 编译 trinket 相关 dtb（失败跳过，后续按 size 白名单拼接）
-            for dts in $(find arch/arm64/boot/dts/qcom -maxdepth 1 -name 'trinket*.dts' ! -name '*-overlay.dts' -print | sort); do
-              dtb="$(basename "${dts%.dts}.dtb")"
-              if make -j"$(nproc)" O=out "qcom/${dtb}" V=1 2>&1 | tee -a build.log; then
-                echo "built dtb: ${dtb}" | tee -a build.log
-              else
-                echo "skip dtb build failed: ${dtb}" | tee -a build.log
-              fi
-            done
-
             STOCK_DTB_B64="ci_assets/laurus_q_dtb.bin.gz.b64"
             if [ -f "${STOCK_DTB_B64}" ]; then
+              # 优先使用 stock dtb blob，避免 trinket dtb 编译失败
               base64 -d "${STOCK_DTB_B64}" | gzip -d > dist/dtb
             else
+              # 编译 trinket 相关 dtb（失败跳过，后续按 size 白名单拼接）
+              set +e
+              for dts in $(find arch/arm64/boot/dts/qcom -maxdepth 1 -name 'trinket*.dts' ! -name '*-overlay.dts' -print | sort); do
+                dtb="$(basename "${dts%.dts}.dtb")"
+                if make -j"$(nproc)" O=out "qcom/${dtb}" V=1 2>&1 | tee -a build.log; then
+                  echo "built dtb: ${dtb}" | tee -a build.log
+                else
+                  echo "skip dtb build failed: ${dtb}" | tee -a build.log
+                fi
+              done
+              set -e
+
               # 根据 stock dtb 的 size 列表重建 dtb blob（Q 版本）
               STOCK_DTB_SIZES=("54743" "33269" "4065" "46749" "5306" "4753" "27379" "327570")
               tmp_map="$(mktemp)"
