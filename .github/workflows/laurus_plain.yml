@@ -145,21 +145,26 @@ jobs:
               fi
             done
 
-            # 根据 stock dtb 的 size 列表重建 dtb blob（P 版本）
-            STOCK_DTB_SIZES=("4065" "54743" "4753" "323654" "33249" "27359" "46749" "5306" "173")
-            tmp_map="$(mktemp)"
-            find out/arch/arm64/boot/dts/qcom -maxdepth 1 -name 'trinket*.dtb' -print0 | xargs -0 -I{} stat -c '%s %n' {} | sort > "${tmp_map}"
+            STOCK_DTB_B64="ci_assets/laurus_p_dtb.bin.gz.b64"
+            if [ -f "${STOCK_DTB_B64}" ]; then
+              base64 -d "${STOCK_DTB_B64}" | gzip -d > dist/dtb
+            else
+              # 根据 stock dtb 的 size 列表重建 dtb blob（P 版本）
+              STOCK_DTB_SIZES=("4065" "54743" "4753" "323654" "33249" "27359" "46749" "5306" "173")
+              tmp_map="$(mktemp)"
+              find out/arch/arm64/boot/dts/qcom -maxdepth 1 -name 'trinket*.dtb' -print0 | xargs -0 -I{} stat -c '%s %n' {} | sort > "${tmp_map}"
 
-            : > dist/dtb
-            for size in "${STOCK_DTB_SIZES[@]}"; do
-              match="$(awk -v s="${size}" '$1==s{print $2; exit}' "${tmp_map}")"
-              if [ -z "${match}" ]; then
-                echo "missing dtb size: ${size}" | tee -a build.log
-                exit 1
-              fi
-              cat "${match}" >> dist/dtb
-            done
-            rm -f "${tmp_map}"
+              : > dist/dtb
+              for size in "${STOCK_DTB_SIZES[@]}"; do
+                match="$(awk -v s="${size}" '$1==s{print $2; exit}' "${tmp_map}")"
+                if [ -z "${match}" ]; then
+                  echo "missing dtb size: ${size}" | tee -a build.log
+                  exit 1
+                fi
+                cat "${match}" >> dist/dtb
+              done
+              rm -f "${tmp_map}"
+            fi
 
             # 生成 CC 9e/Trinket 多 DTB Image.gz-dtb（直接用于打包/刷机）
             cat out/arch/arm64/boot/Image.gz dist/dtb > dist/Image.gz-dtb
