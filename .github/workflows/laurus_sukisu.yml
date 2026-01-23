@@ -136,7 +136,6 @@ jobs:
           rm -rf "$susfs_dir"
           git clone --depth=1 -b "$susfs_ref" https://gitlab.com/simonpunk/susfs4ksu "$susfs_dir"
 
-          curl -fsSL "https://gitlab.com/simonpunk/susfs4ksu/-/raw/master/kernel_patches/50_add_susfs_in_kernel-4.14.patch" -o /tmp/susfs_kernel.patch
           cp -f "$susfs_dir/kernel_patches/fs/susfs.c" fs/
           cp -f "$susfs_dir/kernel_patches/include/linux/susfs.h" include/linux/
           cp -f "$susfs_dir/kernel_patches/include/linux/susfs_def.h" include/linux/
@@ -152,63 +151,8 @@ jobs:
           }
           SUSFS_EOF
           fi
-
-          susfs_patch_failed=0
-          if patch -p1 -R --dry-run < /tmp/susfs_kernel.patch >/dev/null 2>&1; then
-            echo "susfs kernel patch already applied"
-          else
-            patch -p1 < /tmp/susfs_kernel.patch || susfs_patch_failed=1
-          fi
-
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path("fs/open.c")
-          text = path.read_text()
-          marker = "SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)"
-          start = text.find(marker)
-          if start == -1:
-              raise SystemExit("faccessat not found")
-
-          end = text.find("if (mode & ~S_IRWXO)", start)
-          if end == -1:
-              raise SystemExit("faccessat body not found")
-
-          segment = text[start:end]
-          if "susfs_sus_path_by_filename" not in segment:
-              segment = segment.replace(
-                  "unsigned int lookup_flags = LOOKUP_FOLLOW;\n",
-                  "unsigned int lookup_flags = LOOKUP_FOLLOW;\n\n"
-                  "#ifdef CONFIG_KSU_SUSFS_SUS_PATH\n"
-                  "\tstruct filename *fname;\n"
-                  "\tint status;\n"
-                  "\tint error;\n"
-                  "#endif\n",
-                  1,
-              )
-              segment = segment.replace(
-                  "#ifdef CONFIG_KSU\n"
-                  "\tksu_handle_faccessat(&dfd, &filename, &mode, NULL);\n"
-                  "#endif\n",
-                  "#ifdef CONFIG_KSU\n"
-                  "\tksu_handle_faccessat(&dfd, &filename, &mode, NULL);\n"
-                  "#endif\n\n"
-                  "#ifdef CONFIG_KSU_SUSFS_SUS_PATH\n"
-                  "\tfname = getname_safe(filename);\n"
-                  "\tstatus = susfs_sus_path_by_filename(fname, &error, SYSCALL_FAMILY_ALL_ENOENT);\n"
-                  "\tputname_safe(fname);\n\n"
-                  "\tif (status) {\n"
-                  "\t\treturn error;\n"
-                  "\t}\n"
-                  "#endif\n",
-                  1,
-              )
-              text = text[:start] + segment + text[end:]
-              path.write_text(text)
-          PY
-
-          if [ "$susfs_patch_failed" -ne 0 ]; then
-            echo "susfs kernel patch had rejects; applied open.c fix"
+          if ! grep -q "CONFIG_KSU_SUSFS" fs/Makefile; then
+            echo "obj-\\$(CONFIG_KSU_SUSFS) += susfs.o" >> fs/Makefile
           fi
 
           # 补齐 manual hook 适配符号，避免链接错误
