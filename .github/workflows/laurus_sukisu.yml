@@ -151,9 +151,45 @@ jobs:
           }
           SUSFS_EOF
           fi
-          if ! grep -q "susfs_is_avc_log_spoofing_enabled __read_mostly" fs/susfs.c; then
-            sed -i '/susfs_is_log_enabled/a bool susfs_is_avc_log_spoofing_enabled __read_mostly = false;' fs/susfs.c
-          fi
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("fs/susfs.c")
+          lines = path.read_text().splitlines()
+          new_lines = []
+          seen = 0
+          for line in lines:
+            if "susfs_is_avc_log_spoofing_enabled" in line:
+              seen += 1
+              if seen > 1:
+                continue
+            new_lines.append(line)
+          lines = new_lines
+
+          if not any("susfs_is_avc_log_spoofing_enabled" in line for line in lines):
+            inserted = False
+            new_lines = []
+            for line in lines:
+              new_lines.append(line)
+              if (not inserted
+                  and line.strip().startswith("bool susfs_is_log_enabled")
+                  and "__read_mostly" in line):
+                new_lines.append("bool susfs_is_avc_log_spoofing_enabled __read_mostly = false;")
+                inserted = True
+            lines = new_lines
+
+            if not inserted:
+              new_lines = []
+              for line in lines:
+                new_lines.append(line)
+                if (not inserted
+                    and "susfs_is_current_ksu_domain" in line):
+                  new_lines.append("bool susfs_is_avc_log_spoofing_enabled __read_mostly = false;")
+                  inserted = True
+              lines = new_lines
+
+          path.write_text("\n".join(lines) + "\n")
+          PY
           if ! grep -q "CONFIG_KSU_SUSFS" fs/Makefile; then
             echo 'obj-$(CONFIG_KSU_SUSFS) += susfs.o' >> fs/Makefile
           fi
