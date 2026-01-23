@@ -152,7 +152,7 @@ jobs:
           SUSFS_EOF
           fi
           if ! grep -q "CONFIG_KSU_SUSFS" fs/Makefile; then
-            echo "obj-\\$(CONFIG_KSU_SUSFS) += susfs.o" >> fs/Makefile
+            echo 'obj-$(CONFIG_KSU_SUSFS) += susfs.o' >> fs/Makefile
           fi
 
           # 补齐 manual hook 适配符号，避免链接错误
