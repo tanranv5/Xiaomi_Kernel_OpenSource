@@ -151,6 +151,9 @@ jobs:
           }
           SUSFS_EOF
           fi
+          if ! grep -q "susfs_is_avc_log_spoofing_enabled __read_mostly" fs/susfs.c; then
+            sed -i '/susfs_is_log_enabled/a bool susfs_is_avc_log_spoofing_enabled __read_mostly = false;' fs/susfs.c
+          fi
           if ! grep -q "CONFIG_KSU_SUSFS" fs/Makefile; then
             echo 'obj-$(CONFIG_KSU_SUSFS) += susfs.o' >> fs/Makefile
           fi
