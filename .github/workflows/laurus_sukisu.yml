@@ -283,6 +283,41 @@ jobs:
             echo "kernelsu-objs += manual_hook_adapters.o" >> "${ksu_dir}/Kbuild"
           fi
 
+          # 兼容 MIUI/非 GKI 的 init.rc 路径（/init.rc 或 /system/etc/init/init.rc）
+          python3 - <<PY
+          from pathlib import Path
+          import re
+
+          path = Path("${ksu_dir}") / "ksud.c"
+          text = path.read_text()
+          old = (
+              '    if (strcmp(dpath, "/system/etc/init/hw/init.rc")) {\n'
+              '        return false;\n'
+              '    }\n'
+              '\n'
+              '    return true;\n'
+          )
+          new = (
+              '    if (!strcmp(dpath, "/system/etc/init/hw/init.rc") ||\n'
+              '        !strcmp(dpath, "/system/etc/init/init.rc") ||\n'
+              '        !strcmp(dpath, "/init.rc")) {\n'
+              '        return true;\n'
+              '    }\n'
+              '\n'
+              '    return false;\n'
+          )
+          if old in text:
+              text = text.replace(old, new)
+          else:
+              text = re.sub(
+                  r'\n\s*if \(strcmp\(dpath, "[^"]+"\)\) \{\n\s*return false;\n\s*}\n\s*\n\s*return true;\n',
+                  '\n' + new,
+                  text,
+                  count=1,
+              )
+          path.write_text(text)
+          PY
+
       - name: 配置 defconfig
         id: config
         run: |
