@@ -85,7 +85,7 @@ jobs:
         run: |
           set -euxo pipefail
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
+          sudo apt-get install -y --no-installrecommends \
             bc bison build-essential ca-certificates \
             curl flex git libelf-dev libssl-dev \
             python3 rsync unzip xz-utils \
@@ -315,6 +315,62 @@ jobs:
                   text,
                   count=1,
               )
+          path.write_text(text)
+          PY
+
+          # 兼容 setuid/setreuid，确保 manager fd 能注入
+          python3 - <<PY
+          from pathlib import Path
+          import re
+
+          path = Path("${ksu_dir}") / "syscall_hook_manager.c"
+          text = path.read_text()
+
+          text = text.replace(
+              "    case __NR_setresuid:\n",
+              "    case __NR_setresuid:\n"
+              "    case __NR_setuid:\n"
+              "    case __NR_setreuid:\n",
+          )
+
+          marker = """        // Handle setresuid
+        if (id == __NR_setresuid) {
+            uid_t ruid = (uid_t)PT_REGS_PARM1(regs);
+            uid_t euid = (uid_t)PT_REGS_PARM2(regs);
+            uid_t suid = (uid_t)PT_REGS_PARM3(regs);
+            ksu_handle_setresuid(ruid, euid, suid);
+            return;
+        }
+"""
+          if marker in text:
+              insert = """#ifdef __NR_setuid
+        // Handle setuid
+        if (id == __NR_setuid) {
+            uid_t uid = (uid_t)PT_REGS_PARM1(regs);
+            ksu_handle_setresuid(uid, uid, uid);
+            return;
+        }
+#endif
+#ifdef __NR_setreuid
+        // Handle setreuid
+        if (id == __NR_setreuid) {
+            uid_t ruid = (uid_t)PT_REGS_PARM1(regs);
+            uid_t euid = (uid_t)PT_REGS_PARM2(regs);
+            uid_t new_uid = (uid_t)-1;
+            if (ruid != (uid_t)-1) {
+                new_uid = ruid;
+            } else if (euid != (uid_t)-1) {
+                new_uid = euid;
+            } else {
+                new_uid = current_uid().val;
+            }
+            ksu_handle_setresuid(new_uid, new_uid, new_uid);
+            return;
+        }
+#endif
+"""
+              text = text.replace(marker, marker + insert)
+
           path.write_text(text)
           PY
 
