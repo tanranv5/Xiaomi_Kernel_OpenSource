@@ -283,255 +283,6 @@ jobs:
             echo "kernelsu-objs += manual_hook_adapters.o" >> "${ksu_dir}/Kbuild"
           fi
 
-          # 兼容 MIUI/非 GKI 的 init.rc 路径（/init.rc 或 /system/etc/init/init.rc）
-          python3 - <<PY
-          from pathlib import Path
-          import re
-
-          path = Path("${ksu_dir}") / "ksud.c"
-          text = path.read_text()
-          old = (
-              '    if (strcmp(dpath, "/system/etc/init/hw/init.rc")) {\n'
-              '        return false;\n'
-              '    }\n'
-              '\n'
-              '    return true;\n'
-          )
-          new = (
-              '    if (!strcmp(dpath, "/system/etc/init/hw/init.rc") ||\n'
-              '        !strcmp(dpath, "/system/etc/init/init.rc") ||\n'
-              '        !strcmp(dpath, "/init.rc")) {\n'
-              '        return true;\n'
-              '    }\n'
-              '\n'
-              '    return false;\n'
-          )
-          if old in text:
-              text = text.replace(old, new)
-          else:
-              text = re.sub(
-                  r'\n\s*if \(strcmp\(dpath, "[^"]+"\)\) \{\n\s*return false;\n\s*}\n\s*\n\s*return true;\n',
-                  '\n' + new,
-                  text,
-                  count=1,
-              )
-          path.write_text(text)
-          PY
-
-          # 兼容 setuid/setreuid，确保 manager fd 能注入
-          python3 - <<PY
-          from pathlib import Path
-
-          ksu_dir = Path("${ksu_dir}")
-          hook_manager = ksu_dir / "syscall_hook_manager.c"
-          syscall_handler = ksu_dir / "syscall_handler.c"
-
-          def patch_syscall_hook_manager(path: Path) -> None:
-              text = path.read_text()
-              if "__NR_setuid" not in text:
-                  text = text.replace(
-                      "    case __NR_setresuid:\n",
-                      "    case __NR_setresuid:\n"
-                      "#ifdef __NR_setuid\n"
-                      "    case __NR_setuid:\n"
-                      "#endif\n"
-                      "#ifdef __NR_setreuid\n"
-                      "    case __NR_setreuid:\n"
-                      "#endif\n",
-                  )
-
-              marker = (
-                  "        // Handle setresuid\n"
-                  "        if (id == __NR_setresuid) {\n"
-                  "            uid_t ruid = (uid_t)PT_REGS_PARM1(regs);\n"
-                  "            uid_t euid = (uid_t)PT_REGS_PARM2(regs);\n"
-                  "            uid_t suid = (uid_t)PT_REGS_PARM3(regs);\n"
-                  "            ksu_handle_setresuid(ruid, euid, suid);\n"
-                  "            return;\n"
-                  "        }\n"
-              )
-              if marker in text and "Handle setuid" not in text:
-                  insert = (
-                      "#ifdef __NR_setuid\n"
-                      "        // Handle setuid\n"
-                      "        if (id == __NR_setuid) {\n"
-                      "            uid_t uid = (uid_t)PT_REGS_PARM1(regs);\n"
-                      "            ksu_handle_setresuid(uid, uid, uid);\n"
-                      "            return;\n"
-                      "        }\n"
-                      "#endif\n"
-                      "#ifdef __NR_setreuid\n"
-                      "        // Handle setreuid\n"
-                      "        if (id == __NR_setreuid) {\n"
-                      "            uid_t ruid = (uid_t)PT_REGS_PARM1(regs);\n"
-                      "            uid_t euid = (uid_t)PT_REGS_PARM2(regs);\n"
-                      "            uid_t new_uid = (uid_t)-1;\n"
-                      "            if (ruid != (uid_t)-1) {\n"
-                      "                new_uid = ruid;\n"
-                      "            } else if (euid != (uid_t)-1) {\n"
-                      "                new_uid = euid;\n"
-                      "            } else {\n"
-                      "                new_uid = current_uid().val;\n"
-                      "            }\n"
-                      "            ksu_handle_setresuid(new_uid, new_uid, new_uid);\n"
-                      "            return;\n"
-                      "        }\n"
-                      "#endif\n"
-                  )
-                  text = text.replace(marker, marker + insert)
-
-              path.write_text(text)
-
-          def patch_syscall_handler(path: Path) -> None:
-              text = path.read_text()
-              target = (
-                  "    case __NR_execve:\n"
-                  "    case __NR_setresuid:\n"
-                  "        return true;\n"
-              )
-              if target in text and "__NR_setuid" not in text:
-                  replacement = (
-                      "    case __NR_execve:\n"
-                      "    case __NR_setresuid:\n"
-                      "#ifdef __NR_setuid\n"
-                      "    case __NR_setuid:\n"
-                      "#endif\n"
-                      "#ifdef __NR_setreuid\n"
-                      "    case __NR_setreuid:\n"
-                      "#endif\n"
-                      "        return true;\n"
-                  )
-                  text = text.replace(target, replacement)
-
-              marker = (
-                  "        // Handle setresuid\n"
-                  "        if (id == __NR_setresuid) {\n"
-                  "            uid_t ruid = (uid_t)PT_REGS_PARM1(regs);\n"
-                  "            uid_t euid = (uid_t)PT_REGS_PARM2(regs);\n"
-                  "            uid_t suid = (uid_t)PT_REGS_PARM3(regs);\n"
-                  "            ksu_handle_setresuid(ruid, euid, suid);\n"
-                  "            return;\n"
-                  "        }\n"
-              )
-              if marker in text and "Handle setuid" not in text:
-                  insert = (
-                      "#ifdef __NR_setuid\n"
-                      "        // Handle setuid\n"
-                      "        if (id == __NR_setuid) {\n"
-                      "            uid_t uid = (uid_t)PT_REGS_PARM1(regs);\n"
-                      "            ksu_handle_setresuid(uid, uid, uid);\n"
-                      "            return;\n"
-                      "        }\n"
-                      "#endif\n"
-                      "#ifdef __NR_setreuid\n"
-                      "        // Handle setreuid\n"
-                      "        if (id == __NR_setreuid) {\n"
-                      "            uid_t ruid = (uid_t)PT_REGS_PARM1(regs);\n"
-                      "            uid_t euid = (uid_t)PT_REGS_PARM2(regs);\n"
-                      "            uid_t new_uid = (uid_t)-1;\n"
-                      "            if (ruid != (uid_t)-1) {\n"
-                      "                new_uid = ruid;\n"
-                      "            } else if (euid != (uid_t)-1) {\n"
-                      "                new_uid = euid;\n"
-                      "            } else {\n"
-                      "                new_uid = current_uid().val;\n"
-                      "            }\n"
-                      "            ksu_handle_setresuid(new_uid, new_uid, new_uid);\n"
-                      "            return;\n"
-                      "        }\n"
-                      "#endif\n"
-                  )
-                  text = text.replace(marker, marker + insert)
-
-              path.write_text(text)
-
-          if hook_manager.exists():
-              patch_syscall_hook_manager(hook_manager)
-          elif syscall_handler.exists():
-              patch_syscall_handler(syscall_handler)
-          else:
-              print("skip setuid/setreuid patch: no syscall hook file found")
-          PY
-
-          # manual hook 下直接在 kernel/sys.c 触发 setuid/setresuid
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path("kernel/sys.c")
-          if not path.exists():
-              print("skip sys.c patch: kernel/sys.c not found")
-              raise SystemExit(0)
-
-          text = path.read_text()
-
-          decl = (
-              "#ifdef CONFIG_KSU\n"
-              "extern int ksu_handle_setresuid(uid_t ruid, uid_t euid, uid_t suid);\n"
-              "#endif\n"
-          )
-
-          if "extern int ksu_handle_setresuid" not in text:
-              marker = "#include <linux/cred.h>\n"
-              if marker in text:
-                  text = text.replace(marker, marker + "\n" + decl + "\n", 1)
-              else:
-                  text = decl + "\n" + text
-
-          def patch_func(text: str, signature: str, args: str) -> str:
-              start = text.find(signature)
-              if start == -1:
-                  return text
-              brace_start = text.find("{", start)
-              if brace_start == -1:
-                  return text
-
-              depth = 0
-              end = None
-              for i in range(brace_start, len(text)):
-                  if text[i] == "{":
-                      depth += 1
-                  elif text[i] == "}":
-                      depth -= 1
-                      if depth == 0:
-                          end = i + 1
-                          break
-
-              if end is None:
-                  return text
-
-              block = text[start:end]
-              if "ksu_handle_setresuid" in block:
-                  return text
-
-              target = "return commit_creds(new);"
-              idx = block.rfind(target)
-              if idx == -1:
-                  return text
-
-              line_start = block.rfind("\n", 0, idx) + 1
-              indent = block[line_start:idx]
-              insert = (
-                  f"{indent}#ifdef CONFIG_KSU\n"
-                  f"{indent}ksu_handle_setresuid({args});\n"
-                  f"{indent}#endif\n"
-              )
-              block = block[:idx] + insert + block[idx:]
-              return text[:start] + block + text[end:]
-
-          text = patch_func(
-              text,
-              "SYSCALL_DEFINE1(setuid, uid_t, uid)",
-              "uid, uid, uid",
-          )
-          text = patch_func(
-              text,
-              "SYSCALL_DEFINE3(setresuid, uid_t, ruid, uid_t, euid, uid_t, suid)",
-              "ruid, euid, suid",
-          )
-
-          path.write_text(text)
-          PY
-
       - name: 配置 defconfig
         id: config
         run: |
@@ -552,7 +303,7 @@ jobs:
           fi
 
           # 对齐 vendor 模块 vermagic（避免 Wi-Fi 模块加载失败）
-          sed -i -E 's/^SUBLEVEL = .*/SUBLEVEL = 117/' Makefile
+          sed -i -E 's/^SUBLEVEL = .*/SUBLEVEL = 98/' Makefile
           sed -i -E 's/^EXTRAVERSION = .*/EXTRAVERSION =/' Makefile
           rm -f .scmversion
 
@@ -568,17 +319,6 @@ jobs:
               'CONFIG_KSU=y' \
               'CONFIG_KSU_MANUAL_HOOK=y' \
               '# CONFIG_KSU_MANUAL_SU is not set' \
-              'CONFIG_KPM=y' \
-              'CONFIG_KSU_SUSFS=y' \
-              'CONFIG_KSU_SUSFS_SUS_PATH=y' \
-              'CONFIG_KSU_SUSFS_SUS_MOUNT=y' \
-              'CONFIG_KSU_SUSFS_SUS_KSTAT=y' \
-              'CONFIG_KSU_SUSFS_SPOOF_UNAME=y' \
-              'CONFIG_KSU_SUSFS_ENABLE_LOG=y' \
-              'CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y' \
-              'CONFIG_KSU_SUSFS_OPEN_REDIRECT=y' \
-              'CONFIG_KSU_SUSFS_SUS_MAP=y' \
-              '# CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS is not set' \
               'CONFIG_KPROBES=y' \
               'CONFIG_KRETPROBES=y' \
               'CONFIG_KPROBE_EVENTS=y' \
@@ -599,17 +339,6 @@ jobs:
             ./scripts/config --file out/.config -e KSU || true
             ./scripts/config --file out/.config -e KSU_MANUAL_HOOK || true
             ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
-            ./scripts/config --file out/.config -e KPM || true
-            ./scripts/config --file out/.config -e KSU_SUSFS || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_PATH || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_MOUNT || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_KSTAT || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_SPOOF_UNAME || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_ENABLE_LOG || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_OPEN_REDIRECT || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_MAP || true
-            ./scripts/config --file out/.config -d KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS || true
             ./scripts/config --file out/.config -e KPROBES || true
             ./scripts/config --file out/.config -e KRETPROBES || true
             ./scripts/config --file out/.config -e KPROBE_EVENTS || true
@@ -630,7 +359,7 @@ jobs:
 
           # 对齐版本字符串，避免 vermagic 不匹配
           ./scripts/config --file out/.config -d LOCALVERSION_AUTO || true
-          ./scripts/config --file out/.config --set-str LOCALVERSION "-perf-g4732215" || true
+          ./scripts/config --file out/.config --set-str LOCALVERSION "-perf+-tanran" || true
 
           FORTIFY="${{ github.event_name == 'workflow_dispatch' && inputs.fortify || 'off' }}"
           if [ "$FORTIFY" = "on" ]; then
@@ -640,10 +369,6 @@ jobs:
             ./scripts/config --file out/.config -d FORTIFY_SOURCE || true
           fi
 
-          # 避免 Image.gz 触发 dtb 全量编译（dtc 错误会导致构建失败）
-          ./scripts/config --file out/.config -d BUILD_ARM64_DTBS || true
-          ./scripts/config --file out/.config -d BUILD_ARM64_APPENDED_DTB_IMAGE || true
-
           make O=out olddefconfig
 
           if [ "$WITH_SUKISU" = "on" ]; then
@@ -651,17 +376,6 @@ jobs:
             ./scripts/config --file out/.config -e KSU || true
             ./scripts/config --file out/.config -e KSU_MANUAL_HOOK || true
             ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
-            ./scripts/config --file out/.config -e KPM || true
-            ./scripts/config --file out/.config -e KSU_SUSFS || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_PATH || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_MOUNT || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_KSTAT || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_SPOOF_UNAME || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_ENABLE_LOG || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_OPEN_REDIRECT || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_MAP || true
-            ./scripts/config --file out/.config -d KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS || true
             ./scripts/config --file out/.config -e KPROBES || true
             ./scripts/config --file out/.config -e KRETPROBES || true
             ./scripts/config --file out/.config -e KPROBE_EVENTS || true
@@ -678,7 +392,7 @@ jobs:
             ./scripts/config --file out/.config -d MODULE_SIG_ALL || true
             ./scripts/config --file out/.config -e MODVERSIONS || true
             ./scripts/config --file out/.config -d LOCALVERSION_AUTO || true
-            ./scripts/config --file out/.config --set-str LOCALVERSION "-perf-g4732215" || true
+            ./scripts/config --file out/.config --set-str LOCALVERSION "-perf+-tanran" || true
 
             make O=out olddefconfig
 
@@ -712,29 +426,22 @@ jobs:
             mkdir -p dist
             rm -f dist/dtb
 
-            STOCK_DTB_B64="ci_assets/laurus_q_dtb.bin.gz.b64"
-            if [ -f "${STOCK_DTB_B64}" ]; then
-              # 优先使用 stock dtb blob，避免 trinket dtb 编译失败
-              if gzip -t "${STOCK_DTB_B64}" >/dev/null 2>&1; then
-                gzip -dc "${STOCK_DTB_B64}" > dist/dtb
+            # 编译 trinket 相关 dtb（失败跳过，后续按 size 白名单拼接）
+            for dts in $(find arch/arm64/boot/dts/qcom -maxdepth 1 -name 'trinket*.dts' ! -name '*-overlay.dts' -print | sort); do
+              dtb="$(basename "${dts%.dts}.dtb")"
+              if make -j"$(nproc)" O=out "qcom/${dtb}" V=1 2>&1 | tee -a build.log; then
+                echo "built dtb: ${dtb}" | tee -a build.log
               else
-                base64 -d "${STOCK_DTB_B64}" | gzip -d > dist/dtb
+                echo "skip dtb build failed: ${dtb}" | tee -a build.log
               fi
-            else
-              # 编译 trinket 相关 dtb（失败跳过，后续按 size 白名单拼接）
-              set +e
-              for dts in $(find arch/arm64/boot/dts/qcom -maxdepth 1 -name 'trinket*.dts' ! -name '*-overlay.dts' -print | sort); do
-                dtb="$(basename "${dts%.dts}.dtb")"
-                if make -j"$(nproc)" O=out "qcom/${dtb}" V=1 2>&1 | tee -a build.log; then
-                  echo "built dtb: ${dtb}" | tee -a build.log
-                else
-                  echo "skip dtb build failed: ${dtb}" | tee -a build.log
-                fi
-              done
-              set -e
+            done
 
-              # 根据 stock dtb 的 size 列表重建 dtb blob（Q 版本）
-              STOCK_DTB_SIZES=("54743" "33269" "4065" "46749" "5306" "4753" "27379" "327570")
+            STOCK_DTB_B64="ci_assets/laurus_p_dtb.bin.gz.b64"
+            if [ -f "${STOCK_DTB_B64}" ]; then
+              base64 -d "${STOCK_DTB_B64}" | gzip -d > dist/dtb
+            else
+              # 根据 stock dtb 的 size 列表重建 dtb blob（P 版本）
+              STOCK_DTB_SIZES=("4065" "54743" "4753" "323654" "33249" "27359" "46749" "5306" "173")
               tmp_map="$(mktemp)"
               find out/arch/arm64/boot/dts/qcom -maxdepth 1 -name 'trinket*.dtb' -print0 | xargs -0 -I{} stat -c '%s %n' {} | sort > "${tmp_map}"
 
@@ -786,36 +493,35 @@ jobs:
         run: |
           set -euxo pipefail
           mkdir -p dist
-          test -f out/arch/arm64/boot/Image.gz
+
+          if [ ! -f dist/Image.gz-dtb ] && [ -f out/arch/arm64/boot/Image.gz-dtb ]; then
+            cp -f out/arch/arm64/boot/Image.gz-dtb dist/Image.gz-dtb
+          fi
+
+          test -f dist/Image.gz-dtb
 
           rm -rf repack
           mkdir -p repack/out
-          cp -f out/arch/arm64/boot/Image.gz repack/out/kernel
+          cp -f dist/Image.gz-dtb repack/out/kernel
           : > repack/out/ramdisk
-
-          test -f dist/dtb
-          cp -f dist/dtb repack/out/dtb
-          ls -lh dist/dtb repack/out/dtb
 
           # 使用仓库自带 mkbootimg.py 生成 boot.img
           test -f tools/mkbootimg.py
 
-          CMDLINE="console=ttyMSM0,115200n8 androidboot.hardware=qcom androidboot.console=ttyMSM0 androidboot.memcg=1 lpm_levels.sleep_disabled=1 video=vfb:640x400,bpp=32,memsize=3072000 msm_rtb.filter=0x237 service_locator.enable=1 swiotlb=1 earlycon=msm_geni_serial,0x4a90000 loop.max_part=7 cgroup.memory=nokmem,nosocket androidboot.selinux=enforcing buildvariant=user"
+          CMDLINE="console=ttyMSM0,115200n8 androidboot.hardware=qcom androidboot.console=ttyMSM0 androidboot.memcg=1 lpm_levels.sleep_disabled=1 video=vfb:640x400,bpp=32,memsize=3072000 msm_rtb.filter=0x237 service_locator.enable=1 swiotlb=1 firmware_class.path=/vendor/firmware_mnt/image earlycon=msm_geni_serial,0x4a90000 loop.max_part=7 cgroup.memory=nokmem,nosocket buildvariant=user"
 
           (cd repack && python3 ../tools/mkbootimg.py \
-            --header_version 2 \
-            --os_version 10.0.0 \
-            --os_patch_level 2021-09 \
+            --header_version 1 \
+            --os_version 9.0.0 \
+            --os_patch_level 2020-06 \
             --kernel out/kernel \
             --ramdisk out/ramdisk \
-            --dtb out/dtb \
             --pagesize 0x00001000 \
             --base 0x00000000 \
             --kernel_offset 0x00008000 \
             --ramdisk_offset 0x01000000 \
             --second_offset 0x00f00000 \
             --tags_offset 0x00000100 \
-            --dtb_offset 0x0000000001f00000 \
             --board "" \
             --cmdline "$CMDLINE" \
             -o ../dist/boot.img)
@@ -833,7 +539,7 @@ jobs:
           {
             echo "run_id=${{ github.run_id }}"
             echo "head_sha=${{ github.sha }}"
-            echo "kernel_ref=${{ github.event_name == 'workflow_dispatch' && inputs.kernel_branch || 'laurus-q-oss-ci' }}"
+            echo "kernel_ref=${{ github.event_name == 'workflow_dispatch' && inputs.kernel_branch || 'laurus-p-oss-ci' }}"
             echo "defconfig=${{ github.event_name == 'workflow_dispatch' && inputs.defconfig || 'vendor/laurus-perf_defconfig' }}"
             echo "fortify=${{ github.event_name == 'workflow_dispatch' && inputs.fortify || 'off' }}"
             echo "build_dtbo=${{ github.event_name == 'workflow_dispatch' && inputs.build_dtbo || 'off' }}"
@@ -850,7 +556,7 @@ jobs:
             echo
             echo "==== ksu config snapshot (out/.config) ===="
             if [ -f out/.config ]; then
-              grep -nE "KSU|KPM|SUSFS|KPROBES|KRETPROBES|KPROBES_ON_FTRACE|KPROBE_EVENTS|KALLSYMS|FTRACE" out/.config 2>&1 | head -n 200 || true
+              grep -nE "KSU|KPROBES|KRETPROBES|KPROBES_ON_FTRACE|KPROBE_EVENTS|KALLSYMS|FTRACE" out/.config 2>&1 | head -n 200 || true
             else
               echo "out/.config not found"
             fi
