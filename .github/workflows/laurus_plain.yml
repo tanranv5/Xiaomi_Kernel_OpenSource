@@ -107,7 +107,7 @@ jobs:
 
           # 对齐 stock 版本号（4.14.98-perf+）
           sed -i -E 's/^SUBLEVEL = .*/SUBLEVEL = 98/' Makefile
-          ./scripts/config --file out/.config --set-str LOCALVERSION "-perf+" || true
+          ./scripts/config --file out/.config --set-str LOCALVERSION "-perf+-tanran" || true
           ./scripts/config --file out/.config -d LOCALVERSION_AUTO || true
 
           make O=out olddefconfig
