@@ -227,7 +227,7 @@ jobs:
               path.write_text(text)
           PY
 
-          cat > "${ksu_dir}/manual_hook_adapters.c" <<'EOF'
+cat > "${ksu_dir}/manual_hook_adapters.c" <<'EOF'
           #include <linux/compiler.h>
           #include <linux/cred.h>
           #include <linux/err.h>
@@ -236,6 +236,8 @@ jobs:
           #include <linux/printk.h>
           #include <linux/string.h>
           #include <linux/version.h>
+          #include <linux/uaccess.h>
+          #include <linux/dcache.h>
 
           #include "allowlist.h"
           #include "app_profile.h"
@@ -248,7 +250,7 @@ jobs:
 
           // 弱符号兜底，避免与 SukiSU 自带实现重复定义
           bool ksu_execveat_hook __read_mostly __weak = true;
-          bool ksu_vfs_read_hook __read_mostly __weak = false;
+          bool ksu_vfs_read_hook __read_mostly __weak = true;
           bool ksu_input_hook __read_mostly __weak = true;
 
           int __weak ksu_handle_execveat(int *fd, struct filename **filename_ptr,
@@ -284,9 +286,132 @@ jobs:
               return 0;
           }
 
+          // ============ init.rc 注入实现 (Manual Hook) ============
+
+          // KernelSU RC 内容，在 init.rc 末尾追加
+          static const char KERNEL_SU_RC_MANUAL[] =
+              "
+"
+              "on post-fs-data
+"
+              "    start logd
+"
+              "    exec u:r:su:s0 root -- /data/adb/ksud post-fs-data
+"
+              "
+"
+              "on nonencrypted
+"
+              "    exec u:r:su:s0 root -- /data/adb/ksud services
+"
+              "
+"
+              "on property:vold.decrypt=trigger_restart_framework
+"
+              "    exec u:r:su:s0 root -- /data/adb/ksud services
+"
+              "
+"
+              "on property:sys.boot_completed=1
+"
+              "    exec u:r:su:s0 root -- /data/adb/ksud boot-completed
+"
+              "
+";
+          static const size_t ksu_rc_len_manual = sizeof(KERNEL_SU_RC_MANUAL) - 1;
+
+          // 用于追加 RC 内容的状态变量
+          static struct file_operations fops_proxy_manual;
+          static ssize_t (*orig_read_manual)(struct file *, char __user *, size_t, loff_t *);
+          static ssize_t ksu_rc_pos_manual = 0;
+          static bool rc_hooked_manual = false;
+
+          // read proxy: 在原始文件读取完毕后追加 KERNEL_SU_RC 内容
+          static ssize_t read_proxy_manual(struct file *file, char __user *buf, size_t count, loff_t *pos)
+          {
+              ssize_t ret;
+              size_t append_count;
+
+              // 如果正在追加过程中
+              if (ksu_rc_pos_manual && ksu_rc_pos_manual < ksu_rc_len_manual)
+                  goto append_ksu_rc;
+
+              ret = orig_read_manual(file, buf, count, pos);
+              if (ret != 0 || ksu_rc_pos_manual >= ksu_rc_len_manual) {
+                  return ret;
+              }
+              pr_info("read_proxy_manual: orig read finished, start append rc
+");
+
+          append_ksu_rc:
+              append_count = ksu_rc_len_manual - ksu_rc_pos_manual;
+              if (append_count > count)
+                  append_count = count;
+
+              if (copy_to_user(buf, KERNEL_SU_RC_MANUAL + ksu_rc_pos_manual, append_count)) {
+                  pr_info("read_proxy_manual: append error at pos %ld
+", (long)ksu_rc_pos_manual);
+                  return ret;
+              }
+
+              pr_info("read_proxy_manual: append %zu bytes
+", append_count);
+              ksu_rc_pos_manual += append_count;
+
+              if (ksu_rc_pos_manual >= ksu_rc_len_manual) {
+                  pr_info("read_proxy_manual: append done, total %zu bytes
+", ksu_rc_len_manual);
+              }
+
+              return append_count;
+          }
+
+          // Manual Hook 版本的 vfs_read 处理函数
           int __weak ksu_handle_vfs_read(struct file **file_ptr, char __user **buf_ptr,
                                          size_t *count_ptr, loff_t **pos)
           {
+              struct file *file;
+
+              if (unlikely(!file_ptr || !*file_ptr))
+                  return 0;
+
+              file = *file_ptr;
+
+              // 已经 hook 过了，跳过
+              if (rc_hooked_manual)
+                  return 0;
+
+              // 只处理 init 进程
+              if (strcmp(current->comm, "init"))
+                  return 0;
+
+              // 检查是否是普通文件
+              if (!d_is_reg(file->f_path.dentry))
+                  return 0;
+
+              // 检查文件名是否是 init.rc
+              if (strcmp(file->f_path.dentry->d_name.name, "init.rc"))
+                  return 0;
+
+              // 标记已 hook，防止重复处理
+              rc_hooked_manual = true;
+
+              pr_info("ksu_handle_vfs_read: detected init.rc read by init process
+");
+
+              // 替换 file_operations，注入 read proxy
+              memcpy(&fops_proxy_manual, file->f_op, sizeof(struct file_operations));
+              orig_read_manual = file->f_op->read;
+              if (orig_read_manual) {
+                  fops_proxy_manual.read = read_proxy_manual;
+                  file->f_op = &fops_proxy_manual;
+                  pr_info("ksu_handle_vfs_read: hooked init.rc file_operations
+");
+              } else {
+                  pr_info("ksu_handle_vfs_read: init.rc has no read op, skip
+");
+              }
+
               return 0;
           }
           EOF
