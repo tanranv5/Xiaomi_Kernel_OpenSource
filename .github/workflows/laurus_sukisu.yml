@@ -78,7 +78,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          ref: ${{ inputs.kernel_branch || 'laurus-q-oss-ci' }}
+          ref: ${{ github.event.inputs.kernel_branch || 'laurus-q-oss-ci' }}
 
       - name: 安装依赖
         id: deps
@@ -95,10 +95,10 @@ jobs:
         id: toolchain
         run: |
           set -euxo pipefail
-          GCC64_REPO="${{ inputs.gcc64_repo || 'LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9' }}"
-          GCC64_REF="${{ inputs.gcc64_ref || 'lineage-19.1' }}"
-          GCC32_REPO="${{ inputs.gcc32_repo || 'LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9' }}"
-          GCC32_REF="${{ inputs.gcc32_ref || 'lineage-19.1' }}"
+          GCC64_REPO="${{ github.event.inputs.gcc64_repo || 'LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9' }}"
+          GCC64_REF="${{ github.event.inputs.gcc64_ref || 'lineage-19.1' }}"
+          GCC32_REPO="${{ github.event.inputs.gcc32_repo || 'LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9' }}"
+          GCC32_REF="${{ github.event.inputs.gcc32_ref || 'lineage-19.1' }}"
 
           git clone --depth=1 -b "$GCC64_REF" "https://github.com/${GCC64_REPO}.git" toolchain-gcc64
           git clone --depth=1 -b "$GCC32_REF" "https://github.com/${GCC32_REPO}.git" toolchain-gcc32
@@ -115,8 +115,8 @@ jobs:
             exit 0
           fi
 
-          ref="${{ inputs.sukisu_ref || 'main' }}"
-          mode="${{ inputs.sukisu_mode || 'builtin' }}"
+          ref="${{ github.event.inputs.sukisu_ref || 'main' }}"
+          mode="${{ github.event.inputs.sukisu_mode || 'builtin' }}"
 
           # SukiSU 官方脚本
           curl -fsSL "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/${ref}/kernel/setup.sh" | bash -s "$mode"
@@ -667,7 +667,7 @@ cat > "${ksu_dir}/manual_hook_adapters.c" <<'EOF'
           export CROSS_COMPILE_ARM32="$TOOLCHAIN_GCC32/bin/arm-linux-androideabi-"
           export LOCALVERSION=
 
-          DEFCONFIG="${{ inputs.defconfig || 'vendor/laurus-perf_defconfig' }}"
+          DEFCONFIG="${{ github.event.inputs.defconfig || 'vendor/laurus-perf_defconfig' }}"
           DEFCONFIG_PATH="arch/arm64/configs/${DEFCONFIG}"
 
           if [ ! -f "${DEFCONFIG_PATH}" ]; then
@@ -756,7 +756,7 @@ cat > "${ksu_dir}/manual_hook_adapters.c" <<'EOF'
           ./scripts/config --file out/.config -d LOCALVERSION_AUTO || true
           ./scripts/config --file out/.config --set-str LOCALVERSION "-perf-g4732215-tanran" || true
 
-          FORTIFY="${{ inputs.fortify || 'off' }}"
+          FORTIFY="${{ github.event.inputs.fortify || 'off' }}"
           if [ "$FORTIFY" = "on" ]; then
             ./scripts/config --file out/.config -e FORTIFY_SOURCE || true
           else
@@ -824,7 +824,7 @@ cat > "${ksu_dir}/manual_hook_adapters.c" <<'EOF'
           export CROSS_COMPILE_ARM32="$TOOLCHAIN_GCC32/bin/arm-linux-androideabi-"
           export LOCALVERSION=
 
-          BUILD_DTBO="${{ inputs.build_dtbo || 'off' }}"
+          BUILD_DTBO="${{ github.event.inputs.build_dtbo || 'off' }}"
 
           if [ "$BUILD_DTBO" = "on" ]; then
             # dtbo (/plugin/;) 需要 -@ 才能生成符号/修复信息
@@ -957,10 +957,10 @@ cat > "${ksu_dir}/manual_hook_adapters.c" <<'EOF'
           {
             echo "run_id=${{ github.run_id }}"
             echo "head_sha=${{ github.sha }}"
-            echo "kernel_ref=${{ inputs.kernel_branch || 'laurus-q-oss-ci' }}"
-            echo "defconfig=${{ inputs.defconfig || 'vendor/laurus-perf_defconfig' }}"
-            echo "fortify=${{ inputs.fortify || 'off' }}"
-            echo "build_dtbo=${{ inputs.build_dtbo || 'off' }}"
+            echo "kernel_ref=${{ github.event.inputs.kernel_branch || 'laurus-q-oss-ci' }}"
+            echo "defconfig=${{ github.event.inputs.defconfig || 'vendor/laurus-perf_defconfig' }}"
+            echo "fortify=${{ github.event.inputs.fortify || 'off' }}"
+            echo "build_dtbo=${{ github.event.inputs.build_dtbo || 'off' }}"
             echo "with_sukisu=${WITH_SUKISU}"
             echo
             echo "==== step outcomes ===="
