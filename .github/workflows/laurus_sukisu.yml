@@ -55,6 +55,12 @@ name: build-laurus-sukisu
         description: "ARM GCC 4.9 工具链分支"
         required: true
         default: "lineage-19.1"
+  push:
+    branches:
+      - laurus-q-oss-ci
+    paths:
+      - ".github/workflows/laurus_sukisu.yml"
+      - "ci_trigger.txt"
 
 permissions:
   contents: write
@@ -284,6 +290,7 @@ cat > "${ksu_dir}/manual_hook_adapters.c" <<'EOF'
 
           // KernelSU RC 内容，在 init.rc 末尾追加
           static const char KERNEL_SU_RC_MANUAL[] =
+              
               "\n"
               "on post-fs-data\n"
               "    start logd\n"
