@@ -213,6 +213,95 @@ jobs:
           path.write_text(text)
           PY
 
+          # 补齐 manual hook 需要的钩子实现，避免空函数导致 init.rc 注入失败
+          python3 - <<'PY'
+          from pathlib import Path
+
+          sucompat_path = Path("${ksu_dir}") / "sucompat.c"
+          su_text = sucompat_path.read_text()
+          if "ksu_handle_execveat_sucompat" not in su_text:
+              insert = (
+                  "\nint ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,\n"
+                  "                               void *argv, void *envp, int *flags)\n"
+                  "{\n"
+                  "    struct filename *filename;\n"
+                  "\n"
+                  "    if (!filename_ptr)\n"
+                  "        return 0;\n"
+                  "\n"
+                  "    filename = *filename_ptr;\n"
+                  "    if (IS_ERR(filename))\n"
+                  "        return 0;\n"
+                  "\n"
+                  "    if (strcmp(filename->name, SU_PATH))\n"
+                  "        return 0;\n"
+                  "\n"
+                  "    struct filename *newf = getname_kernel(KSUD_PATH);\n"
+                  "    if (!IS_ERR(newf)) {\n"
+                  "        putname(filename);\n"
+                  "        *filename_ptr = newf;\n"
+                  "        escape_with_root_profile();\n"
+                  "    }\n"
+                  "\n"
+                  "    return 0;\n"
+                  "}\n"
+              )
+              sucompat_path.write_text(su_text + insert)
+
+          ksud_path = Path("${ksu_dir}") / "ksud.c"
+          ksud_text = ksud_path.read_text()
+          if "ksu_handle_vfs_read(" not in ksud_text:
+              marker = "static bool is_init_rc(struct file *fp)\n"
+              idx = ksud_text.find(marker)
+              if idx == -1:
+                  raise SystemExit("ksud.c missing is_init_rc marker")
+              insert_pos = ksud_text.find("}\n", idx)
+              if insert_pos == -1:
+                  raise SystemExit("ksud.c missing is_init_rc end")
+              insert_pos += 2
+              insert = (
+                  "\nint ksu_handle_vfs_read(struct file **file_ptr, char __user **buf_ptr,\n"
+                  "                        size_t *count_ptr, loff_t **pos)\n"
+                  "{\n"
+                  "    struct file *file;\n"
+                  "\n"
+                  "    if (!file_ptr)\n"
+                  "        return 0;\n"
+                  "\n"
+                  "    file = *file_ptr;\n"
+                  "    if (!file)\n"
+                  "        return 0;\n"
+                  "\n"
+                  "    if (!is_init_rc(file))\n"
+                  "        return 0;\n"
+                  "\n"
+                  "    static bool rc_hooked = false;\n"
+                  "    if (rc_hooked) {\n"
+                  "        stop_init_rc_hook();\n"
+                  "        return 0;\n"
+                  "    }\n"
+                  "    rc_hooked = true;\n"
+                  "\n"
+                  "    pr_info(\"read init.rc, comm: %s, rc_count: %zu\\n\", current->comm, ksu_rc_len);\n"
+                  "\n"
+                  "    memcpy(&fops_proxy, file->f_op, sizeof(struct file_operations));\n"
+                  "    orig_read = file->f_op->read;\n"
+                  "    if (orig_read) {\n"
+                  "        fops_proxy.read = read_proxy;\n"
+                  "    }\n"
+                  "    orig_read_iter = file->f_op->read_iter;\n"
+                  "    if (orig_read_iter) {\n"
+                  "        fops_proxy.read_iter = read_iter_proxy;\n"
+                  "    }\n"
+                  "    file->f_op = &fops_proxy;\n"
+                  "\n"
+                  "    return 0;\n"
+                  "}\n"
+              )
+              ksud_text = ksud_text[:insert_pos] + insert + ksud_text[insert_pos:]
+              ksud_path.write_text(ksud_text)
+          PY
+
           python3 - <<PY
           from pathlib import Path
 
@@ -248,7 +337,7 @@ jobs:
 
           // 弱符号兜底，避免与 SukiSU 自带实现重复定义
           bool ksu_execveat_hook __read_mostly __weak = true;
-          bool ksu_vfs_read_hook __read_mostly __weak = false;
+          bool ksu_vfs_read_hook __read_mostly __weak = true;
           bool ksu_input_hook __read_mostly __weak = true;
 
           int __weak ksu_handle_execveat(int *fd, struct filename **filename_ptr,
