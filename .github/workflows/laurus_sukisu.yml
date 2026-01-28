@@ -298,16 +298,32 @@ jobs:
               ksud_text = re.sub(pattern, vfs_body, ksud_text, flags=re.S)
               ksud_path.write_text(ksud_text)
           else:
-              marker = "static bool is_init_rc(struct file *fp)\n"
-              idx = ksud_text.find(marker)
-              if idx == -1:
-                  raise SystemExit("ksud.c missing is_init_rc marker")
-              insert_pos = ksud_text.find("}\n", idx)
-              if insert_pos == -1:
-                  raise SystemExit("ksud.c missing is_init_rc end")
-              insert_pos += 2
-              ksud_text = ksud_text[:insert_pos] + vfs_body + ksud_text[insert_pos:]
-              ksud_path.write_text(ksud_text)
+              marker = "static void ksu_handle_sys_read"
+              if marker in ksud_text:
+                  ksud_text = ksud_text.replace(marker, vfs_body + "\\n" + marker, 1)
+                  ksud_path.write_text(ksud_text)
+              else:
+                  marker = "static bool is_init_rc(struct file *fp)"
+                  idx = ksud_text.find(marker)
+                  if idx == -1:
+                      raise SystemExit("ksud.c missing is_init_rc marker")
+                  brace_start = ksud_text.find("{", idx)
+                  if brace_start == -1:
+                      raise SystemExit("ksud.c missing is_init_rc brace")
+                  depth = 0
+                  end = None
+                  for i in range(brace_start, len(ksud_text)):
+                      if ksud_text[i] == "{":
+                          depth += 1
+                      elif ksud_text[i] == "}":
+                          depth -= 1
+                          if depth == 0:
+                              end = i + 1
+                              break
+                  if end is None:
+                      raise SystemExit("ksud.c missing is_init_rc end")
+                  ksud_text = ksud_text[:end] + vfs_body + ksud_text[end:]
+                  ksud_path.write_text(ksud_text)
           PY
 
           python3 - <<PY
