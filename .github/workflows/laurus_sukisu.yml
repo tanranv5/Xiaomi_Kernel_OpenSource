@@ -320,10 +320,47 @@ jobs:
                           if depth == 0:
                               end = i + 1
                               break
-                  if end is None:
-                      raise SystemExit("ksud.c missing is_init_rc end")
-                  ksud_text = ksud_text[:end] + vfs_body + ksud_text[end:]
-                  ksud_path.write_text(ksud_text)
+              if end is None:
+                  raise SystemExit("ksud.c missing is_init_rc end")
+              ksud_text = ksud_text[:end] + vfs_body + ksud_text[end:]
+              ksud_path.write_text(ksud_text)
+
+          ksud_text = ksud_path.read_text()
+          if "ksu_vfs_read_hook" not in ksud_text:
+              anchor = '#include "ksud.h"\\n'
+              if anchor in ksud_text:
+                  ksud_text = ksud_text.replace(
+                      anchor,
+                      anchor + "\\nextern bool ksu_vfs_read_hook __read_mostly;\\n",
+                      1,
+                  )
+          if "ksu_vfs_read_hook" in ksud_text:
+              if "skip sys_read/sys_fstat kprobe" not in ksud_text:
+                  ksud_text = ksud_text.replace(
+                      "    ret = register_kprobe(&sys_read_kp);\\n"
+                      "    pr_info(\\\"ksud: sys_read_kp: %d\\\\n\\\", ret);\\n\\n"
+                      "    ret = register_kretprobe(&sys_fstat_kp);\\n"
+                      "    pr_info(\\\"ksud: sys_fstat_kp: %d\\\\n\\\", ret);\\n",
+                      "    if (!ksu_vfs_read_hook) {\\n"
+                      "        ret = register_kprobe(&sys_read_kp);\\n"
+                      "        pr_info(\\\"ksud: sys_read_kp: %d\\\\n\\\", ret);\\n\\n"
+                      "        ret = register_kretprobe(&sys_fstat_kp);\\n"
+                      "        pr_info(\\\"ksud: sys_fstat_kp: %d\\\\n\\\", ret);\\n"
+                      "    } else {\\n"
+                      "        pr_info(\\\"ksud: skip sys_read/sys_fstat kprobe (vfs_read hook enabled)\\\\n\\\");\\n"
+                      "    }\\n",
+                      1,
+                  )
+              if "if (ksu_vfs_read_hook)" not in ksud_text:
+                  ksud_text = ksud_text.replace(
+                      "static void stop_init_rc_hook()\\n{\\n",
+                      "static void stop_init_rc_hook()\\n{\\n"
+                      "    if (ksu_vfs_read_hook) {\\n"
+                      "        return;\\n"
+                      "    }\\n",
+                      1,
+                  )
+          ksud_path.write_text(ksud_text)
           PY
 
           python3 - <<PY
