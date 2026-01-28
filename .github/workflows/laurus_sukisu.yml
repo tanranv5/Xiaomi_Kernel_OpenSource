@@ -78,7 +78,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          ref: ${{ github.event.inputs.kernel_branch || 'laurus-q-oss-ci' }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.kernel_branch || 'laurus-q-oss-ci' }}
 
       - name: 安装依赖
         id: deps
@@ -95,10 +95,10 @@ jobs:
         id: toolchain
         run: |
           set -euxo pipefail
-          GCC64_REPO="${{ github.event.inputs.gcc64_repo || 'LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9' }}"
-          GCC64_REF="${{ github.event.inputs.gcc64_ref || 'lineage-19.1' }}"
-          GCC32_REPO="${{ github.event.inputs.gcc32_repo || 'LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9' }}"
-          GCC32_REF="${{ github.event.inputs.gcc32_ref || 'lineage-19.1' }}"
+          GCC64_REPO="${{ github.event_name == 'workflow_dispatch' && inputs.gcc64_repo || 'LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9' }}"
+          GCC64_REF="${{ github.event_name == 'workflow_dispatch' && inputs.gcc64_ref || 'lineage-19.1' }}"
+          GCC32_REPO="${{ github.event_name == 'workflow_dispatch' && inputs.gcc32_repo || 'LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9' }}"
+          GCC32_REF="${{ github.event_name == 'workflow_dispatch' && inputs.gcc32_ref || 'lineage-19.1' }}"
 
           git clone --depth=1 -b "$GCC64_REF" "https://github.com/${GCC64_REPO}.git" toolchain-gcc64
           git clone --depth=1 -b "$GCC32_REF" "https://github.com/${GCC32_REPO}.git" toolchain-gcc32
@@ -115,8 +115,8 @@ jobs:
             exit 0
           fi
 
-          ref="${{ github.event.inputs.sukisu_ref || 'main' }}"
-          mode="${{ github.event.inputs.sukisu_mode || 'builtin' }}"
+          ref="${{ github.event_name == 'workflow_dispatch' && inputs.sukisu_ref || 'main' }}"
+          mode="${{ github.event_name == 'workflow_dispatch' && inputs.sukisu_mode || 'builtin' }}"
 
           # SukiSU 官方脚本
           curl -fsSL "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/${ref}/kernel/setup.sh" | bash -s "$mode"
@@ -227,7 +227,7 @@ jobs:
               path.write_text(text)
           PY
 
-cat > "${ksu_dir}/manual_hook_adapters.c" <<'EOF'
+          cat > "${ksu_dir}/manual_hook_adapters.c" <<'EOF'
           #include <linux/compiler.h>
           #include <linux/cred.h>
           #include <linux/err.h>
@@ -236,8 +236,6 @@ cat > "${ksu_dir}/manual_hook_adapters.c" <<'EOF'
           #include <linux/printk.h>
           #include <linux/string.h>
           #include <linux/version.h>
-          #include <linux/uaccess.h>
-          #include <linux/dcache.h>
 
           #include "allowlist.h"
           #include "app_profile.h"
@@ -250,7 +248,7 @@ cat > "${ksu_dir}/manual_hook_adapters.c" <<'EOF'
 
           // 弱符号兜底，避免与 SukiSU 自带实现重复定义
           bool ksu_execveat_hook __read_mostly __weak = true;
-          bool ksu_vfs_read_hook __read_mostly __weak = true;
+          bool ksu_vfs_read_hook __read_mostly __weak = false;
           bool ksu_input_hook __read_mostly __weak = true;
 
           int __weak ksu_handle_execveat(int *fd, struct filename **filename_ptr,
@@ -286,120 +284,9 @@ cat > "${ksu_dir}/manual_hook_adapters.c" <<'EOF'
               return 0;
           }
 
-          // ============ init.rc 注入实现 (Manual Hook) ============
-
-          // KernelSU RC 内容，在 init.rc 末尾追加
-          static const char KERNEL_SU_RC_MANUAL[] =
-              
-              "\n"
-              "on post-fs-data\n"
-              "    start logd\n"
-              "    exec u:r:su:s0 root -- /data/adb/ksud post-fs-data\n"
-              "\n"
-              "on nonencrypted\n"
-              "    exec u:r:su:s0 root -- /data/adb/ksud services\n"
-              "\n"
-              "on property:vold.decrypt=trigger_restart_framework\n"
-              "    exec u:r:su:s0 root -- /data/adb/ksud services\n"
-              "\n"
-              "on property:sys.boot_completed=1\n"
-              "    exec u:r:su:s0 root -- /data/adb/ksud boot-completed\n"
-              "\n"
-;
-          static const size_t ksu_rc_len_manual = sizeof(KERNEL_SU_RC_MANUAL) - 1;
-
-          // 用于追加 RC 内容的状态变量
-          static struct file_operations fops_proxy_manual;
-          static ssize_t (*orig_read_manual)(struct file *, char __user *, size_t, loff_t *);
-          static ssize_t ksu_rc_pos_manual = 0;
-          static bool rc_hooked_manual = false;
-
-          // read proxy: 在原始文件读取完毕后追加 KERNEL_SU_RC 内容
-          static ssize_t read_proxy_manual(struct file *file, char __user *buf, size_t count, loff_t *pos)
-          {
-              ssize_t ret;
-              size_t append_count;
-
-              // 如果正在追加过程中
-              if (ksu_rc_pos_manual && ksu_rc_pos_manual < ksu_rc_len_manual)
-                  goto append_ksu_rc;
-
-              ret = orig_read_manual(file, buf, count, pos);
-              if (ret != 0 || ksu_rc_pos_manual >= ksu_rc_len_manual) {
-                  return ret;
-              }
-              pr_info("read_proxy_manual: orig read finished, start append rc
-");
-
-          append_ksu_rc:
-              append_count = ksu_rc_len_manual - ksu_rc_pos_manual;
-              if (append_count > count)
-                  append_count = count;
-
-              if (copy_to_user(buf, KERNEL_SU_RC_MANUAL + ksu_rc_pos_manual, append_count)) {
-                  pr_info("read_proxy_manual: append error at pos %ld
-", (long)ksu_rc_pos_manual);
-                  return ret;
-              }
-
-              pr_info("read_proxy_manual: append %zu bytes
-", append_count);
-              ksu_rc_pos_manual += append_count;
-
-              if (ksu_rc_pos_manual >= ksu_rc_len_manual) {
-                  pr_info("read_proxy_manual: append done, total %zu bytes
-", ksu_rc_len_manual);
-              }
-
-              return append_count;
-          }
-
-          // Manual Hook 版本的 vfs_read 处理函数
           int __weak ksu_handle_vfs_read(struct file **file_ptr, char __user **buf_ptr,
                                          size_t *count_ptr, loff_t **pos)
           {
-              struct file *file;
-
-              if (unlikely(!file_ptr || !*file_ptr))
-                  return 0;
-
-              file = *file_ptr;
-
-              // 已经 hook 过了，跳过
-              if (rc_hooked_manual)
-                  return 0;
-
-              // 只处理 init 进程
-              if (strcmp(current->comm, "init"))
-                  return 0;
-
-              // 检查是否是普通文件
-              if (!d_is_reg(file->f_path.dentry))
-                  return 0;
-
-              // 检查文件名是否是 init.rc
-              if (strcmp(file->f_path.dentry->d_name.name, "init.rc"))
-                  return 0;
-
-              // 标记已 hook，防止重复处理
-              rc_hooked_manual = true;
-
-              pr_info("ksu_handle_vfs_read: detected init.rc read by init process
-");
-
-              // 替换 file_operations，注入 read proxy
-              memcpy(&fops_proxy_manual, file->f_op, sizeof(struct file_operations));
-              orig_read_manual = file->f_op->read;
-              if (orig_read_manual) {
-                  fops_proxy_manual.read = read_proxy_manual;
-                  file->f_op = &fops_proxy_manual;
-                  pr_info("ksu_handle_vfs_read: hooked init.rc file_operations
-");
-              } else {
-                  pr_info("ksu_handle_vfs_read: init.rc has no read op, skip
-");
-              }
-
               return 0;
           }
           EOF
@@ -668,7 +555,7 @@ cat > "${ksu_dir}/manual_hook_adapters.c" <<'EOF'
           export CROSS_COMPILE_ARM32="$TOOLCHAIN_GCC32/bin/arm-linux-androideabi-"
           export LOCALVERSION=
 
-          DEFCONFIG="${{ github.event.inputs.defconfig || 'vendor/laurus-perf_defconfig' }}"
+          DEFCONFIG="${{ github.event_name == 'workflow_dispatch' && inputs.defconfig || 'vendor/laurus-perf_defconfig' }}"
           DEFCONFIG_PATH="arch/arm64/configs/${DEFCONFIG}"
 
           if [ ! -f "${DEFCONFIG_PATH}" ]; then
@@ -757,7 +644,7 @@ cat > "${ksu_dir}/manual_hook_adapters.c" <<'EOF'
           ./scripts/config --file out/.config -d LOCALVERSION_AUTO || true
           ./scripts/config --file out/.config --set-str LOCALVERSION "-perf-g4732215-tanran" || true
 
-          FORTIFY="${{ github.event.inputs.fortify || 'off' }}"
+          FORTIFY="${{ github.event_name == 'workflow_dispatch' && inputs.fortify || 'off' }}"
           if [ "$FORTIFY" = "on" ]; then
             ./scripts/config --file out/.config -e FORTIFY_SOURCE || true
           else
@@ -825,7 +712,7 @@ cat > "${ksu_dir}/manual_hook_adapters.c" <<'EOF'
           export CROSS_COMPILE_ARM32="$TOOLCHAIN_GCC32/bin/arm-linux-androideabi-"
           export LOCALVERSION=
 
-          BUILD_DTBO="${{ github.event.inputs.build_dtbo || 'off' }}"
+          BUILD_DTBO="${{ github.event_name == 'workflow_dispatch' && inputs.build_dtbo || 'off' }}"
 
           if [ "$BUILD_DTBO" = "on" ]; then
             # dtbo (/plugin/;) 需要 -@ 才能生成符号/修复信息
@@ -958,10 +845,10 @@ cat > "${ksu_dir}/manual_hook_adapters.c" <<'EOF'
           {
             echo "run_id=${{ github.run_id }}"
             echo "head_sha=${{ github.sha }}"
-            echo "kernel_ref=${{ github.event.inputs.kernel_branch || 'laurus-q-oss-ci' }}"
-            echo "defconfig=${{ github.event.inputs.defconfig || 'vendor/laurus-perf_defconfig' }}"
-            echo "fortify=${{ github.event.inputs.fortify || 'off' }}"
-            echo "build_dtbo=${{ github.event.inputs.build_dtbo || 'off' }}"
+            echo "kernel_ref=${{ github.event_name == 'workflow_dispatch' && inputs.kernel_branch || 'laurus-q-oss-ci' }}"
+            echo "defconfig=${{ github.event_name == 'workflow_dispatch' && inputs.defconfig || 'vendor/laurus-perf_defconfig' }}"
+            echo "fortify=${{ github.event_name == 'workflow_dispatch' && inputs.fortify || 'off' }}"
+            echo "build_dtbo=${{ github.event_name == 'workflow_dispatch' && inputs.build_dtbo || 'off' }}"
             echo "with_sukisu=${WITH_SUKISU}"
             echo
             echo "==== step outcomes ===="
