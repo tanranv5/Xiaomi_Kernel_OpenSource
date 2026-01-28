@@ -121,21 +121,23 @@ jobs:
           # SukiSU 官方脚本
           curl -fsSL "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/${ref}/kernel/setup.sh" | bash -s "$mode"
 
-          # 应用 manual hook 补丁（4.14）- 使用 Python 直接修改，避免 git patch 行号不匹配
-          python3 - <<'MANUAL_HOOK_PY'
-          from pathlib import Path
+          # 应用 manual hook 补丁（4.14）
+          patch_url="https://raw.githubusercontent.com/rksuorg/kernel_patches/master/manual_hook/kernel-4.14.patch"
+          curl -fsSL "$patch_url" -o /tmp/ksu_manual_hook.patch
+          if git apply --reverse --check /tmp/ksu_manual_hook.patch 2>/dev/null; then
+            echo "manual hook patch already applied"
+          elif git apply /tmp/ksu_manual_hook.patch 2>/dev/null; then
+            echo "manual hook patch applied successfully"
+          else
+            echo "git patch failed, applying manual hooks via Python"
+            python3 - <<'PATCH_VFS_READ'
           import re
+          from pathlib import Path
 
-          def patch_vfs_read():
-              """在 vfs_read 函数开头插入 KSU hook 调用"""
-              path = Path("fs/read_write.c")
-              text = path.read_text()
-              
-              if "ksu_handle_vfs_read" in text:
-                  print("vfs_read hook already applied")
-                  return
-              
-              # 在 vfs_read 函数定义前插入 extern 声明
+          # Patch fs/read_write.c
+          rw_path = Path("fs/read_write.c")
+          rw_text = rw_path.read_text()
+          if "ksu_handle_vfs_read" not in rw_text:
               decl = (
                   "#ifdef CONFIG_KSU\n"
                   "extern bool ksu_vfs_read_hook __read_mostly;\n"
@@ -143,41 +145,31 @@ jobs:
                   "                             size_t *count_ptr, loff_t **pos);\n"
                   "#endif\n"
               )
-              
-              # 找到 vfs_read 函数定义
-              pattern = r"(ssize_t vfs_read\(struct file \*file, char __user \*buf, size_t count, loff_t \*pos\)\n\{)"
-              match = re.search(pattern, text)
-              if not match:
-                  raise SystemExit("vfs_read function not found in fs/read_write.c")
-              
-              # 在函数定义前插入声明
-              text = text[:match.start()] + decl + text[match.start():]
-              
-              # 在函数体开头插入 hook 调用（在 ssize_t ret; 之后）
-              hook_call = (
+              hook = (
                   "\n#ifdef CONFIG_KSU\n"
                   "\tif (unlikely(ksu_vfs_read_hook))\n"
                   "\t\tksu_handle_vfs_read(&file, &buf, &count, &pos);\n"
                   "#endif\n"
               )
-              
-              # 找到 ssize_t ret; 声明
-              ret_pattern = r"(ssize_t vfs_read.*?\{\n\tssize_t ret;)"
-              text = re.sub(ret_pattern, r"\1" + hook_call, text, flags=re.S)
-              
-              path.write_text(text)
-              print("Applied vfs_read hook to fs/read_write.c")
+              # Insert declaration before vfs_read
+              rw_text = re.sub(
+                  r"(ssize_t vfs_read\(struct file \*file, char __user \*buf, size_t count, loff_t \*pos\)\n\{)",
+                  decl + r"\1",
+                  rw_text
+              )
+              # Insert hook after ssize_t ret;
+              rw_text = re.sub(
+                  r"(ssize_t vfs_read\(struct file \*file, char __user \*buf, size_t count, loff_t \*pos\)\n\{\n\tssize_t ret;)",
+                  r"\1" + hook,
+                  rw_text
+              )
+              rw_path.write_text(rw_text)
+              print("Patched fs/read_write.c with vfs_read hook")
 
-          def patch_execve():
-              """在 do_execveat_common 函数开头插入 KSU hook 调用"""
-              path = Path("fs/exec.c")
-              text = path.read_text()
-              
-              if "ksu_handle_execveat" in text:
-                  print("execve hook already applied")
-                  return
-              
-              # 在 do_execveat_common 前插入声明
+          # Patch fs/exec.c
+          exec_path = Path("fs/exec.c")
+          exec_text = exec_path.read_text()
+          if "ksu_handle_execveat" not in exec_text:
               decl = (
                   "#ifdef CONFIG_KSU\n"
                   "extern bool ksu_execveat_hook __read_mostly;\n"
@@ -187,16 +179,7 @@ jobs:
                   "\t\t\t\t void *argv, void *envp, int *flags);\n"
                   "#endif\n"
               )
-              
-              pattern = r"(static int do_execveat_common\(int fd, struct filename \*filename,)"
-              match = re.search(pattern, text)
-              if not match:
-                  raise SystemExit("do_execveat_common not found in fs/exec.c")
-              
-              text = text[:match.start()] + decl + text[match.start():]
-              
-              # 在函数体开头（int retval; 之后）插入 hook
-              hook_call = (
+              hook = (
                   "\n#ifdef CONFIG_KSU\n"
                   "\tif (unlikely(ksu_execveat_hook))\n"
                   "\t\tksu_handle_execveat(&fd, &filename, &argv, &envp, &flags);\n"
@@ -204,135 +187,56 @@ jobs:
                   "\t\tksu_handle_execveat_sucompat(&fd, &filename, &argv, &envp, &flags);\n"
                   "#endif\n"
               )
-              
-              # 找到 int retval; 声明
-              ret_pattern = r"(static int do_execveat_common.*?int retval;)"
-              text = re.sub(ret_pattern, r"\1" + hook_call, text, count=1, flags=re.S)
-              
-              path.write_text(text)
-              print("Applied execve hook to fs/exec.c")
-
-          def patch_faccessat():
-              """在 faccessat 系统调用开头插入 KSU hook"""
-              path = Path("fs/open.c")
-              text = path.read_text()
-              
-              if "ksu_handle_faccessat" in text:
-                  print("faccessat hook already applied")
-                  return
-              
-              decl = (
-                  "#ifdef CONFIG_KSU\n"
-                  "extern int ksu_handle_faccessat(int *dfd, const char __user **filename_user, int *mode,\n"
-                  "\t\t\t int *flags);\n"
-                  "#endif\n"
+              # Insert declaration before do_execveat_common
+              exec_text = re.sub(
+                  r"(static int do_execveat_common\(int fd, struct filename \*filename,)",
+                  decl + r"\1",
+                  exec_text
               )
-              
-              pattern = r"(SYSCALL_DEFINE3\(faccessat, int, dfd, const char __user \*, filename, int, mode\))"
-              match = re.search(pattern, text)
-              if not match:
-                  print("faccessat syscall not found, skipping")
-                  return
-              
-              text = text[:match.start()] + decl + text[match.start():]
-              
-              hook_call = (
-                  "\n#ifdef CONFIG_KSU\n"
-                  "\tksu_handle_faccessat(&dfd, &filename, &mode, NULL);\n"
-                  "#endif\n"
+              # Insert hook after int retval;
+              exec_text = re.sub(
+                  r"(static int do_execveat_common\(int fd, struct filename \*filename,.*?int retval;)",
+                  r"\1" + hook,
+                  exec_text,
+                  count=1,
+                  flags=re.S
               )
-              
-              # 在函数体开头插入
-              ret_pattern = r"(SYSCALL_DEFINE3\(faccessat.*?unsigned int lookup_flags = LOOKUP_FOLLOW;)"
-              text = re.sub(ret_pattern, r"\1" + hook_call, text, count=1, flags=re.S)
-              
-              path.write_text(text)
-              print("Applied faccessat hook to fs/open.c")
+              exec_path.write_text(exec_text)
+              print("Patched fs/exec.c with execveat hook")
 
-          def patch_stat():
-              """在 vfs_fstat 函数开头插入 KSU hook"""
-              path = Path("fs/stat.c")
-              text = path.read_text()
-              
-              if "ksu_handle_stat" in text:
-                  print("stat hook already applied")
-                  return
-              
-              decl = (
-                  "#ifdef CONFIG_KSU\n"
-                  "extern int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags);\n"
-                  "#endif\n"
-              )
-              
-              # 尝试在 vfs_fstatat 前插入
-              pattern = r"(int vfs_fstatat\(int dfd,)"
-              match = re.search(pattern, text)
-              if match:
-                  text = text[:match.start()] + decl + text[match.start():]
-                  path.write_text(text)
-                  print("Applied stat hook declaration to fs/stat.c")
-              else:
-                  print("vfs_fstatat not found, skipping stat hook")
+          # Patch drivers/input/input.c
+          input_path = Path("drivers/input/input.c")
+          if input_path.exists():
+              input_text = input_path.read_text()
+              if "ksu_handle_input" not in input_text:
+                  decl = (
+                      "#ifdef CONFIG_KSU\n"
+                      "extern bool ksu_input_hook __read_mostly;\n"
+                      "extern int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *value);\n"
+                      "#endif\n"
+                  )
+                  hook = (
+                      "\n#ifdef CONFIG_KSU\n"
+                      "\tif (unlikely(ksu_input_hook))\n"
+                      "\t\tksu_handle_input_handle_event(&type, &code, &value);\n"
+                      "#endif\n"
+                  )
+                  input_text = re.sub(
+                      r"(static void input_handle_event\(struct input_dev \*dev,)",
+                      decl + r"\1",
+                      input_text
+                  )
+                  input_text = re.sub(
+                      r"(int disposition = input_get_disposition\(dev, type, code, &value\);)",
+                      r"\1" + hook,
+                      input_text
+                  )
+                  input_path.write_text(input_text)
+                  print("Patched drivers/input/input.c with input hook")
 
-          def patch_input():
-              """在 input_handle_event 函数中插入 KSU hook"""
-              path = Path("drivers/input/input.c")
-              text = path.read_text()
-              
-              if "ksu_handle_input" in text:
-                  print("input hook already applied")
-                  return
-              
-              decl = (
-                  "#ifdef CONFIG_KSU\n"
-                  "extern bool ksu_input_hook __read_mostly;\n"
-                  "extern int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *value);\n"
-                  "#endif\n"
-              )
-              
-              pattern = r"(static void input_handle_event\(struct input_dev \*dev,)"
-              match = re.search(pattern, text)
-              if not match:
-                  print("input_handle_event not found, skipping")
-                  return
-              
-              text = text[:match.start()] + decl + text[match.start():]
-              
-              hook_call = (
-                  "\n#ifdef CONFIG_KSU\n"
-                  "\tif (unlikely(ksu_input_hook))\n"
-                  "\t\tksu_handle_input_handle_event(&type, &code, &value);\n"
-                  "#endif\n"
-              )
-              
-              # 在 int disposition = ... 之后插入
-              ret_pattern = r"(static void input_handle_event.*?int disposition = input_get_disposition\(dev, type, code, &value\);)"
-              text = re.sub(ret_pattern, r"\1" + hook_call, text, count=1, flags=re.S)
-              
-              path.write_text(text)
-              print("Applied input hook to drivers/input/input.c")
-
-          def patch_reboot():
-              """在 kernel_power_off 函数中插入 KSU hook"""
-              path = Path("kernel/reboot.c")
-              text = path.read_text()
-              
-              if "ksu_handle_prctl" in text:
-                  print("reboot hook already applied")
-                  return
-              
-              # reboot hook 主要用于 prctl，这里跳过
-              print("Skipping reboot hook (not critical for init.rc injection)")
-
-          # 执行所有补丁
-          patch_vfs_read()
-          patch_execve()
-          patch_faccessat()
-          patch_stat()
-          patch_input()
-          patch_reboot()
-          print("Manual hook patches applied successfully")
-          MANUAL_HOOK_PY
+          print("Manual hook patches complete")
+          PATCH_VFS_READ
+          fi
 
           # 集成 SUSFS（KernelSU + kernel），提供 KPM/SUSFS 支持
           susfs_dir="/tmp/susfs4ksu"
