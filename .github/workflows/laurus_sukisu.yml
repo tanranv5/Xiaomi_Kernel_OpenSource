@@ -434,11 +434,8 @@ jobs:
               return 0;
           }
 
-          int __weak ksu_handle_vfs_read(struct file **file_ptr, char __user **buf_ptr,
-                                         size_t *count_ptr, loff_t **pos)
-          {
-              return 0;
-          }
+          // ksu_handle_vfs_read 由 ksud.c 中注入的真正实现提供
+          // 不在此处定义弱符号兜底，确保链接器使用 ksud.c 中的实现
           EOF
 
           if ! grep -q "manual_hook_adapters.o" "${ksu_dir}/Kbuild"; then
@@ -481,7 +478,7 @@ jobs:
           PY
 
           # 兼容 setuid/setreuid，确保 manager fd 能注入
-          python3 - <<PY
+          python3 - <<'PY'
           from pathlib import Path
 
           ksu_dir = Path("${ksu_dir}")
@@ -975,102 +972,45 @@ jobs:
             --base 0x00000000 \
             --kernel_offset 0x00008000 \
             --ramdisk_offset 0x01000000 \
-            --second_offset 0x00f00000 \
+            --second_offset 0x00000000 \
             --tags_offset 0x00000100 \
-            --dtb_offset 0x0000000001f00000 \
-            --board "" \
+            --dtb_offset 0x01f00000 \
             --cmdline "$CMDLINE" \
-            -o ../dist/boot.img)
+            --output boot.img)
 
-          # laurus boot 分区固定 64MB，做一次 truncate 与 stock 对齐
-          truncate -s 64M dist/boot.img
-          ls -lh dist/boot.img
+          ls -lh repack/boot.img
+          cp -f repack/boot.img dist/boot-laurus-${{ github.run_id }}.img
 
-      - name: 写入精简日志（方便无鉴权查看）
-        if: always()
-        run: |
-          set -euxo pipefail
-          mkdir -p ci_logs
-          outfile="ci_logs/${{ github.run_id }}.txt"
-          {
-            echo "run_id=${{ github.run_id }}"
-            echo "head_sha=${{ github.sha }}"
-            echo "kernel_ref=${{ github.event_name == 'workflow_dispatch' && inputs.kernel_branch || 'laurus-q-oss-ci' }}"
-            echo "defconfig=${{ github.event_name == 'workflow_dispatch' && inputs.defconfig || 'vendor/laurus-perf_defconfig' }}"
-            echo "fortify=${{ github.event_name == 'workflow_dispatch' && inputs.fortify || 'off' }}"
-            echo "build_dtbo=${{ github.event_name == 'workflow_dispatch' && inputs.build_dtbo || 'off' }}"
-            echo "with_sukisu=${WITH_SUKISU}"
-            echo
-            echo "==== step outcomes ===="
-            echo "checkout=${{ steps.checkout.outcome }}"
-            echo "deps=${{ steps.deps.outcome }}"
-            echo "toolchain=${{ steps.toolchain.outcome }}"
-            echo "sukisu=${{ steps.sukisu.outcome }}"
-            echo "config=${{ steps.config.outcome }}"
-            echo "build=${{ steps.build.outcome }}"
-            echo "package=${{ steps.package.outcome }}"
-            echo
-            echo "==== ksu config snapshot (out/.config) ===="
-            if [ -f out/.config ]; then
-              grep -nE "KSU|KPM|SUSFS|KPROBES|KRETPROBES|KPROBES_ON_FTRACE|KPROBE_EVENTS|KALLSYMS|FTRACE" out/.config 2>&1 | head -n 200 || true
-            else
-              echo "out/.config not found"
-            fi
-            echo
-            echo "==== artifacts existence ===="
-            ls -l build.log 2>&1 || true
-            ls -l out/arch/arm64/boot/Image.gz-dtb out/arch/arm64/boot/Image.gz out/arch/arm64/boot/dts/qcom/trinket.dtb 2>&1 || true
-            ls -l dist/Image.gz-dtb dist/AnyKernel3-laurus-${{ github.run_id }}.zip dist/boot.img 2>&1 || true
-            echo
-            echo "==== build.log errors (tail 200) ===="
-            grep -nE "error:|fatal error:" build.log 2>&1 | tail -n 200 || true
-            echo
-            echo "==== make failures (tail 120) ===="
-            grep -nE "make(\[[0-9]+\])?: \*\*\*|make: \*\*\*|Error [0-9]+" build.log 2>&1 | tail -n 120 || true
-            echo
-            echo "==== dtc/dts errors (tail 200) ===="
-            grep -nE "FATAL ERROR|syntax error|parse error|Error:" build.log 2>&1 | tail -n 200 || true
-            echo
-            echo "==== forbidden warnings (tail 80) ===="
-            grep -n "warn, forbidden warning" build.log 2>&1 | tail -n 80 || true
-            echo
-            echo "==== bad_copy / fortify hits (head 200) ===="
-            grep -nE "__bad_copy_(to|from)|copy (source|destination) size is too small|__compiletime_error\(\"copy (source|destination) size is too small\"\)|__read_overflow2|FORTIFY|__check_object_size" build.log 2>&1 | head -n 200 || true
-            echo
-            echo "==== bad_copy context (first 3 hits, each +/-60 lines) ===="
-            hits="$(grep -nE "__bad_copy_(to|from)" build.log 2>/dev/null | head -n 3 | cut -d: -f1 | tr '\n' ' ' || true)"
-            if [ -n "${hits}" ]; then
-              for n in ${hits}; do
-                start=$((n-60)); end=$((n+60)); if [ "$start" -lt 1 ]; then start=1; fi
-                echo "--- context around build.log:$n (lines $start-$end) ---"
-                sed -n "${start},${end}p" build.log 2>&1 || true
-                echo
-              done
-            else
-              echo "(no __bad_copy_* strings found in build.log)"
-            fi
-            echo
-            echo "==== tail build.log (last 1200) ===="
-            tail -n 1200 build.log 2>&1 || true
-          } > "$outfile"
-
-          cp -f "$outfile" ci_logs/latest.txt
-          echo "Wrote $outfile"
-
-      - name: 上传产物（无论成功失败）
-        if: always()
+      - name: 上传产物
+        if: steps.build.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
-          name: laurus-${{ github.run_id }}
-          include-hidden-files: true
-          if-no-files-found: warn
+          name: laurus-sukisu-kernel
           path: |
-            build.log
-            ci_logs/latest.txt
-            out/.config
-            out/arch/arm64/boot/Image.gz-dtb
-            out/arch/arm64/boot/Image.gz
-            out/arch/arm64/boot/dts/qcom/trinket.dtb
             dist/Image.gz-dtb
-            dist/AnyKernel3-laurus-${{ github.run_id }}.zip
-            dist/boot.img
+            dist/AnyKernel3-*.zip
+            dist/boot-laurus-*.img
+          compression-level: 9
+
+      - name: 创建 Release
+        if: steps.build.outcome == 'success' && github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: laurus-sukisu-${{ github.run_id }}
+          name: laurus SukiSU Ultra Kernel ${{ github.run_id }}
+          body: |
+            SukiSU Ultra 内核（CC 9e / laurus）
+
+            - 分支: ${{ inputs.kernel_branch }}
+            - defconfig: ${{ inputs.defconfig }}
+            - SukiSU ref: ${{ inputs.sukisu_ref }}
+            - SukiSU mode: ${{ inputs.sukisu_mode }}
+            - FORTIFY_SOURCE: ${{ inputs.fortify }}
+            - build_dtbo: ${{ inputs.build_dtbo }}
+          files: |
+            dist/Image.gz-dtb
+            dist/AnyKernel3-*.zip
+            dist/boot-laurus-*.img
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
