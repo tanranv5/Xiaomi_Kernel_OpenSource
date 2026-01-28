@@ -218,6 +218,7 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import os
+          import re
 
           ksu_dir = Path(os.environ["KSU_DIR"])
           sucompat_path = ksu_dir / "sucompat.c"
@@ -253,7 +254,50 @@ jobs:
 
           ksud_path = ksu_dir / "ksud.c"
           ksud_text = ksud_path.read_text()
-          if "ksu_handle_vfs_read(" not in ksud_text:
+          vfs_body = (
+              "\nint ksu_handle_vfs_read(struct file **file_ptr, char __user **buf_ptr,\n"
+              "                        size_t *count_ptr, loff_t **pos)\n"
+              "{\n"
+              "    struct file *file;\n"
+              "\n"
+              "    if (!file_ptr)\n"
+              "        return 0;\n"
+              "\n"
+              "    file = *file_ptr;\n"
+              "    if (!file)\n"
+              "        return 0;\n"
+              "\n"
+              "    if (!is_init_rc(file))\n"
+              "        return 0;\n"
+              "\n"
+              "    static bool rc_hooked = false;\n"
+              "    if (rc_hooked) {\n"
+              "        stop_init_rc_hook();\n"
+              "        return 0;\n"
+              "    }\n"
+              "    rc_hooked = true;\n"
+              "\n"
+              "    pr_info(\"read init.rc, comm: %s, rc_count: %zu\\n\", current->comm, ksu_rc_len);\n"
+              "\n"
+              "    memcpy(&fops_proxy, file->f_op, sizeof(struct file_operations));\n"
+              "    orig_read = file->f_op->read;\n"
+              "    if (orig_read) {\n"
+              "        fops_proxy.read = read_proxy;\n"
+              "    }\n"
+              "    orig_read_iter = file->f_op->read_iter;\n"
+              "    if (orig_read_iter) {\n"
+              "        fops_proxy.read_iter = read_iter_proxy;\n"
+              "    }\n"
+              "    file->f_op = &fops_proxy;\n"
+              "\n"
+              "    return 0;\n"
+              "}\n"
+          )
+          pattern = r'\n(?:static\\s+)?(?:__weak\\s+)?int\\s+ksu_handle_vfs_read\\s*\\([^)]*\\)\\s*\\{.*?\\n\\}'
+          if re.search(pattern, ksud_text, flags=re.S):
+              ksud_text = re.sub(pattern, vfs_body, ksud_text, flags=re.S)
+              ksud_path.write_text(ksud_text)
+          else:
               marker = "static bool is_init_rc(struct file *fp)\n"
               idx = ksud_text.find(marker)
               if idx == -1:
@@ -262,46 +306,7 @@ jobs:
               if insert_pos == -1:
                   raise SystemExit("ksud.c missing is_init_rc end")
               insert_pos += 2
-              insert = (
-                  "\nint ksu_handle_vfs_read(struct file **file_ptr, char __user **buf_ptr,\n"
-                  "                        size_t *count_ptr, loff_t **pos)\n"
-                  "{\n"
-                  "    struct file *file;\n"
-                  "\n"
-                  "    if (!file_ptr)\n"
-                  "        return 0;\n"
-                  "\n"
-                  "    file = *file_ptr;\n"
-                  "    if (!file)\n"
-                  "        return 0;\n"
-                  "\n"
-                  "    if (!is_init_rc(file))\n"
-                  "        return 0;\n"
-                  "\n"
-                  "    static bool rc_hooked = false;\n"
-                  "    if (rc_hooked) {\n"
-                  "        stop_init_rc_hook();\n"
-                  "        return 0;\n"
-                  "    }\n"
-                  "    rc_hooked = true;\n"
-                  "\n"
-                  "    pr_info(\"read init.rc, comm: %s, rc_count: %zu\\n\", current->comm, ksu_rc_len);\n"
-                  "\n"
-                  "    memcpy(&fops_proxy, file->f_op, sizeof(struct file_operations));\n"
-                  "    orig_read = file->f_op->read;\n"
-                  "    if (orig_read) {\n"
-                  "        fops_proxy.read = read_proxy;\n"
-                  "    }\n"
-                  "    orig_read_iter = file->f_op->read_iter;\n"
-                  "    if (orig_read_iter) {\n"
-                  "        fops_proxy.read_iter = read_iter_proxy;\n"
-                  "    }\n"
-                  "    file->f_op = &fops_proxy;\n"
-                  "\n"
-                  "    return 0;\n"
-                  "}\n"
-              )
-              ksud_text = ksud_text[:insert_pos] + insert + ksud_text[insert_pos:]
+              ksud_text = ksud_text[:insert_pos] + vfs_body + ksud_text[insert_pos:]
               ksud_path.write_text(ksud_text)
           PY
 
