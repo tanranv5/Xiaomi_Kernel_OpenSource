@@ -214,10 +214,13 @@ jobs:
           PY
 
           # 补齐 manual hook 需要的钩子实现，避免空函数导致 init.rc 注入失败
+          export KSU_DIR="$ksu_dir"
           python3 - <<'PY'
           from pathlib import Path
+          import os
 
-          sucompat_path = Path("${ksu_dir}") / "sucompat.c"
+          ksu_dir = Path(os.environ["KSU_DIR"])
+          sucompat_path = ksu_dir / "sucompat.c"
           su_text = sucompat_path.read_text()
           if "ksu_handle_execveat_sucompat" not in su_text:
               insert = (
@@ -248,7 +251,7 @@ jobs:
               )
               sucompat_path.write_text(su_text + insert)
 
-          ksud_path = Path("${ksu_dir}") / "ksud.c"
+          ksud_path = ksu_dir / "ksud.c"
           ksud_text = ksud_path.read_text()
           if "ksu_handle_vfs_read(" not in ksud_text:
               marker = "static bool is_init_rc(struct file *fp)\n"
