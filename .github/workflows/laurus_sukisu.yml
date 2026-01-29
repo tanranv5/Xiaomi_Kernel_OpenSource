@@ -249,100 +249,6 @@ jobs:
           PATCH_VFS_READ
           fi
 
-          # 集成 SUSFS（KernelSU + kernel），提供 KPM/SUSFS 支持
-          susfs_dir="/tmp/susfs4ksu"
-          susfs_ref="gki-android12-5.10"
-          rm -rf "$susfs_dir"
-          git clone --depth=1 -b "$susfs_ref" https://gitlab.com/simonpunk/susfs4ksu "$susfs_dir"
-
-          cp -f "$susfs_dir/kernel_patches/fs/susfs.c" fs/
-          cp -f "$susfs_dir/kernel_patches/include/linux/susfs.h" include/linux/
-          cp -f "$susfs_dir/kernel_patches/include/linux/susfs_def.h" include/linux/
-          sed -i 's#<linux/bits.h>#<linux/bitops.h>#' include/linux/susfs_def.h
-          if ! grep -q "<linux/sched.h>" include/linux/susfs_def.h; then
-            sed -i '/bitops.h/a #include <linux/sched.h>\n#include <linux/thread_info.h>' include/linux/susfs_def.h
-          fi
-          if ! grep -q "susfs_reorder_mnt_id" fs/susfs.c; then
-            cat >> fs/susfs.c <<'SUSFS_EOF'
-
-          void susfs_reorder_mnt_id(void)
-          {
-          }
-          SUSFS_EOF
-          fi
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path("fs/susfs.c")
-          lines = path.read_text().splitlines()
-          new_lines = []
-          seen = 0
-          for line in lines:
-            if "susfs_is_avc_log_spoofing_enabled" in line:
-              seen += 1
-              if seen > 1:
-                continue
-            new_lines.append(line)
-          lines = new_lines
-
-          if not any("susfs_is_avc_log_spoofing_enabled" in line for line in lines):
-            inserted = False
-            new_lines = []
-            for line in lines:
-              new_lines.append(line)
-              if (not inserted
-                  and line.strip().startswith("bool susfs_is_log_enabled")
-                  and "__read_mostly" in line):
-                new_lines.append("bool susfs_is_avc_log_spoofing_enabled __read_mostly = false;")
-                inserted = True
-            lines = new_lines
-
-            if not inserted:
-              new_lines = []
-              for line in lines:
-                new_lines.append(line)
-                if (not inserted
-                    and "susfs_is_current_ksu_domain" in line):
-                  new_lines.append("bool susfs_is_avc_log_spoofing_enabled __read_mostly = false;")
-                  inserted = True
-              lines = new_lines
-
-          path.write_text("\n".join(lines) + "\n")
-          PY
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path("fs/susfs.c")
-          text = path.read_text()
-
-          # 修正结构体初始化缺失花括号，避免 -Wmissing-braces
-          targets = [
-              "static struct st_external_dir android_data_path = {0};",
-              "static struct st_external_dir sdcard_path = {0};",
-              "struct st_external_dir info = {0};",
-              "struct st_susfs_uname info = {0};",
-              "struct st_susfs_sus_map info = {0};",
-              "struct st_susfs_variant info = {0};",
-          ]
-          for t in targets:
-              text = text.replace(t, t.replace("{0}", "{{0}}"))
-
-          # 修正格式化类型告警（spoofed_size 为 64 位）
-          text = text.replace(
-              "spoofed_size: '%u'",
-              "spoofed_size: '%llu'",
-          )
-          text = text.replace(
-              "new_entry->info.spoofed_nlink, new_entry->info.spoofed_size,",
-              "new_entry->info.spoofed_nlink, (unsigned long long)new_entry->info.spoofed_size,",
-          )
-
-          path.write_text(text)
-          PY
-          if ! grep -q "CONFIG_KSU_SUSFS" fs/Makefile; then
-            echo 'obj-$(CONFIG_KSU_SUSFS) += susfs.o' >> fs/Makefile
-          fi
-
           # 补齐 manual hook 适配符号，避免链接错误
           if [ -d "common/drivers" ]; then
             ksu_dir="common/drivers/kernelsu"
@@ -530,20 +436,6 @@ jobs:
                       1,
                   )
           ksud_path.write_text(ksud_text)
-          PY
-
-          python3 - <<PY
-          from pathlib import Path
-
-          path = Path("${ksu_dir}") / "supercalls.c"
-          text = path.read_text()
-          if "susfs_def.h" not in text:
-              key = "#include <linux/version.h>\n"
-              if key in text:
-                  text = text.replace(key, key + "#include <linux/susfs_def.h>\n", 1)
-              else:
-                  text = "#include <linux/susfs_def.h>\n" + text
-              path.write_text(text)
           PY
 
           cat > "${ksu_dir}/manual_hook_adapters.c" <<'EOF'
@@ -860,17 +752,6 @@ jobs:
               'CONFIG_KSU=y' \
               'CONFIG_KSU_MANUAL_HOOK=y' \
               '# CONFIG_KSU_MANUAL_SU is not set' \
-              'CONFIG_KPM=y' \
-              'CONFIG_KSU_SUSFS=y' \
-              'CONFIG_KSU_SUSFS_SUS_PATH=y' \
-              'CONFIG_KSU_SUSFS_SUS_MOUNT=y' \
-              'CONFIG_KSU_SUSFS_SUS_KSTAT=y' \
-              'CONFIG_KSU_SUSFS_SPOOF_UNAME=y' \
-              'CONFIG_KSU_SUSFS_ENABLE_LOG=y' \
-              'CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y' \
-              'CONFIG_KSU_SUSFS_OPEN_REDIRECT=y' \
-              'CONFIG_KSU_SUSFS_SUS_MAP=y' \
-              '# CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS is not set' \
               'CONFIG_KPROBES=y' \
               'CONFIG_KRETPROBES=y' \
               'CONFIG_KPROBE_EVENTS=y' \
@@ -891,17 +772,6 @@ jobs:
             ./scripts/config --file out/.config -e KSU || true
             ./scripts/config --file out/.config -e KSU_MANUAL_HOOK || true
             ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
-            ./scripts/config --file out/.config -e KPM || true
-            ./scripts/config --file out/.config -e KSU_SUSFS || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_PATH || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_MOUNT || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_KSTAT || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_SPOOF_UNAME || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_ENABLE_LOG || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_OPEN_REDIRECT || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_MAP || true
-            ./scripts/config --file out/.config -d KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS || true
             ./scripts/config --file out/.config -e KPROBES || true
             ./scripts/config --file out/.config -e KRETPROBES || true
             ./scripts/config --file out/.config -e KPROBE_EVENTS || true
@@ -943,17 +813,6 @@ jobs:
             ./scripts/config --file out/.config -e KSU || true
             ./scripts/config --file out/.config -e KSU_MANUAL_HOOK || true
             ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
-            ./scripts/config --file out/.config -e KPM || true
-            ./scripts/config --file out/.config -e KSU_SUSFS || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_PATH || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_MOUNT || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_KSTAT || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_SPOOF_UNAME || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_ENABLE_LOG || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_OPEN_REDIRECT || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_MAP || true
-            ./scripts/config --file out/.config -d KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS || true
             ./scripts/config --file out/.config -e KPROBES || true
             ./scripts/config --file out/.config -e KRETPROBES || true
             ./scripts/config --file out/.config -e KPROBE_EVENTS || true
