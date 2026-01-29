@@ -497,6 +497,76 @@ jobs:
               path.write_text(text)
           PY
 
+          cat > "${ksu_dir}/manual_hook_adapters.c" <<'EOF'
+          #include <linux/compiler.h>
+          #include <linux/cred.h>
+          #include <linux/err.h>
+          #include <linux/fs.h>
+          #include <linux/namei.h>
+          #include <linux/printk.h>
+          #include <linux/string.h>
+          #include <linux/version.h>
+
+          #include "allowlist.h"
+          #include "app_profile.h"
+          #include "ksud.h"
+
+          struct user_arg_ptr;
+          int ksu_handle_execveat_ksud(int *fd, struct filename **filename_ptr,
+                                       struct user_arg_ptr *argv,
+                                       struct user_arg_ptr *envp, int *flags);
+
+          // 弱符号兜底，避免与 SukiSU 自带实现重复定义
+          bool ksu_execveat_hook __read_mostly __weak = true;
+          bool ksu_vfs_read_hook __read_mostly __weak = true;
+          bool ksu_input_hook __read_mostly __weak = true;
+
+          int __weak ksu_handle_execveat(int *fd, struct filename **filename_ptr,
+                                         void *argv, void *envp, int *flags)
+          {
+              struct user_arg_ptr *argv_ptr = (struct user_arg_ptr *)argv;
+              struct user_arg_ptr *envp_ptr = (struct user_arg_ptr *)envp;
+
+              ksu_handle_execveat_ksud(fd, filename_ptr, argv_ptr, envp_ptr, flags);
+
+              if (!ksu_is_allow_uid_for_current(current_uid().val)) {
+                  return 0;
+              }
+              if (!filename_ptr || !*filename_ptr || IS_ERR(*filename_ptr)) {
+                  return 0;
+              }
+
+              if (!strcmp((*filename_ptr)->name, "/system/bin/su")) {
+                  struct filename *newf = getname_kernel(KSUD_PATH);
+                  if (!IS_ERR(newf)) {
+                      putname(*filename_ptr);
+                      *filename_ptr = newf;
+                      escape_with_root_profile();
+                  }
+              }
+
+              return 0;
+          }
+
+          int __weak ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,
+                                                  void *argv, void *envp, int *flags)
+          {
+              return 0;
+          }
+
+          EOF
+
+          if [ -f "${ksu_dir}/Kbuild" ]; then
+            if ! grep -q "manual_hook_adapters.o" "${ksu_dir}/Kbuild"; then
+              echo "kernelsu-objs += manual_hook_adapters.o" >> "${ksu_dir}/Kbuild"
+            fi
+          fi
+          if [ -f "${ksu_dir}/Makefile" ]; then
+            if ! grep -q "manual_hook_adapters.o" "${ksu_dir}/Makefile"; then
+              echo "kernelsu-objs += manual_hook_adapters.o" >> "${ksu_dir}/Makefile"
+            fi
+          fi
+
           # 兼容 setuid/setreuid，确保 manager fd 能注入
           python3 - <<PY
           from pathlib import Path
