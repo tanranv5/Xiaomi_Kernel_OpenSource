@@ -471,20 +471,7 @@ jobs:
                       "    pr_info(\\\"ksud: sys_read_kp: %d\\\\n\\\", ret);\\n\\n"
                       "    ret = register_kretprobe(&sys_fstat_kp);\\n"
                       "    pr_info(\\\"ksud: sys_fstat_kp: %d\\\\n\\\", ret);\\n",
-                      "    if (!ksu_vfs_read_hook) {\\n"
-                      "        ret = register_kprobe(&sys_read_kp);\\n"
-                      "        pr_info(\\\"ksud: sys_read_kp: %d\\\\n\\\", ret);\\n"
-                      "        if (!ret) {\\n"
-                      "            sys_read_kp_registered = true;\\n"
-                      "        }\\n\\n"
-                      "        ret = register_kretprobe(&sys_fstat_kp);\\n"
-                      "        pr_info(\\\"ksud: sys_fstat_kp: %d\\\\n\\\", ret);\\n"
-                      "        if (!ret) {\\n"
-                      "            sys_fstat_kp_registered = true;\\n"
-                      "        }\\n"
-                      "    } else {\\n"
-                      "        pr_info(\\\"ksud: skip sys_read/sys_fstat kprobe (vfs_read hook enabled)\\\\n\\\");\\n"
-                      "    }\\n",
+                      "    pr_info(\\\"ksud: skip sys_read/sys_fstat kprobe (force manual hook)\\\\n\\\");\\n",
                       1,
                   )
               if "if (ksu_vfs_read_hook)" not in ksud_text:
