@@ -994,10 +994,12 @@ jobs:
 
           if [ "$BUILD_DTBO" = "on" ]; then
             # dtbo (/plugin/;) 需要 -@ 才能生成符号/修复信息
-            make -j"$(nproc)" O=out Image.gz-dtb V=1 DTC_FLAGS="-@" 2>&1 | tee build.log
+            make -j"$(nproc)" O=out Image.gz-dtb V=1 DTC_FLAGS="-@" \
+              CC="${CROSS_COMPILE}gcc" 2>&1 | tee build.log
           else
             # 先确保能编译出内核镜像；dtbo 问题后续再单独修
-            make -j"$(nproc)" O=out Image.gz V=1 2>&1 | tee build.log
+            make -j"$(nproc)" O=out Image.gz V=1 \
+              CC="${CROSS_COMPILE}gcc" 2>&1 | tee build.log
 
             mkdir -p dist
             rm -f dist/dtb
