@@ -60,7 +60,6 @@ name: build-laurus-sukisu
       - laurus-q-oss-ci
     paths:
       - ".github/workflows/laurus_sukisu.yml"
-      - "ci_trigger.txt"
 
 permissions:
   contents: write
