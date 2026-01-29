@@ -309,6 +309,36 @@ jobs:
 
           path.write_text("\n".join(lines) + "\n")
           PY
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("fs/susfs.c")
+          text = path.read_text()
+
+          # 修正结构体初始化缺失花括号，避免 -Wmissing-braces
+          targets = [
+              "static struct st_external_dir android_data_path = {0};",
+              "static struct st_external_dir sdcard_path = {0};",
+              "struct st_external_dir info = {0};",
+              "struct st_susfs_uname info = {0};",
+              "struct st_susfs_sus_map info = {0};",
+              "struct st_susfs_variant info = {0};",
+          ]
+          for t in targets:
+              text = text.replace(t, t.replace("{0}", "{{0}}"))
+
+          # 修正格式化类型告警（spoofed_size 为 64 位）
+          text = text.replace(
+              "spoofed_size: '%u'",
+              "spoofed_size: '%llu'",
+          )
+          text = text.replace(
+              "new_entry->info.spoofed_nlink, new_entry->info.spoofed_size,",
+              "new_entry->info.spoofed_nlink, (unsigned long long)new_entry->info.spoofed_size,",
+          )
+
+          path.write_text(text)
+          PY
           if ! grep -q "CONFIG_KSU_SUSFS" fs/Makefile; then
             echo 'obj-$(CONFIG_KSU_SUSFS) += susfs.o' >> fs/Makefile
           fi
