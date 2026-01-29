@@ -1,1 +1,1183 @@
-bmFtZTogYnVpbGQtbGF1cnVzLXN1a2lzdQoKIm9uIjoKICB3b3JrZmxvd19kaXNwYXRjaDoKICAgIGlucHV0czoKICAgICAga2VybmVsX2JyYW5jaDoKICAgICAgICBkZXNjcmlwdGlvbjogIuimgee8luivkeeahOWGheaguOWIhuaUryIKICAgICAgICByZXF1aXJlZDogdHJ1ZQogICAgICAgIGRlZmF1bHQ6ICJsYXVydXMtcS1vc3MtY2kiCiAgICAgIGRlZmNvbmZpZzoKICAgICAgICBkZXNjcmlwdGlvbjogImRlZmNvbmZpZ++8iOebuOWvuSBhcmNoL2FybTY0L2NvbmZpZ3Mv77yJIgogICAgICAgIHJlcXVpcmVkOiB0cnVlCiAgICAgICAgZGVmYXVsdDogInZlbmRvci9sYXVydXMtcGVyZl9kZWZjb25maWciCiAgICAgIHN1a2lzdV9yZWY6CiAgICAgICAgZGVzY3JpcHRpb246ICJTdWtpU1UgVWx0cmEg5byV55So77yI5YiG5pSvL+agh+etvi9jb21taXTvvIkiCiAgICAgICAgcmVxdWlyZWQ6IHRydWUKICAgICAgICBkZWZhdWx0OiAibWFpbiIKICAgICAgc3VraXN1X21vZGU6CiAgICAgICAgZGVzY3JpcHRpb246ICJTdWtpU1Ug6ZuG5oiQ5qih5byP77yaYnVpbHRpbiDmm7TpgILlkIjpnZ4gR0tJL+iAgeWGheaguCIKICAgICAgICByZXF1aXJlZDogdHJ1ZQogICAgICAgIGRlZmF1bHQ6ICJidWlsdGluIgogICAgICAgIHR5cGU6IGNob2ljZQogICAgICAgIG9wdGlvbnM6CiAgICAgICAgICAtIGJ1aWx0aW4KICAgICAgICAgIC0gbWFpbgogICAgICBmb3J0aWZ5OgogICAgICAgIGRlc2NyaXB0aW9uOiAi5piv5ZCm5ZCv55SoIEZPUlRJRllfU09VUkNF77yI5o6o6I2Q5pel55SoIG9u77yb6ICBIEdDQyA0Ljkg6ZyA5YWI5L+u6Kem5Y+R54K55YaN5byA5ZCv77yJIgogICAgICAgIHJlcXVpcmVkOiB0cnVlCiAgICAgICAgZGVmYXVsdDogIm9mZiIKICAgICAgICB0eXBlOiBjaG9pY2UKICAgICAgICBvcHRpb25zOgogICAgICAgICAgLSAib2ZmIgogICAgICAgICAgLSAib24iCiAgICAgIGJ1aWxkX2R0Ym86CiAgICAgICAgZGVzY3JpcHRpb246ICLmmK/lkKbmnoTlu7ogRFRCT++8iG92ZXJsYXnvvInvvJtvZmYg5Lya57uV6L+HIHRyaW5rZXQgZHRibyDnvJbor5HlpLHotKXvvIjlhYjnoa7kv53lhoXmoLjog73lh7rplZzlg4/vvIkiCiAgICAgICAgcmVxdWlyZWQ6IHRydWUKICAgICAgICBkZWZhdWx0OiAib2ZmIgogICAgICAgIHR5cGU6IGNob2ljZQogICAgICAgIG9wdGlvbnM6CiAgICAgICAgICAtICJvZmIiCiAgICAgICAgICAtICJvbiIKICAgICAgZ2NjNjRfcmVwbzoKICAgICAgICBkZXNjcmlwdGlvbjogIkFBcmNoNjQgR0NDIDQuOSDlt6Xlhbfpk77ku5PlupMiCiAgICAgICAgcmVxdWlyZWQ6IHRydWUKICAgICAgICBkZWZhdWx0OiAiTGluZWFnZU9TL2FuZHJvaWRfcHJlYnVpbHRzX2djY19saW51eC14ODZfYWFyY2g2NF9hYXJjaDY0LWxpbnV4LWFuZHJvaWQtNC45IgogICAgICBnY2M2NF9yZWY6CiAgICAgICAgZGVzY3JpcHRpb246ICJBQXJjaDY0IEdDQyA0Ljkg5bel5YW36ZO+5YiG5pSvIgogICAgICAgIHJlcXVpcmVkOiB0cnVlCiAgICAgICAgZGVmYXVsdDogImxpbmVhZ2UtMTkuMSIKICAgICAgZ2NjMzJfcmVwbzoKICAgICAgICBkZXNjcmlwdGlvbjogIkFSTSBHQ0MgNC45IOW3peWFt+mTvuS7k+W6kyIKICAgICAgICByZXF1aXJlZDogdHJ1ZQogICAgICAgIGRlZmF1bHQ6ICJMaW5lYWdlT1MvYW5kcm9pZF9wcmVidWlsdHNfZ2NjX2xpbnV4LXg4Nl9hcm1fYXJtLWxpbnV4LWFuZHJvaWRlYWJpLTQuOSIKICAgICAgZ2NjMzJfcmVmOgogICAgICAgIGRlc2NyaXB0aW9uOiAiQVJNIEdDQyA0Ljkg5bel5YW36ZO+5YiG5pSvIgogICAgICAgIHJlcXVpcmVkOiB0cnVlCiAgICAgICAgZGVmYXVsdDogImxpbmVhZ2UtMTkuMSIKICBwdXNoOgogICAgYnJhbmNoZXM6CiAgICAgIC0gbGF1cnVzLXEtb3NzLWNpCiAgICBwYXRoczoKICAgICAgLSAiLmdpdGh1Yi93b3JrZmxvd3MvbGF1cnVzX3N1a2lzdS55bWwiCgplZXJtaXNzaW9uczoKICBjb250ZW50czogd3JpdGUKCgpqb2JzOgogIGJ1aWxkOgogICAgcnVucy1vbjogdWJ1bnR1LTIyLjA0CiAgICB0aW1lb3V0LW1pbnV0ZXM6IDkwCiAgICBlbnY6CiAgICAgIFdJVEhfU1VLSVNVOiAib24iCiAgICAgIEtFUk5FTF9CUkFOQ0g6ICR7eyBnaXRodWIuZXZlbnRfbmFtZSA9PSAnd29ya2Zsb3dfZGlzcGF0Y2gnICYmIGlucHV0cy5rZXJuZWxfYnJhbmNoIHx8ICdsYXVydXMtcS1vc3MtY2knIH19CiAgICAgIERFRkNPTkZJR19JTlBVVDogJHt7IGdpdGh1Yi5ldmVudF9uYW1lID09ICd3b3JrZmxvd19kaXNwYXRjaCcgJiYgaW5wdXRzLmRlZmNvbmZpZyB8fCAndmVuZG9yL2xhdXJ1cy1wZXJmX2RlZmNvbmZpZycgfX0KICAgICAgU1VLSVNVX1JFRjogJHt7IGdpdGh1Yi5ldmVudF9uYW1lID09ICd3b3JrZmxvd19kaXNwYXRjaCcgJiYgaW5wdXRzLnN1a2lzdV9yZWYgfHwgJ21haW4nIH19CiAgICAgIFNVS0lTVV9NT0RFOiAke3sgZ2l0aHViLmV2ZW50X25hbWUgPT0gJ3dvcmtmbG93X2Rpc3BhdGNoJyAmJiBpbnB1dHMuc3VraXN1X21vZGUgfHwgJ2J1aWx0aW4nIH19CiAgICAgIEZPUlRJRllfTU9ERTogJHt7IGdpdGh1Yi5ldmVudF9uYW1lID09ICd3b3JrZmxvd19kaXNwYXRjaCcgJiYgaW5wdXRzLmZvcnRpZnkgfHwgJ29mZicgfX0KICAgICAgQlVJTERfRFRCTzogJHt7IGdpdGh1Yi5ldmVudF9uYW1lID09ICd3b3JrZmxvd19kaXNwYXRjaCcgJiYgaW5wdXRzLmJ1aWxkX2R0Ym8gfHwgJ29mZicgfX0KICAgICAgR0NDNjRfUkVQT19JTlBVVDogJHt7IGdpdGh1Yi5ldmVudF9uYW1lID09ICd3b3JrZmxvd19kaXNwYXRjaCcgJiYgaW5wdXRzLmdjYzY0X3JlcG8gfHwgJ0xpbmVhZ2VPUy9hbmRyb2lkX3ByZWJ1aWx0c19nY2NfbGludXgteDg2X2FhcmNoNjRfYWFyY2g2NC1saW51eC1hbmRyb2lkLTQuOScgfX0KICAgICAgR0NDNjRfUkVGX0lOUFVUOiAke3sgZ2l0aHViLmV2ZW50X25hbWUgPT0gJ3dvcmtmbG93X2Rpc3BhdGNoJyAmJiBpbnB1dHMuZ2NjNjRfcmVmIHx8ICdsaW5lYWdlLTE5LjEnIH19CiAgICAgIEdDQzMyX1JFUE9fSU5QVVQ6ICR7eyBnaXRodWIuZXZlbnRfbmFtZSA9PSAnd29ya2Zsb3dfZGlzcGF0Y2gnICYmIGlucHV0cy5nY2MzMl9yZXBvIHx8ICdMaW5lYWdlT1MvYW5kcm9pZF9wcmVidWlsdHNfZ2NjX2xpbnV4LXg4Nl9hcm1fYXJtLWxpbnV4LWFuZHJvaWRlYWJpLTQuOScgfX0KICAgICAgR0NDMzJfUkVGX0lOUFVUOiAke3sgZ2l0aHViLmV2ZW50X25hbWUgPT0gJ3dvcmtmbG93X2Rpc3BhdGNoJyAmJiBpbnB1dHMuZ2NjMzJfcmVmIHx8ICdsaW5lYWdlLTE5LjEnIH19CiAgICAgIFJVTl9JRDogJHt7IGdpdGh1Yi5ydW5faWQgfX0KICAgICAgSEVBRF9TSEE6ICR7eyBnaXRodWIuc2hhIH19CgogICAgc3RlcHM6CiAgICAgIC0gbmFtZTog5qOA5Ye65YaF5qC45rqQ56CBCiAgICAgICAgaWQ6IGNoZWNrb3V0CiAgICAgICAgdXNlczogYWN0aW9ucy9jaGVja291dEB2NAogICAgICAgIHdpdGg6CiAgICAgICAgICBmZXRjaC1kZXB0aDogMQogICAgICAgICAgcmVmOiAke3sgZW52LktFUk5FTF9CUkFOQ0ggfX0KCiAgICAgIC0gbmFtZTog5a6J6KOF5L6d6LWWCiAgICAgICAgaWQ6IGRlcHMKICAgICAgICBydW46IHwKICAgICAgICAgIHNldCAtZXV4byBwaXBlZmFpbAogICAgICAgICAgc3VkbyBhcHQtZ2V0IHVwZGF0ZQogICAgICAgICAgc3VkbyBhcHQtZ2V0IGluc3RhbGwgLXkgLS1uby1pbnN0YWxsLXJlY29tbWVuZHMgXAogICAgICAgICAgICBiYyBiaXNvbiBidWlsZC1lc3NlbnRpYWwgY2EtY2VydGlmaWNhdGVzIFwKICAgICAgICAgICAgY3VybCBmbGV4IGdpdCBsaWJlbGYtZGV2IGxpYnNzbC1kZXYgXAogICAgICAgICAgICBweXRob24zIHJzeW5jIHVuemlwIHh6LXV0aWxzIFwKICAgICAgICAgICAgZGV2aWNlLXRyZWUtY29tcGlsZXIgemlwCgogICAgICAtIG5hbWU6IOaLieWPluW3peWFt+mTvu+8iEdDQyA0LjnvvIkKICAgICAgICBpZDogdG9vbGNoYWluCiAgICAgICAgcnVuOiB8CiAgICAgICAgICBzZXQgLWV1eG8gcGlwZWZhaWwKICAgICAgICAgIEdDQzY0X1JFUE89IiR7R0NDNjRfUkVQT19JTlBVVH0iCiAgICAgICAgICBHQ0M2NF9SRUY9IiR7R0NDNjRfUkVGX0lOUFVUfSIKICAgICAgICAgIEdDQzMyX1JFUE89IiR7R0NDMzJfUkVQT19JTlBVVH0iCiAgICAgICAgICBHQ0MzMl9SRUY9IiR7R0NDMzJfUkVGX0lOUFVUfSIKCiAgICAgICAgICBnaXQgY2xvbmUgLS1kZXB0aD0xIC1iICIkR0NDNjRfUkVGIiAiaHR0cHM6Ly9naXRodWIuY29tLyR7R0NDNjRfUkVQT30uZ2l0IiB0b29sY2hhaW4tZ2NjNjQKICAgICAgICAgIGdpdCBjbG9uZSAtLWRlcHRoPTEgLWIgIiRHQ0MzMl9SRUYiICJodHRwczovL2dpdGh1Yi5jb20vJHtHQ0MzMl9SRVBPfS5naXQiIHRvb2xjaGFpbi1nY2MzMgoKICAgICAgICAgIGVjaG8gIlRPT0xDSEFJTl9HQ0M2ND0kUFdEL3Rvb2xjaGFpbi1nY2M2NCIgPj4gIiRHSVRIVUJfRU5WIgogICAgICAgICAgZWNobyAiVE9PTENIQUlOX0dDQzMyPSRQV0QvdG9vbGNoYWluLWdjYzMyIiA+PiAiJEdJVEhVQl9FTlYiCgogICAgICAtIG5hbWU6IOmbhuaIkCBTdWtpU1UgVWx0cmEKICAgICAgICBpZDogc3VraXN1CiAgICAgICAgcnVuOiB8CiAgICAgICAgICBzZXQgLWV1eG8gcGlwZWZhaWwKICAgICAgICAgIGlmIFsgIiR7V0lUSF9TVUtJU1V9IiAhPSAib24iIF07IHRoZW4KICAgICAgICAgICAgZWNobyAiV0lUSF9TVUtJU1U9JHtXSVRIX1NVS0lTVX0sIHNraXAgU3VraVNVIGludGVncmF0ZS4iCiAgICAgICAgICAgIGV4aXQgMAogICAgICAgICAgZmkKCiAgICAgICAgICByZWY9IiR7U1VLSVNVX1JFRn0iCiAgICAgICAgICBtb2RlPSIke1NVS0lTVV9NT0RFfSIKCiAgICAgICAgICAjIFN1a2lTVSDlrpjmlrnohJrmnKwKICAgICAgICAgIGN1cmwgLWZzU0wgImh0dHBzOi8vcmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbS9TdWtpU1UtVWx0cmEvU3VraVNVLVVsdHJhLyR7cmVmfS9rZXJuZWwvc2V0dXAuc2giIHwgYmFzaCAtcyAiJG1vZGUiCgogICAgICAgICAgIyDlupTnlKggbWFudWFsIGhvb2sg6KGl5LiB77yINC4xNO+8iQogICAgICAgICAgcGF0Y2hfdXJsPSJodHRwczovL3Jhdy5naXRodWJ1c2VyY29udGVudC5jb20vcmtzdW9yZy9rZXJuZWxfcGF0Y2hlcy9tYXN0ZXIvbWFudWFsX2hvb2sva2VybmVsLTQuMTQucGF0Y2giCiAgICAgICAgICBjdXJsIC1mc1NMICIkcGF0Y2hfdXJsIiAtbyAvdG1wL2tzdV9tYW51YWxfaG9vay5wYXRjaAogICAgICAgICAgaWYgZ2l0IGFwcGx5IC0tcmV2ZXJzZSAtLWNoZWNrIC90bXAva3N1X21hbnVhbF9ob29rLnBhdGNoIDI+L2Rldi9udWxsOyB0aGVuCiAgICAgICAgICAgIGVjaG8gIm1hbnVhbCBob29rIHBhdGNoIGFscmVhZHkgYXBwbGllZCIKICAgICAgICAgIGVsaWYgZ2l0IGFwcGx5IC90bXAva3N1X21hbnVhbF9ob29rLnBhdGNoIDI+L2Rldi9udWxsOyB0aGVuCiAgICAgICAgICAgIGVjaG8gIm1hbnVhbCBob29rIHBhdGNoIGFwcGxpZWQgc3VjY2Vzc2Z1bGx5IgogICAgICAgICAgZWxzZQogICAgICAgICAgICBlY2hvICJnaXQgcGF0Y2ggZmFpbGVkLCBhcHBseWluZyBtYW51YWwgaG9va3MgdmlhIFB5dGhvbiIKICAgICAgICAgICAgcHl0aG9uMyAtIDw8J1BBVENIX1ZGU19SRUFEJwogICAgICAgICAgaW1wb3J0IHJlCiAgICAgICAgICBmcm9tIHBhdGhsaWIgaW1wb3J0IFBhdGgKCiAgICAgICAgICAjIFBhdGNoIGZzL3JlYWRfd3JpdGUuYwogICAgICAgICAgcndfcGF0aCA9IFBhdGgoImZzL3JlYWRfd3JpdGUuYyIpCiAgICAgICAgICByd190ZXh0ID0gcndfcGF0aC5yZWFkX3RleHQoKQogICAgICAgICAgaWYgImtzdV9oYW5kbGVfdmZzX3JlYWQiIG5vdCBpbiByd190ZXh0OgogICAgICAgICAgICAgIGRlY2wgPSAoCiAgICAgICAgICAgICAgICAgICIjaWZkZWYgQ09ORklHX0tTVVxuIgogICAgICAgICAgICAgICAgICAiZXh0ZXJuIGJvb2wga3N1X3Zmc19yZWFkX2hvb2sgX19yZWFkX21vc3RseTtcbiIKICAgICAgICAgICAgICAgICAgImV4dGVybiBpbnQga3N1X2hhbmRsZV92ZnNfcmVhZChzdHJ1Y3QgZmlsZSAqKmZpbGVfcHRyLCBjaGFyIF9fdXNlciAqKmJ1Zl9wdHIsXG4iCiAgICAgICAgICAgICAgICAgICIgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHNpemVfdCAqY291bnRfcHRyLCBsb2ZmX3QgKipwb3MpO1xuIgogICAgICAgICAgICAgICAgICAiI2VuZGlmXG4iCiAgICAgICAgICAgICAgKQogICAgICAgICAgICAgIGhvb2sgPSAoCiAgICAgICAgICAgICAgICAgICJcbiNpZmRlZiBDT05GSUdfS1NVXG4iCiAgICAgICAgICAgICAgICAgICJcdGlmICh1bmxpa2VseShrc3VfdmZzX3JlYWRfaG9vaykpXG4iCiAgICAgICAgICAgICAgICAgICJcdFx0a3N1X2hhbmRsZV92ZnNfcmVhZCgmZmlsZSwgJmJ1ZiwgJmNvdW50LCAmcG9zKTtcbiIKICAgICAgICAgICAgICAgICAgIiNlbmRpZlxuIgogICAgICAgICAgICAgICkKICAgICAgICAgICAgICAjIEluc2VydCBkZWNsYXJhdGlvbiBiZWZvcmUgdmZzX3JlYWQKICAgICAgICAgICAgICByd190ZXh0ID0gcmUuc3ViKAogICAgICAgICAgICAgICAgICByIihzc2l6ZV90IHZmc19yZWFkXChzdHJ1Y3QgZmlsZSBcKmZpbGUsIGNoYXIgX191c2VyIFwqYnVmLCBzaXplX3QgY291bnQsIGxvZmZfdCBcKnBvc1wpXG5ceykiLAogICAgICAgICAgICAgICAgICBkZWNsICsgciJcMSIsCiAgICAgICAgICAgICAgICAgIHJ3X3RleHQKICAgICAgICAgICAgICApCiAgICAgICAgICAgICAgIyBJbnNlcnQgaG9vayBhZnRlciBzc2l6ZV90IHJldDsKICAgICAgICAgICAgICByd190ZXh0ID0gcmUuc3ViKAogICAgICAgICAgICAgICAgICByIihzc2l6ZV90IHZmc19yZWFkXChzdHJ1Y3QgZmlsZSBcKmZpbGUsIGNoYXIgX191c2VyIFwqYnVmLCBzaXplX3QgY291bnQsIGxvZmZfdCBcKnBvc1wpXG5ce1xuXHRzc2l6ZV90IHJldDspIiwKICAgICAgICAgICAgICAgICAgciJcMSIgKyBob29rLAogICAgICAgICAgICAgICAgICByd190ZXh0CiAgICAgICAgICAgICAgKQogICAgICAgICAgICAgIHJ3X3BhdGgud3JpdGVfdGV4dChyd190ZXh0KQogICAgICAgICAgICAgIHByaW50KCJQYXRjaGVkIGZzL3JlYWRfd3JpdGUuYyB3aXRoIHZmc19yZWFkIGhvb2siKQoKICAgICAgICAgICMgUGF0Y2ggZnMvZXhlYy5jCiAgICAgICAgICBleGVjX3BhdGggPSBQYXRoKCJmcy9leGVjLmMiKQogICAgICAgICAgZXhlY190ZXh0ID0gZXhlY19wYXRoLnJlYWRfdGV4dCgpCiAgICAgICAgICBpZiAia3N1X2hhbmRsZV9leGVjdmVhdCIgbm90IGluIGV4ZWNfdGV4dDoKICAgICAgICAgICAgICBkZWNsID0gKAogICAgICAgICAgICAgICAgICAiI2lmZGVmIENPTkZJR19LU1VcbiIKICAgICAgICAgICAgICAgICAgImV4dGVybiBib29sIGtzdV9leGVjdmVhdF9ob29rIF9fcmVhZF9tb3N0bHk7XG4iCiAgICAgICAgICAgICAgICAgICJleHRlcm4gaW50IGtzdV9oYW5kbGVfZXhlY3ZlYXQoaW50ICpmZCwgc3RydWN0IGZpbGVuYW1lICoqZmlsZW5hbWVfcHRyLCB2b2lkICphcmd2LFxuIgogICAgICAgICAgICAgICAgICAiXHRcdFx0dm9pZCAqZW52cCwgaW50ICpmbGFncyk7XG4iCiAgICAgICAgICAgICAgICAgICJleHRlcm4gaW50IGtzdV9oYW5kbGVfZXhlY3ZlYXRfc3Vjb21wYXQoaW50ICpmZCwgc3RydWN0IGZpbGVuYW1lICoqZmlsZW5hbWVfcHRyLFxuIgogICAgICAgICAgICAgICAgICAiXHRcdFx0XHQgdm9pZCAqYXJndiwgdm9pZCAqZW52cCwgaW50ICpmbGFncyk7XG4iCiAgICAgICAgICAgICAgICAgICIjZW5kaWZcbiIKICAgICAgICAgICAgICApCiAgICAgICAgICAgICAgaG9vayA9ICgKICAgICAgICAgICAgICAgICAgIlxuI2lmZGVmIENPTkZJR19LU1VcbiIKICAgICAgICAgICAgICAgICAgIlx0aWYgKHVubGlrZWx5KGtzdV9leGVjdmVhdF9ob29rKSlcbiIKICAgICAgICAgICAgICAgICAgIlx0XHRrc3VfaGFuZGxlX2V4ZWN2ZWF0KCZmZCwgJmZpbGVuYW1lLCAmYXJndiwgJmVudnAsICZmbGFncyk7XG4iCiAgICAgICAgICAgICAgICAgICJcdGVsc2VcbiIKICAgICAgICAgICAgICAgICAgIlx0XHRrc3VfaGFuZGxlX2V4ZWN2ZWF0X3N1Y29tcGF0KCZmZCwgJmZpbGVuYW1lLCAmYXJndiwgJmVudnAsICZmbGFncyk7XG4iCiAgICAgICAgICAgICAgICAgICIjZW5kaWZcbiIKICAgICAgICAgICAgICApCiAgICAgICAgICAgICAgIyBJbnNlcnQgZGVjbGFyYXRpb24gYmVmb3JlIGRvX2V4ZWN2ZWF0X2NvbW1vbgogICAgICAgICAgICAgIGV4ZWNfdGV4dCA9IHJlLnN1YigKICAgICAgICAgICAgICAgICAgciIoc3RhdGljIGludCBkb19leGVjdmVhdF9jb21tb25cKGludCBmZCwgc3RydWN0IGZpbGVuYW1lIFwqZmlsZW5hbWUsKSIsCiAgICAgICAgICAgICAgICAgIGRlY2wgKyByIlwxIiwKICAgICAgICAgICAgICAgICAgZXhlY190ZXh0CiAgICAgICAgICAgICAgKQogICAgICAgICAgICAgICMgSW5zZXJ0IGhvb2sgYWZ0ZXIgaW50IHJldHZhbDsKICAgICAgICAgICAgICBleGVjX3RleHQgPSByZS5zdWIoCiAgICAgICAgICAgICAgICAgIHIiKHN0YXRpYyBpbnQgZG9fZXhlY3ZlYXRfY29tbW9uXChpbnQgZmQsIHN0cnVjdCBmaWxlbmFtZSBcKmZpbGVuYW1lLC4qP2ludCByZXR2YWw7KSIsCiAgICAgICAgICAgICAgICAgIHIiXDEiICsgaG9vaywKICAgICAgICAgICAgICAgICAgZXhlY190ZXh0LAogICAgICAgICAgICAgICAgICBjb3VudD0xLAogICAgICAgICAgICAgICAgICBmbGFncz1yZS5TCiAgICAgICAgICAgICAgKQogICAgICAgICAgICAgIGV4ZWNfcGF0aC53cml0ZV90ZXh0KGV4ZWNfdGV4dCkKICAgICAgICAgICAgICBwcmludCgiUGF0Y2hlZCBmcy9leGVjLmMgd2l0aCBleGVjdmVhdCBob29rIikKCiAgICAgICAgICAjIFBhdGNoIGRyaXZlcnMvaW5wdXQvaW5wdXQuYwogICAgICAgICAgaW5wdXRfcGF0aCA9IFBhdGgoImRyaXZlcnMvaW5wdXQvaW5wdXQuYyIpCiAgICAgICAgICBpZiBpbnB1dF9wYXRoLmV4aXN0cygpOgogICAgICAgICAgICAgIGlucHV0X3RleHQgPSBpbnB1dF9wYXRoLnJlYWRfdGV4dCgpCiAgICAgICAgICAgICAgaWYgImtzdV9oYW5kbGVfaW5wdXQiIG5vdCBpbiBpbnB1dF90ZXh0OgogICAgICAgICAgICAgICAgICBkZWNsID0gKAogICAgICAgICAgICAgICAgICAgICAgIiNpZmRlZiBDT05GSUdfS1NVXG4iCiAgICAgICAgICAgICAgICAgICAgICAiZXh0ZXJuIGJvb2wga3N1X2lucHV0X2hvb2sgX19yZWFkX21vc3RseTtcbiIKICAgICAgICAgICAgICAgICAgICAgICJleHRlcm4gaW50IGtzdV9oYW5kbGVfaW5wdXRfaGFuZGxlX2V2ZW50KHVuc2lnbmVkIGludCAqdHlwZSwgdW5zaWduZWQgaW50ICpjb2RlLCBpbnQgKnZhbHVlKTtcbiIKICAgICAgICAgICAgICAgICAgICAgICIjZW5kaWZcbiIKICAgICAgICAgICAgICAgICAgKQogICAgICAgICAgICAgICAgICBob29rID0gKAogICAgICAgICAgICAgICAgICAgICAgIlxuI2lmZGVmIENPTkZJR19LU1VcbiIKICAgICAgICAgICAgICAgICAgICAgICJcdGlmICh1bmxpa2VseShrc3VfaW5wdXRfaG9vaykpXG4iCiAgICAgICAgICAgICAgICAgICAgICAiXHRcdGtzdV9oYW5kbGVfaW5wdXRfaGFuZGxlX2V2ZW50KCZ0eXBlLCAmY29kZSwgJnZhbHVlKTtcbiIKICAgICAgICAgICAgICAgICAgICAgICIjZW5kaWZcbiIKICAgICAgICAgICAgICAgICAgKQogICAgICAgICAgICAgICAgICBpbnB1dF90ZXh0ID0gcmUuc3ViKAogICAgICAgICAgICAgICAgICAgICAgciIoc3RhdGljIHZvaWQgaW5wdXRfaGFuZGxlX2V2ZW50XChzdHJ1Y3QgaW5wdXRfZGV2IFwqZGV2LCkiLAogICAgICAgICAgICAgICAgICAgICAgZGVjbCArIHIiXDEiLAogICAgICAgICAgICAgICAgICAgICAgaW5wdXRfdGV4dAogICAgICAgICAgICAgICAgICApCiAgICAgICAgICAgICAgICAgIGlucHV0X3RleHQgPSByZS5zdWIoCiAgICAgICAgICAgICAgICAgICAgICByIihpbnQgZGlzcG9zaXRpb24gPSBpbnB1dF9nZXRfZGlzcG9zaXRpb25cKGRldiwgdHlwZSwgY29kZSwgJnZhbHVlXCk7KSIsCiAgICAgICAgICAgICAgICAgICAgICByIlwxIiArIGhvb2ssCiAgICAgICAgICAgICAgICAgICAgICBpbnB1dF90ZXh0CiAgICAgICAgICAgICAgICAgICkKICAgICAgICAgICAgICAgICAgaW5wdXRfcGF0aC53cml0ZV90ZXh0KGlucHV0X3RleHQpCiAgICAgICAgICAgICAgICAgIHByaW50KCJQYXRjaGVkIGRyaXZlcnMvaW5wdXQvaW5wdXQuYyB3aXRoIGlucHV0IGhvb2siKQoKICAgICAgICAgIHByaW50KCJNYW51YWwgaG9vayBwYXRjaGVzIGNvbXBsZXRlIikKICAgICAgICAgIFBBVENIX1ZGU19SRUFECiAgICAgICAgICBmaQoKICAgICAgICAgICMg6ZuG5oiQIFNVU0ZT77yIS2VybmVsU1UgKyBrZXJuZWzvvInvvIzmj5DkvpsgS1BNL1NVU0ZTIOaUr+aMgQogICAgICAgICAgc3VzZnNfZGlyPSIvdG1wL3N1c2ZzNGtzdSIKICAgICAgICAgIHN1c2ZzX3JlZj0iZ2tpLWFuZHJvaWQxMi01LjEwIgogICAgICAgICAgcm0gLXJmICIkc3VzZnNfZGlyIgogICAgICAgICAgZ2l0IGNsb25lIC0tZGVwdGg9MSAtYiAiJHN1c2ZzX3JlZiIgaHR0cHM6Ly9naXRsYWIuY29tL3NpbW9ucHVuay9zdXNmczRrc3UgIiRzdXNmc19kaXIiCgogICAgICAgICAgY3AgLWYgIiRzdXNmc19kaXIva2VybmVsX3BhdGNoZXMvZnMvc3VzZnMuYyIgZnMvCiAgICAgICAgICBjcCAtZiAiJHN1c2ZzX2Rpci9rZXJuZWxfcGF0Y2hlcy9pbmNsdWRlL2xpbnV4L3N1c2ZzLmgiIGluY2x1ZGUvbGludXgvCiAgICAgICAgICBjcCAtZiAiJHN1c2ZzX2Rpci9rZXJuZWxfcGF0Y2hlcy9pbmNsdWRlL2xpbnV4L3N1c2ZzX2RlZi5oIiBpbmNsdWRlL2xpbnV4LwogICAgICAgICAgc2VkIC1pICdzIzxsaW51eC9iaXRzLmg+IzxsaW51eC9iaXRvcHMuaD4jJyBpbmNsdWRlL2xpbnV4L3N1c2ZzX2RlZi5oCiAgICAgICAgICBpZiAhIGdyZXAgLXEgIjxsaW51eC9zY2hlZC5oPiIgaW5jbHVkZS9saW51eC9zdXNmc19kZWYuaDsgdGhlbgogICAgICAgICAgICBzZWQgLWkgJy9iaXRvcHMuaC9hICNpbmNsdWRlIDxsaW51eC9zY2hlZC5oPlxuI2luY2x1ZGUgPGxpbnV4L3RocmVhZF9pbmZvLmg+JyBpbmNsdWRlL2xpbnV4L3N1c2ZzX2RlZi5oCiAgICAgICAgICBmaQogICAgICAgICAgaWYgISBncmVwIC1xICJzdXNmc19yZW9yZGVyX21udF9pZCIgZnMvc3VzZnMuYzsgdGhlbgogICAgICAgICAgICBjYXQgPj4gZnMvc3VzZnMuYyA8PCdTVVNGU19FT0YnCgogICAgICAgICAgdm9pZCBzdXNmc19yZW9yZGVyX21udF9pZCh2b2lkKQogICAgICAgICAgewogICAgICAgICAgfQogICAgICAgICAgU1VTRlNfRU9GCiAgICAgICAgICBmaQogICAgICAgICAgcHl0aG9uMyAtIDw8J1BZJwogICAgICAgICAgZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCgogICAgICAgICAgcGF0aCA9IFBhdGgoImZzL3N1c2ZzLmMiKQogICAgICAgICAgbGluZXMgPSBwYXRoLnJlYWRfdGV4dCgpLnNwbGl0bGluZXMoKQogICAgICAgICAgbmV3X2xpbmVzID0gW10KICAgICAgICAgIHNlZW4gPSAwCiAgICAgICAgICBmb3IgbGluZSBpbiBsaW5lczoKICAgICAgICAgICAgaWYgInN1c2ZzX2lzX2F2Y19sb2dfc3Bvb2ZpbmdfZW5hYmxlZCIgaW4gbGluZToKICAgICAgICAgICAgICBzZWVuICs9IDEKICAgICAgICAgICAgICBpZiBzZWVuID4gMToKICAgICAgICAgICAgICAgIGNvbnRpbnVlCiAgICAgICAgICAgIG5ld19saW5lcy5hcHBlbmQobGluZSkKICAgICAgICAgIGxpbmVzID0gbmV3X2xpbmVzCgogICAgICAgICAgaWYgbm90IGFueSgic3VzZnNfaXNfYXZjX2xvZ19zcG9vZmluZ19lbmFibGVkIiBpbiBsaW5lIGZvciBsaW5lIGluIGxpbmVzKToKICAgICAgICAgICAgaW5zZXJ0ZWQgPSBGYWxzZQogICAgICAgICAgICBuZXdfbGluZXMgPSBbXQogICAgICAgICAgICBmb3IgbGluZSBpbiBsaW5lczoKICAgICAgICAgICAgICBuZXdfbGluZXMuYXBwZW5kKGxpbmUpCiAgICAgICAgICAgICAgaWYgKG5vdCBpbnNlcnRlZAogICAgICAgICAgICAgICAgICBhbmQgbGluZS5zdHJpcCgpLnN0YXJ0c3dpdGgoImJvb2wgc3VzZnNfaXNfbG9nX2VuYWJsZWQiKQogICAgICAgICAgICAgICAgICBhbmQgIl9fcmVhZF9tb3N0bHkiIGluIGxpbmUpOgogICAgICAgICAgICAgICAgbmV3X2xpbmVzLmFwcGVuZCgiYm9vbCBzdXNmc19pc19hdmNfbG9nX3Nwb29maW5nX2VuYWJsZWQgX19yZWFkX21vc3RseSA9IGZhbHNlOyIpCiAgICAgICAgICAgICAgICBpbnNlcnRlZCA9IFRydWUKICAgICAgICAgICAgbGluZXMgPSBuZXdfbGluZXMKCiAgICAgICAgICAgIGlmIG5vdCBpbnNlcnRlZDoKICAgICAgICAgICAgICBuZXdfbGluZXMgPSBbXQogICAgICAgICAgICAgIGZvciBsaW5lIGluIGxpbmVzOgogICAgICAgICAgICAgICAgbmV3X2xpbmVzLmFwcGVuZChsaW5lKQogICAgICAgICAgICAgICAgaWYgKG5vdCBpbnNlcnRlZAogICAgICAgICAgICAgICAgICAgIGFuZCAic3VzZnNfaXNfY3VycmVudF9rc3VfZG9tYWluIiBpbiBsaW5lKToKICAgICAgICAgICAgICAgICAgbmV3X2xpbmVzLmFwcGVuZCgiYm9vbCBzdXNmc19pc19hdmNfbG9nX3Nwb29maW5nX2VuYWJsZWQgX19yZWFkX21vc3RseSA9IGZhbHNlOyIpCiAgICAgICAgICAgICAgICAgIGluc2VydGVkID0gVHJ1ZQogICAgICAgICAgICAgIGxpbmVzID0gbmV3X2xpbmVzCgogICAgICAgICAgcGF0aC53cml0ZV90ZXh0KCJcbiIuam9pbihsaW5lcykgKyAiXG4iKQogICAgICAgICAgUFkKICAgICAgICAgIGlmICEgZ3JlcCAtcSAiQ09ORklHX0tTVV9TVVNGUyIgZnMvTWFrZWZpbGU7IHRoZW4KICAgICAgICAgICAgZWNobyAnb2JqLSQoQ09ORklHX0tTVV9TVVNGUykgKz0gc3VzZnMubycgPj4gZnMvTWFrZWZpbGUKICAgICAgICAgIGZpCgogICAgICAgICAgIyDooaXpvZAgbWFudWFsIGhvb2sg6YCC6YWN56ym5Y+377yM6YG/5YWN6ZO+5o6l6ZSZ6K+vCiAgICAgICAgICBpZiBbIC1kICJjb21tb24vZHJpdmVycyIgXTsgdGhlbgogICAgICAgICAgICBrc3VfZGlyPSJjb21tb24vZHJpdmVycy9rZXJuZWxzdSIKICAgICAgICAgIGVsc2UKICAgICAgICAgICAga3N1X2Rpcj0iZHJpdmVycy9rZXJuZWxzdSIKICAgICAgICAgIGZpCgogICAgICAgICAgIyDkv67mraMgNC4xNCBzeXNjYWxsIOespuWPt+WQje+8iGxhdXJ1cyDkvb/nlKggc3lzXyrvvIzpgb/lhY0ga3Byb2JlIOWkseaViO+8iQogICAgICAgICAgcHl0aG9uMyAtIDw8UFkKICAgICAgICAgIGZyb20gcGF0aGxpYiBpbXBvcnQgUGF0aAoKICAgICAgICAgIHBhdGggPSBQYXRoKCIke2tzdV9kaXJ9IikgLyAiYXJjaC5oIgogICAgICAgICAgdGV4dCA9IHBhdGgucmVhZF90ZXh0KCkKICAgICAgICAgIHRleHQgPSB0ZXh0LnJlcGxhY2UoJyNkZWZpbmUgU1lTX1JFQURfU1lNQk9MICJfX2FybTY0X3N5c19yZWFkIicsICcjZGVmaW5lIFNZU19SRUFEX1NZTUJPTCAic3lzX3JlYWQiJykKICAgICAgICAgIHRleHQgPSB0ZXh0LnJlcGxhY2UoJyNkZWZpbmUgU1lTX0VYRUNWRV9TWU1CT0wgIl9fYXJtNjRfc3lzX2V4ZWN2ZSInLCAnI2RlZmluZSBTWVNfRVhFQ1ZFX1NZTUJPTCAic3lzX2V4ZWN2ZSInKQogICAgICAgICAgdGV4dCA9IHRleHQucmVwbGFjZSgnI2RlZmluZSBTWVNfRlNUQVRfU1lNQk9MICJfX2FybTY0X3N5c19uZXdmc3RhdCInLCAnI2RlZmluZSBTWVNfRlNUQVRfU1lNQk9MICJzeXNfbmV3ZnN0YXQiJykKICAgICAgICAgIHBhdGgud3JpdGVfdGV4dCh0ZXh0KQogICAgICAgICAgUFkKCiAgICAgICAgICAj IOihpem9kCBtYW51YWwgaG9vayDpnIDopoHnmoTpkqnlrZDlrp7njrDvvIzpgb/lhY3nqbrlh73mlbDlr7zoh7QgaW5pdC5yYyDms6jlhaXlpLHotKUKICAgICAgICAgIGV4cG9ydCBLU1VfRElSPSIka3N1X2RpciIKICAgICAgICAgIHB5dGhvbjMgLSA8PCdQWScKICAgICAgICAgIGZyb20gcGF0aGxpYiBpbXBvcnQgUGF0aAogICAgICAgICAgaW1wb3J0IG9zCiAgICAgICAgICBpbXBvcnQgcmUKCiAgICAgICAgICBrc3VfZGlyID0gUGF0aChvcy5lbnZpcm9uWyJLU1VfRElSIl0pCiAgICAgICAgICBzdWNvbXBhdF9wYXRoID0ga3N1X2RpciAvICJzdWNvbXBhdC5jIgogICAgICAgICAgc3VfdGV4dCA9IHN1Y29tcGF0X3BhdGgucmVhZF90ZXh0KCkKICAgICAgICAgIGlmICJrc3VfaGFuZGxlX2V4ZWN2ZWF0X3N1Y29tcGF0IiBub3QgaW4gc3VfdGV4dDoKICAgICAgICAgICAgICBpbnNlcnQgPSAoCiAgICAgICAgICAgICAgICAgICJcbmludCBrc3VfaGFuZGxlX2V4ZWN2ZWF0X3N1Y29tcGF0KGludCAqZmQsIHN0cnVjdCBmaWxlbmFtZSAqKmZpbGVuYW1lX3B0cixcbiIKICAgICAgICAgICAgICAgICAgIiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB2b2lkICphcmd2LCB2b2lkICplbnZwLCBpbnQgKmZsYWdzKVxuIgogICAgICAgICAgICAgICAgICAie1xuIgogICAgICAgICAgICAgICAgICAiICAgIHN0cnVjdCBmaWxlbmFtZSAqZmlsZW5hbWU7XG4iCiAgICAgICAgICAgICAgICAgICJcbiIKICAgICAgICAgICAgICAgICAgIiAgICBpZiAoIWZpbGVuYW1lX3B0cilcbiIKICAgICAgICAgICAgICAgICAgIiAgICAgICAgcmV0dXJuIDA7XG4iCiAgICAgICAgICAgICAgICAgICJcbiIKICAgICAgICAgICAgICAgICAgIiAgICBmaWxlbmFtZSA9ICpmaWxlbmFtZV9wdHI7XG4iCiAgICAgICAgICAgICAgICAgICIgICAgaWYgKElTX0VSUihmaWxlbmFtZSkpXG4iCiAgICAgICAgICAgICAgICAgICIgICAgICAgIHJldHVybiAwO1xuIgogICAgICAgICAgICAgICAgICAiXG4iCiAgICAgICAgICAgICAgICAgICIgICAgaWYgKHN0cmNtcChmaWxlbmFtZS0+bmFtZSwgU1VfUEFUSCkpXG4iCiAgICAgICAgICAgICAgICAgICIgICAgICAgIHJldHVybiAwO1xuIgogICAgICAgICAgICAgICAgICAiXG4iCiAgICAgICAgICAgICAgICAgICIgICAgc3RydWN0IGZpbGVuYW1lICpuZXdmID0gZ2V0bmFtZV9rZXJuZWwoS1NVRF9QQVRIKTtcbiIKICAgICAgICAgICAgICAgICAgIiAgICBpZiAoIUlTX0VSUihuZXdmKSkge1xuIgogICAgICAgICAgICAgICAgICAiICAgICAgICBw…7144 tokens truncated…
+name: build-laurus-sukisu
+
+"on":
+  workflow_dispatch:
+    inputs:
+      kernel_branch:
+        description: "要编译的内核分支"
+        required: true
+        default: "laurus-q-oss-ci"
+      defconfig:
+        description: "defconfig（相对 arch/arm64/configs/）"
+        required: true
+        default: "vendor/laurus-perf_defconfig"
+      sukisu_ref:
+        description: "SukiSU Ultra 引用（分支/标签/commit）"
+        required: true
+        default: "main"
+      sukisu_mode:
+        description: "SukiSU 集成模式：builtin 更适合非 GKI/老内核"
+        required: true
+        default: "builtin"
+        type: choice
+        options:
+          - builtin
+          - main
+      fortify:
+        description: "是否启用 FORTIFY_SOURCE（推荐日用 on；老 GCC 4.9 需先修触发点再开启）"
+        required: true
+        default: "off"
+        type: choice
+        options:
+          - "off"
+          - "on"
+      build_dtbo:
+        description: "是否构建 DTBO（overlay）；off 会绕过 trinket dtbo 编译失败（先确保内核能出镜像）"
+        required: true
+        default: "off"
+        type: choice
+        options:
+          - "off"
+          - "on"
+      gcc64_repo:
+        description: "AArch64 GCC 4.9 工具链仓库"
+        required: true
+        default: "LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9"
+      gcc64_ref:
+        description: "AArch64 GCC 4.9 工具链分支"
+        required: true
+        default: "lineage-19.1"
+      gcc32_repo:
+        description: "ARM GCC 4.9 工具链仓库"
+        required: true
+        default: "LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9"
+      gcc32_ref:
+        description: "ARM GCC 4.9 工具链分支"
+        required: true
+        default: "lineage-19.1"
+  push:
+    branches:
+      - laurus-q-oss-ci
+    paths:
+      - ".github/workflows/laurus_sukisu.yml"
+      - "ci_trigger.txt"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    env:
+      WITH_SUKISU: "on"
+      KERNEL_BRANCH: ${{ github.event_name == 'workflow_dispatch' && inputs.kernel_branch || 'laurus-q-oss-ci' }}
+      DEFCONFIG_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.defconfig || 'vendor/laurus-perf_defconfig' }}
+      SUKISU_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.sukisu_ref || 'main' }}
+      SUKISU_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.sukisu_mode || 'builtin' }}
+      FORTIFY_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.fortify || 'off' }}
+      BUILD_DTBO: ${{ github.event_name == 'workflow_dispatch' && inputs.build_dtbo || 'off' }}
+      GCC64_REPO_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.gcc64_repo || 'LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9' }}
+      GCC64_REF_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.gcc64_ref || 'lineage-19.1' }}
+      GCC32_REPO_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.gcc32_repo || 'LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9' }}
+      GCC32_REF_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.gcc32_ref || 'lineage-19.1' }}
+      RUN_ID: ${{ github.run_id }}
+      HEAD_SHA: ${{ github.sha }}
+
+    steps:
+      - name: 检出内核源码
+        id: checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          ref: ${{ env.KERNEL_BRANCH }}
+
+      - name: 安装依赖
+        id: deps
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            bc bison build-essential ca-certificates \
+            curl flex git libelf-dev libssl-dev \
+            python3 rsync unzip xz-utils \
+            device-tree-compiler zip
+
+      - name: 拉取工具链（GCC 4.9）
+        id: toolchain
+        run: |
+          set -euxo pipefail
+          GCC64_REPO="${GCC64_REPO_INPUT}"
+          GCC64_REF="${GCC64_REF_INPUT}"
+          GCC32_REPO="${GCC32_REPO_INPUT}"
+          GCC32_REF="${GCC32_REF_INPUT}"
+
+          git clone --depth=1 -b "$GCC64_REF" "https://github.com/${GCC64_REPO}.git" toolchain-gcc64
+          git clone --depth=1 -b "$GCC32_REF" "https://github.com/${GCC32_REPO}.git" toolchain-gcc32
+
+          echo "TOOLCHAIN_GCC64=$PWD/toolchain-gcc64" >> "$GITHUB_ENV"
+          echo "TOOLCHAIN_GCC32=$PWD/toolchain-gcc32" >> "$GITHUB_ENV"
+
+      - name: 集成 SukiSU Ultra
+        id: sukisu
+        run: |
+          set -euxo pipefail
+          if [ "${WITH_SUKISU}" != "on" ]; then
+            echo "WITH_SUKISU=${WITH_SUKISU}, skip SukiSU integrate."
+            exit 0
+          fi
+
+          ref="${SUKISU_REF}"
+          mode="${SUKISU_MODE}"
+
+          # SukiSU 官方脚本
+          curl -fsSL "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/${ref}/kernel/setup.sh" | bash -s "$mode"
+
+          # 应用 manual hook 补丁（4.14）
+          patch_url="https://raw.githubusercontent.com/rksuorg/kernel_patches/master/manual_hook/kernel-4.14.patch"
+          curl -fsSL "$patch_url" -o /tmp/ksu_manual_hook.patch
+          if git apply --reverse --check /tmp/ksu_manual_hook.patch 2>/dev/null; then
+            echo "manual hook patch already applied"
+          elif git apply /tmp/ksu_manual_hook.patch 2>/dev/null; then
+            echo "manual hook patch applied successfully"
+          else
+            echo "git patch failed, applying manual hooks via Python"
+            python3 - <<'PATCH_VFS_READ'
+          import re
+          from pathlib import Path
+
+          # Patch fs/read_write.c
+          rw_path = Path("fs/read_write.c")
+          rw_text = rw_path.read_text()
+          if "ksu_handle_vfs_read" not in rw_text:
+              decl = (
+                  "#ifdef CONFIG_KSU\n"
+                  "extern bool ksu_vfs_read_hook __read_mostly;\n"
+                  "extern int ksu_handle_vfs_read(struct file **file_ptr, char __user **buf_ptr,\n"
+                  "                             size_t *count_ptr, loff_t **pos);\n"
+                  "#endif\n"
+              )
+              hook = (
+                  "\n#ifdef CONFIG_KSU\n"
+                  "\tif (unlikely(ksu_vfs_read_hook))\n"
+                  "\t\tksu_handle_vfs_read(&file, &buf, &count, &pos);\n"
+                  "#endif\n"
+              )
+              # Insert declaration before vfs_read
+              rw_text = re.sub(
+                  r"(ssize_t vfs_read\(struct file \*file, char __user \*buf, size_t count, loff_t \*pos\)\n\{)",
+                  decl + r"\1",
+                  rw_text
+              )
+              # Insert hook after ssize_t ret;
+              rw_text = re.sub(
+                  r"(ssize_t vfs_read\(struct file \*file, char __user \*buf, size_t count, loff_t \*pos\)\n\{\n\tssize_t ret;)",
+                  r"\1" + hook,
+                  rw_text
+              )
+              rw_path.write_text(rw_text)
+              print("Patched fs/read_write.c with vfs_read hook")
+
+          # Patch fs/exec.c
+          exec_path = Path("fs/exec.c")
+          exec_text = exec_path.read_text()
+          if "ksu_handle_execveat" not in exec_text:
+              decl = (
+                  "#ifdef CONFIG_KSU\n"
+                  "extern bool ksu_execveat_hook __read_mostly;\n"
+                  "extern int ksu_handle_execveat(int *fd, struct filename **filename_ptr, void *argv,\n"
+                  "\t\t\tvoid *envp, int *flags);\n"
+                  "extern int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,\n"
+                  "\t\t\t\t void *argv, void *envp, int *flags);\n"
+                  "#endif\n"
+              )
+              hook = (
+                  "\n#ifdef CONFIG_KSU\n"
+                  "\tif (unlikely(ksu_execveat_hook))\n"
+                  "\t\tksu_handle_execveat(&fd, &filename, &argv, &envp, &flags);\n"
+                  "\telse\n"
+                  "\t\tksu_handle_execveat_sucompat(&fd, &filename, &argv, &envp, &flags);\n"
+                  "#endif\n"
+              )
+              # Insert declaration before do_execveat_common
+              exec_text = re.sub(
+                  r"(static int do_execveat_common\(int fd, struct filename \*filename,)",
+                  decl + r"\1",
+                  exec_text
+              )
+              # Insert hook after int retval;
+              exec_text = re.sub(
+                  r"(static int do_execveat_common\(int fd, struct filename \*filename,.*?int retval;)",
+                  r"\1" + hook,
+                  exec_text,
+                  count=1,
+                  flags=re.S
+              )
+              exec_path.write_text(exec_text)
+              print("Patched fs/exec.c with execveat hook")
+
+          # Patch drivers/input/input.c
+          input_path = Path("drivers/input/input.c")
+          if input_path.exists():
+              input_text = input_path.read_text()
+              if "ksu_handle_input" not in input_text:
+                  decl = (
+                      "#ifdef CONFIG_KSU\n"
+                      "extern bool ksu_input_hook __read_mostly;\n"
+                      "extern int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *value);\n"
+                      "#endif\n"
+                  )
+                  hook = (
+                      "\n#ifdef CONFIG_KSU\n"
+                      "\tif (unlikely(ksu_input_hook))\n"
+                      "\t\tksu_handle_input_handle_event(&type, &code, &value);\n"
+                      "#endif\n"
+                  )
+                  input_text = re.sub(
+                      r"(static void input_handle_event\(struct input_dev \*dev,)",
+                      decl + r"\1",
+                      input_text
+                  )
+                  input_text = re.sub(
+                      r"(int disposition = input_get_disposition\(dev, type, code, &value\);)",
+                      r"\1" + hook,
+                      input_text
+                  )
+                  input_path.write_text(input_text)
+                  print("Patched drivers/input/input.c with input hook")
+
+          print("Manual hook patches complete")
+          PATCH_VFS_READ
+          fi
+
+          # 集成 SUSFS（KernelSU + kernel），提供 KPM/SUSFS 支持
+          susfs_dir="/tmp/susfs4ksu"
+          susfs_ref="gki-android12-5.10"
+          rm -rf "$susfs_dir"
+          git clone --depth=1 -b "$susfs_ref" https://gitlab.com/simonpunk/susfs4ksu "$susfs_dir"
+
+          cp -f "$susfs_dir/kernel_patches/fs/susfs.c" fs/
+          cp -f "$susfs_dir/kernel_patches/include/linux/susfs.h" include/linux/
+          cp -f "$susfs_dir/kernel_patches/include/linux/susfs_def.h" include/linux/
+          sed -i 's#<linux/bits.h>#<linux/bitops.h>#' include/linux/susfs_def.h
+          if ! grep -q "<linux/sched.h>" include/linux/susfs_def.h; then
+            sed -i '/bitops.h/a #include <linux/sched.h>\n#include <linux/thread_info.h>' include/linux/susfs_def.h
+          fi
+          if ! grep -q "susfs_reorder_mnt_id" fs/susfs.c; then
+            cat >> fs/susfs.c <<'SUSFS_EOF'
+
+          void susfs_reorder_mnt_id(void)
+          {
+          }
+          SUSFS_EOF
+          fi
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("fs/susfs.c")
+          lines = path.read_text().splitlines()
+          new_lines = []
+          seen = 0
+          for line in lines:
+            if "susfs_is_avc_log_spoofing_enabled" in line:
+              seen += 1
+              if seen > 1:
+                continue
+            new_lines.append(line)
+          lines = new_lines
+
+          if not any("susfs_is_avc_log_spoofing_enabled" in line for line in lines):
+            inserted = False
+            new_lines = []
+            for line in lines:
+              new_lines.append(line)
+              if (not inserted
+                  and line.strip().startswith("bool susfs_is_log_enabled")
+                  and "__read_mostly" in line):
+                new_lines.append("bool susfs_is_avc_log_spoofing_enabled __read_mostly = false;")
+                inserted = True
+            lines = new_lines
+
+            if not inserted:
+              new_lines = []
+              for line in lines:
+                new_lines.append(line)
+                if (not inserted
+                    and "susfs_is_current_ksu_domain" in line):
+                  new_lines.append("bool susfs_is_avc_log_spoofing_enabled __read_mostly = false;")
+                  inserted = True
+              lines = new_lines
+
+          path.write_text("\n".join(lines) + "\n")
+          PY
+          if ! grep -q "CONFIG_KSU_SUSFS" fs/Makefile; then
+            echo 'obj-$(CONFIG_KSU_SUSFS) += susfs.o' >> fs/Makefile
+          fi
+
+          # 补齐 manual hook 适配符号，避免链接错误
+          if [ -d "common/drivers" ]; then
+            ksu_dir="common/drivers/kernelsu"
+          else
+            ksu_dir="drivers/kernelsu"
+          fi
+
+          # 修正 4.14 syscall 符号名（laurus 使用 sys_*，避免 kprobe 失效）
+          python3 - <<PY
+          from pathlib import Path
+
+          path = Path("${ksu_dir}") / "arch.h"
+          text = path.read_text()
+          text = text.replace('#define SYS_READ_SYMBOL "__arm64_sys_read"', '#define SYS_READ_SYMBOL "sys_read"')
+          text = text.replace('#define SYS_EXECVE_SYMBOL "__arm64_sys_execve"', '#define SYS_EXECVE_SYMBOL "sys_execve"')
+          text = text.replace('#define SYS_FSTAT_SYMBOL "__arm64_sys_newfstat"', '#define SYS_FSTAT_SYMBOL "sys_newfstat"')
+          path.write_text(text)
+          PY
+
+          # 补齐 manual hook 需要的钩子实现，避免空函数导致 init.rc 注入失败
+          export KSU_DIR="$ksu_dir"
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+          import re
+
+          ksu_dir = Path(os.environ["KSU_DIR"])
+          sucompat_path = ksu_dir / "sucompat.c"
+          su_text = sucompat_path.read_text()
+          if "ksu_handle_execveat_sucompat" not in su_text:
+              insert = (
+                  "\nint ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,\n"
+                  "                               void *argv, void *envp, int *flags)\n"
+                  "{\n"
+                  "    struct filename *filename;\n"
+                  "\n"
+                  "    if (!filename_ptr)\n"
+                  "        return 0;\n"
+                  "\n"
+                  "    filename = *filename_ptr;\n"
+                  "    if (IS_ERR(filename))\n"
+                  "        return 0;\n"
+                  "\n"
+                  "    if (strcmp(filename->name, SU_PATH))\n"
+                  "        return 0;\n"
+                  "\n"
+                  "    struct filename *newf = getname_kernel(KSUD_PATH);\n"
+                  "    if (!IS_ERR(newf)) {\n"
+                  "        putname(filename);\n"
+                  "        *filename_ptr = newf;\n"
+                  "        escape_with_root_profile();\n"
+                  "    }\n"
+                  "\n"
+                  "    return 0;\n"
+                  "}\n"
+              )
+              sucompat_path.write_text(su_text + insert)
+
+          ksud_path = ksu_dir / "ksud.c"
+          ksud_text = ksud_path.read_text()
+          vfs_body = (
+              "\nint ksu_handle_vfs_read(struct file **file_ptr, char __user **buf_ptr,\n"
+              "                        size_t *count_ptr, loff_t **pos)\n"
+              "{\n"
+              "    struct file *file;\n"
+              "\n"
+              "    if (!file_ptr)\n"
+              "        return 0;\n"
+              "\n"
+              "    file = *file_ptr;\n"
+              "    if (!file)\n"
+              "        return 0;\n"
+              "\n"
+              "    if (!is_init_rc(file))\n"
+              "        return 0;\n"
+              "\n"
+              "    static bool rc_hooked = false;\n"
+              "    if (rc_hooked) {\n"
+              "        stop_init_rc_hook();\n"
+              "        return 0;\n"
+              "    }\n"
+              "    rc_hooked = true;\n"
+              "\n"
+              "    pr_info(\"read init.rc, comm: %s, rc_count: %zu\\n\", current->comm, ksu_rc_len);\n"
+              "\n"
+              "    memcpy(&fops_proxy, file->f_op, sizeof(struct file_operations));\n"
+              "    orig_read = file->f_op->read;\n"
+              "    if (orig_read) {\n"
+              "        fops_proxy.read = read_proxy;\n"
+              "    }\n"
+              "    orig_read_iter = file->f_op->read_iter;\n"
+              "    if (orig_read_iter) {\n"
+              "        fops_proxy.read_iter = read_iter_proxy;\n"
+              "    }\n"
+              "    file->f_op = &fops_proxy;\n"
+              "\n"
+              "    return 0;\n"
+              "}\n"
+          )
+          pattern = r'\n(?:static\\s+)?(?:__weak\\s+)?int\\s+ksu_handle_vfs_read\\s*\\([^)]*\\)\\s*\\{.*?\\n\\}'
+          if re.search(pattern, ksud_text, flags=re.S):
+              ksud_text = re.sub(pattern, vfs_body, ksud_text, flags=re.S)
+              ksud_path.write_text(ksud_text)
+          else:
+              marker = "static void ksu_handle_sys_read"
+              if marker in ksud_text:
+                  ksud_text = ksud_text.replace(marker, vfs_body + "\\n" + marker, 1)
+                  ksud_path.write_text(ksud_text)
+              else:
+                  marker = "static bool is_init_rc(struct file *fp)"
+                  idx = ksud_text.find(marker)
+                  if idx == -1:
+                      raise SystemExit("ksud.c missing is_init_rc marker")
+                  brace_start = ksud_text.find("{", idx)
+                  if brace_start == -1:
+                      raise SystemExit("ksud.c missing is_init_rc brace")
+                  depth = 0
+                  end = None
+                  for i in range(brace_start, len(ksud_text)):
+                      if ksud_text[i] == "{":
+                          depth += 1
+                      elif ksud_text[i] == "}":
+                          depth -= 1
+                          if depth == 0:
+                              end = i + 1
+                              break
+              if end is None:
+                  raise SystemExit("ksud.c missing is_init_rc end")
+              ksud_text = ksud_text[:end] + vfs_body + ksud_text[end:]
+              ksud_path.write_text(ksud_text)
+
+          ksud_text = ksud_path.read_text()
+          if "ksu_vfs_read_hook" not in ksud_text:
+              anchor = '#include "ksud.h"\\n'
+              if anchor in ksud_text:
+                  ksud_text = ksud_text.replace(
+                      anchor,
+                      anchor + "\\nextern bool ksu_vfs_read_hook __read_mostly;\\n",
+                      1,
+                  )
+          if "sys_read_kp_registered" not in ksud_text:
+              anchor = "static struct kprobe sys_read_kp"
+              if anchor in ksud_text:
+                  ksud_text = ksud_text.replace(
+                      anchor,
+                      "static bool sys_read_kp_registered;\\n"
+                      "static bool sys_fstat_kp_registered;\\n\\n"
+                      + anchor,
+                      1,
+                  )
+          if "ksu_vfs_read_hook" in ksud_text:
+              if "skip sys_read/sys_fstat kprobe" not in ksud_text:
+                  ksud_text = ksud_text.replace(
+                      "    ret = register_kprobe(&sys_read_kp);\\n"
+                      "    pr_info(\\\"ksud: sys_read_kp: %d\\\\n\\\", ret);\\n\\n"
+                      "    ret = register_kretprobe(&sys_fstat_kp);\\n"
+                      "    pr_info(\\\"ksud: sys_fstat_kp: %d\\\\n\\\", ret);\\n",
+                      "    pr_info(\\\"ksud: skip sys_read/sys_fstat kprobe (force manual hook)\\\\n\\\");\\n",
+                      1,
+                  )
+              if "if (ksu_vfs_read_hook)" not in ksud_text:
+                  ksud_text = ksud_text.replace(
+                      "static void stop_init_rc_hook()\\n{\\n",
+                      "static void stop_init_rc_hook()\\n{\\n"
+                      "    if (ksu_vfs_read_hook) {\\n"
+                      "        return;\\n"
+                      "    }\\n",
+                      1,
+                  )
+              if "sys_read_kp_registered" in ksud_text:
+                  ksud_text = ksud_text.replace(
+                      "    unregister_kprobe(&sys_read_kp);\\n",
+                      "    if (sys_read_kp_registered) {\\n"
+                      "        unregister_kprobe(&sys_read_kp);\\n"
+                      "        sys_read_kp_registered = false;\\n"
+                      "    }\\n",
+                      1,
+                  )
+                  ksud_text = ksud_text.replace(
+                      "    unregister_kretprobe(&sys_fstat_kp);\\n",
+                      "    if (sys_fstat_kp_registered) {\\n"
+                      "        unregister_kretprobe(&sys_fstat_kp);\\n"
+                      "        sys_fstat_kp_registered = false;\\n"
+                      "    }\\n",
+                      1,
+                  )
+          ksud_path.write_text(ksud_text)
+          PY
+
+          python3 - <<PY
+          from pathlib import Path
+
+          path = Path("${ksu_dir}") / "supercalls.c"
+          text = path.read_text()
+          if "susfs_def.h" not in text:
+              key = "#include <linux/version.h>\n"
+              if key in text:
+                  text = text.replace(key, key + "#include <linux/susfs_def.h>\n", 1)
+              else:
+                  text = "#include <linux/susfs_def.h>\n" + text
+              path.write_text(text)
+          PY
+
+          cat > "${ksu_dir}/manual_hook_adapters.c" <<'EOF'
+          #include <linux/compiler.h>
+          #include <linux/cred.h>
+          #include <linux/err.h>
+          #include <linux/fs.h>
+          #include <linux/namei.h>
+          #include <linux/printk.h>
+          #include <linux/string.h>
+          #include <linux/version.h>
+
+          #include "allowlist.h"
+          #include "app_profile.h"
+          #include "ksud.h"
+
+          struct user_arg_ptr;
+          int ksu_handle_execveat_ksud(int *fd, struct filename **filename_ptr,
+                                       struct user_arg_ptr *argv,
+                                       struct user_arg_ptr *envp, int *flags);
+
+          // 强定义 + 导出，确保 manual hook 实际生效
+          bool ksu_execveat_hook __read_mostly = true;
+          bool ksu_vfs_read_hook __read_mostly = true;
+          bool ksu_input_hook __read_mostly = true;
+
+          EXPORT_SYMBOL(ksu_execveat_hook);
+          EXPORT_SYMBOL(ksu_vfs_read_hook);
+          EXPORT_SYMBOL(ksu_input_hook);
+
+          int __weak ksu_handle_execveat(int *fd, struct filename **filename_ptr,
+                                         void *argv, void *envp, int *flags)
+          {
+              struct user_arg_ptr *argv_ptr = (struct user_arg_ptr *)argv;
+              struct user_arg_ptr *envp_ptr = (struct user_arg_ptr *)envp;
+
+              ksu_handle_execveat_ksud(fd, filename_ptr, argv_ptr, envp_ptr, flags);
+
+              if (!ksu_is_allow_uid_for_current(current_uid().val)) {
+                  return 0;
+              }
+              if (!filename_ptr || !*filename_ptr || IS_ERR(*filename_ptr)) {
+                  return 0;
+              }
+
+              if (!strcmp((*filename_ptr)->name, "/system/bin/su")) {
+                  struct filename *newf = getname_kernel(KSUD_PATH);
+                  if (!IS_ERR(newf)) {
+                      putname(*filename_ptr);
+                      *filename_ptr = newf;
+                      escape_with_root_profile();
+                  }
+              }
+
+              return 0;
+          }
+
+          int __weak ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,
+                                                  void *argv, void *envp, int *flags)
+          {
+              return 0;
+          }
+
+          EOF
+
+          if [ -f "${ksu_dir}/Kbuild" ]; then
+            if ! grep -q "manual_hook_adapters.o" "${ksu_dir}/Kbuild"; then
+              echo "kernelsu-objs += manual_hook_adapters.o" >> "${ksu_dir}/Kbuild"
+            fi
+          fi
+          if [ -f "${ksu_dir}/Makefile" ]; then
+            if ! grep -q "manual_hook_adapters.o" "${ksu_dir}/Makefile"; then
+              echo "kernelsu-objs += manual_hook_adapters.o" >> "${ksu_dir}/Makefile"
+            fi
+          fi
+
+          # 兼容 setuid/setreuid，确保 manager fd 能注入
+          python3 - <<PY
+          from pathlib import Path
+
+          ksu_dir = Path("${ksu_dir}")
+          hook_manager = ksu_dir / "syscall_hook_manager.c"
+          syscall_handler = ksu_dir / "syscall_handler.c"
+
+          def patch_syscall_hook_manager(path: Path) -> None:
+              text = path.read_text()
+              if "__NR_setuid" not in text:
+                  text = text.replace(
+                      "    case __NR_setresuid:\n",
+                      "    case __NR_setresuid:\n"
+                      "#ifdef __NR_setuid\n"
+                      "    case __NR_setuid:\n"
+                      "#endif\n"
+                      "#ifdef __NR_setreuid\n"
+                      "    case __NR_setreuid:\n"
+                      "#endif\n",
+                  )
+
+              marker = (
+                  "        // Handle setresuid\n"
+                  "        if (id == __NR_setresuid) {\n"
+                  "            uid_t ruid = (uid_t)PT_REGS_PARM1(regs);\n"
+                  "            uid_t euid = (uid_t)PT_REGS_PARM2(regs);\n"
+                  "            uid_t suid = (uid_t)PT_REGS_PARM3(regs);\n"
+                  "            ksu_handle_setresuid(ruid, euid, suid);\n"
+                  "            return;\n"
+                  "        }\n"
+              )
+              if marker in text and "Handle setuid" not in text:
+                  insert = (
+                      "#ifdef __NR_setuid\n"
+                      "        // Handle setuid\n"
+                      "        if (id == __NR_setuid) {\n"
+                      "            uid_t uid = (uid_t)PT_REGS_PARM1(regs);\n"
+                      "            ksu_handle_setresuid(uid, uid, uid);\n"
+                      "            return;\n"
+                      "        }\n"
+                      "#endif\n"
+                      "#ifdef __NR_setreuid\n"
+                      "        // Handle setreuid\n"
+                      "        if (id == __NR_setreuid) {\n"
+                      "            uid_t ruid = (uid_t)PT_REGS_PARM1(regs);\n"
+                      "            uid_t euid = (uid_t)PT_REGS_PARM2(regs);\n"
+                      "            uid_t new_uid = (uid_t)-1;\n"
+                      "            if (ruid != (uid_t)-1) {\n"
+                      "                new_uid = ruid;\n"
+                      "            } else if (euid != (uid_t)-1) {\n"
+                      "                new_uid = euid;\n"
+                      "            } else {\n"
+                      "                new_uid = current_uid().val;\n"
+                      "            }\n"
+                      "            ksu_handle_setresuid(new_uid, new_uid, new_uid);\n"
+                      "            return;\n"
+                      "        }\n"
+                      "#endif\n"
+                  )
+                  text = text.replace(marker, marker + insert)
+
+              path.write_text(text)
+
+          def patch_syscall_handler(path: Path) -> None:
+              text = path.read_text()
+              if "__NR_setuid" not in text:
+                  text = text.replace(
+                      "    case __NR_setresuid:\n",
+                      "    case __NR_setresuid:\n"
+                      "#ifdef __NR_setuid\n"
+                      "    case __NR_setuid:\n"
+                      "#endif\n"
+                      "#ifdef __NR_setreuid\n"
+                      "    case __NR_setreuid:\n"
+                      "#endif\n",
+                  )
+
+              marker = (
+                  "        if (id == __NR_setresuid) {\n"
+                  "            uid_t ruid = (uid_t)PT_REGS_PARM1(regs);\n"
+                  "            uid_t euid = (uid_t)PT_REGS_PARM2(regs);\n"
+                  "            uid_t suid = (uid_t)PT_REGS_PARM3(regs);\n"
+                  "            ksu_handle_setresuid(ruid, euid, suid);\n"
+                  "            return;\n"
+                  "        }\n"
+              )
+              if marker in text and "__NR_setuid" not in text:
+                  insert = (
+                      "#ifdef __NR_setuid\n"
+                      "        if (id == __NR_setuid) {\n"
+                      "            uid_t uid = (uid_t)PT_REGS_PARM1(regs);\n"
+                      "            ksu_handle_setresuid(uid, uid, uid);\n"
+                      "            return;\n"
+                      "        }\n"
+                      "#endif\n"
+                      "#ifdef __NR_setreuid\n"
+                      "        if (id == __NR_setreuid) {\n"
+                      "            uid_t ruid = (uid_t)PT_REGS_PARM1(regs);\n"
+                      "            uid_t euid = (uid_t)PT_REGS_PARM2(regs);\n"
+                      "            uid_t new_uid = (uid_t)-1;\n"
+                      "            if (ruid != (uid_t)-1) {\n"
+                      "                new_uid = ruid;\n"
+                      "            } else if (euid != (uid_t)-1) {\n"
+                      "                new_uid = euid;\n"
+                      "            } else {\n"
+                      "                new_uid = current_uid().val;\n"
+                      "            }\n"
+                      "            ksu_handle_setresuid(new_uid, new_uid, new_uid);\n"
+                      "            return;\n"
+                      "        }\n"
+                      "#endif\n"
+                  )
+                  text = text.replace(marker, marker + insert)
+
+              path.write_text(text)
+
+          if hook_manager.exists():
+              patch_syscall_hook_manager(hook_manager)
+          elif syscall_handler.exists():
+              patch_syscall_handler(syscall_handler)
+          else:
+              print("skip setuid/setreuid patch: no syscall hook file found")
+          PY
+
+          # manual hook 下直接在 kernel/sys.c 触发 setuid/setresuid
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("kernel/sys.c")
+          if not path.exists():
+              print("skip sys.c patch: kernel/sys.c not found")
+              raise SystemExit(0)
+
+          text = path.read_text()
+
+          decl = (
+              "#ifdef CONFIG_KSU\n"
+              "extern int ksu_handle_setresuid(uid_t ruid, uid_t euid, uid_t suid);\n"
+              "#endif\n"
+          )
+
+          if "extern int ksu_handle_setresuid" not in text:
+              marker = "#include <linux/cred.h>\n"
+              if marker in text:
+                  text = text.replace(marker, marker + "\n" + decl + "\n", 1)
+              else:
+                  text = decl + "\n" + text
+
+          def patch_func(text: str, signature: str, args: str) -> str:
+              start = text.find(signature)
+              if start == -1:
+                  return text
+              brace_start = text.find("{", start)
+              if brace_start == -1:
+                  return text
+
+              depth = 0
+              end = None
+              for i in range(brace_start, len(text)):
+                  if text[i] == "{":
+                      depth += 1
+                  elif text[i] == "}":
+                      depth -= 1
+                      if depth == 0:
+                          end = i + 1
+                          break
+
+              if end is None:
+                  return text
+
+              block = text[start:end]
+              if "ksu_handle_setresuid" in block:
+                  return text
+
+              target = "return commit_creds(new);"
+              idx = block.rfind(target)
+              if idx == -1:
+                  return text
+
+              line_start = block.rfind("\n", 0, idx) + 1
+              indent = block[line_start:idx]
+              insert = (
+                  f"{indent}#ifdef CONFIG_KSU\n"
+                  f"{indent}ksu_handle_setresuid({args});\n"
+                  f"{indent}#endif\n"
+              )
+              block = block[:idx] + insert + block[idx:]
+              return text[:start] + block + text[end:]
+
+          text = patch_func(
+              text,
+              "SYSCALL_DEFINE1(setuid, uid_t, uid)",
+              "uid, uid, uid",
+          )
+          text = patch_func(
+              text,
+              "SYSCALL_DEFINE3(setresuid, uid_t, ruid, uid_t, euid, uid_t, suid)",
+              "ruid, euid, suid",
+          )
+
+          path.write_text(text)
+          PY
+
+      - name: 配置 defconfig
+        id: config
+        run: |
+          set -euxo pipefail
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export PATH="$TOOLCHAIN_GCC64/bin:$TOOLCHAIN_GCC32/bin:$PATH"
+          export CROSS_COMPILE="$TOOLCHAIN_GCC64/bin/aarch64-linux-android-"
+          export CROSS_COMPILE_ARM32="$TOOLCHAIN_GCC32/bin/arm-linux-androideabi-"
+          export LOCALVERSION=
+
+          DEFCONFIG="${DEFCONFIG_INPUT}"
+          DEFCONFIG_PATH="arch/arm64/configs/${DEFCONFIG}"
+
+          if [ ! -f "${DEFCONFIG_PATH}" ]; then
+            echo "defconfig 不存在：${DEFCONFIG_PATH}"
+            exit 1
+          fi
+
+          # 对齐 vendor 模块 vermagic（避免 Wi-Fi 模块加载失败）
+          sed -i -E 's/^SUBLEVEL = .*/SUBLEVEL = 117/' Makefile
+          sed -i -E 's/^EXTRAVERSION = .*/EXTRAVERSION =/' Makefile
+          rm -f .scmversion
+
+          if [ "$WITH_SUKISU" = "on" ]; then
+            # non-GKI 使用 manual hook
+            sed -i -E '/^CONFIG_KSU=/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^# CONFIG_KSU is not set/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^CONFIG_KSU_MANUAL_HOOK/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^# CONFIG_KSU_MANUAL_HOOK is not set/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^CONFIG_KSU_MANUAL_SU/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^# CONFIG_KSU_MANUAL_SU is not set/d' "${DEFCONFIG_PATH}"
+            printf '%s\n' \
+              'CONFIG_KSU=y' \
+              'CONFIG_KSU_MANUAL_HOOK=y' \
+              '# CONFIG_KSU_MANUAL_SU is not set' \
+              'CONFIG_KPM=y' \
+              'CONFIG_KSU_SUSFS=y' \
+              'CONFIG_KSU_SUSFS_SUS_PATH=y' \
+              'CONFIG_KSU_SUSFS_SUS_MOUNT=y' \
+              'CONFIG_KSU_SUSFS_SUS_KSTAT=y' \
+              'CONFIG_KSU_SUSFS_SPOOF_UNAME=y' \
+              'CONFIG_KSU_SUSFS_ENABLE_LOG=y' \
+              'CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y' \
+              'CONFIG_KSU_SUSFS_OPEN_REDIRECT=y' \
+              'CONFIG_KSU_SUSFS_SUS_MAP=y' \
+              '# CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS is not set' \
+              'CONFIG_KPROBES=y' \
+              'CONFIG_KRETPROBES=y' \
+              'CONFIG_KPROBE_EVENTS=y' \
+              'CONFIG_KALLSYMS=y' \
+              'CONFIG_KALLSYMS_ALL=y' \
+              'CONFIG_SECURITYFS=y' \
+              'CONFIG_DEVTMPFS=y' \
+              'CONFIG_DEVTMPFS_MOUNT=y' \
+              'CONFIG_OVERLAY_FS=y' \
+              >> "${DEFCONFIG_PATH}"
+          fi
+
+          mkdir -p out
+          make O=out "$DEFCONFIG"
+
+          if [ "$WITH_SUKISU" = "on" ]; then
+            # KernelSU：manual hook 路线
+            ./scripts/config --file out/.config -e KSU || true
+            ./scripts/config --file out/.config -e KSU_MANUAL_HOOK || true
+            ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
+            ./scripts/config --file out/.config -e KPM || true
+            ./scripts/config --file out/.config -e KSU_SUSFS || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_PATH || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_MOUNT || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_KSTAT || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SPOOF_UNAME || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_ENABLE_LOG || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_OPEN_REDIRECT || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_MAP || true
+            ./scripts/config --file out/.config -d KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS || true
+            ./scripts/config --file out/.config -e KPROBES || true
+            ./scripts/config --file out/.config -e KRETPROBES || true
+            ./scripts/config --file out/.config -e KPROBE_EVENTS || true
+            ./scripts/config --file out/.config -e KALLSYMS || true
+            ./scripts/config --file out/.config -e KALLSYMS_ALL || true
+            ./scripts/config --file out/.config -e SECURITYFS || true
+            ./scripts/config --file out/.config -e DEVTMPFS || true
+            ./scripts/config --file out/.config -e DEVTMPFS_MOUNT || true
+            ./scripts/config --file out/.config -e OVERLAY_FS || true
+          fi
+
+          # 保持 MODULE_SIG 以对齐 struct module，但关闭强制签名校验
+          ./scripts/config --file out/.config -e MODULE_SIG || true
+          ./scripts/config --file out/.config -d MODULE_SIG_FORCE || true
+          ./scripts/config --file out/.config -d MODULE_SIG_ALL || true
+          # 保持 MODVERSIONS，与 vendor 模块一致
+          ./scripts/config --file out/.config -e MODVERSIONS || true
+
+          # 对齐版本字符串，避免 vermagic 不匹配
+          ./scripts/config --file out/.config -d LOCALVERSION_AUTO || true
+          ./scripts/config --file out/.config --set-str LOCALVERSION "-perf-g4732215-tanran" || true
+
+          FORTIFY="${FORTIFY_MODE}"
+          if [ "$FORTIFY" = "on" ]; then
+            ./scripts/config --file out/.config -e FORTIFY_SOURCE || true
+          else
+            # GCC 4.9 下 include/linux/string.h 的 FORTIFY memcpy 会触发 __read_overflow2 编译期错误
+            ./scripts/config --file out/.config -d FORTIFY_SOURCE || true
+          fi
+
+          # 避免 Image.gz 触发 dtb 全量编译（dtc 错误会导致构建失败）
+          ./scripts/config --file out/.config -d BUILD_ARM64_DTBS || true
+          ./scripts/config --file out/.config -d BUILD_ARM64_APPENDED_DTB_IMAGE || true
+
+          make O=out olddefconfig
+
+          if [ "$WITH_SUKISU" = "on" ]; then
+            # olddefconfig 后确认 manual hook 仍保持开启
+            ./scripts/config --file out/.config -e KSU || true
+            ./scripts/config --file out/.config -e KSU_MANUAL_HOOK || true
+            ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
+            ./scripts/config --file out/.config -e KPM || true
+            ./scripts/config --file out/.config -e KSU_SUSFS || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_PATH || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_MOUNT || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_KSTAT || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SPOOF_UNAME || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_ENABLE_LOG || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_OPEN_REDIRECT || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_MAP || true
+            ./scripts/config --file out/.config -d KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS || true
+            ./scripts/config --file out/.config -e KPROBES || true
+            ./scripts/config --file out/.config -e KRETPROBES || true
+            ./scripts/config --file out/.config -e KPROBE_EVENTS || true
+            ./scripts/config --file out/.config -e KALLSYMS || true
+            ./scripts/config --file out/.config -e KALLSYMS_ALL || true
+            ./scripts/config --file out/.config -e SECURITYFS || true
+            ./scripts/config --file out/.config -e DEVTMPFS || true
+            ./scripts/config --file out/.config -e DEVTMPFS_MOUNT || true
+            ./scripts/config --file out/.config -e OVERLAY_FS || true
+
+            # 再次确保模块签名/版本字符串设置生效
+            ./scripts/config --file out/.config -e MODULE_SIG || true
+            ./scripts/config --file out/.config -d MODULE_SIG_FORCE || true
+            ./scripts/config --file out/.config -d MODULE_SIG_ALL || true
+            ./scripts/config --file out/.config -e MODVERSIONS || true
+            ./scripts/config --file out/.config -d LOCALVERSION_AUTO || true
+            ./scripts/config --file out/.config --set-str LOCALVERSION "-perf-g4732215-tanran" || true
+
+            make O=out olddefconfig
+
+            if ! grep -q '^CONFIG_KSU_MANUAL_HOOK=y' out/.config; then
+              echo "CONFIG_KSU_MANUAL_HOOK 未开启，停止构建"
+              exit 1
+            fi
+          fi
+
+          # 保持默认版本字符串，避免 vendor 模块 vermagic 不匹配（例如 Wi-Fi 驱动）
+      - name: 编译
+        id: build
+        run: |
+          set -euxo pipefail
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export PATH="$TOOLCHAIN_GCC64/bin:$TOOLCHAIN_GCC32/bin:$PATH"
+          export CROSS_COMPILE="$TOOLCHAIN_GCC64/bin/aarch64-linux-android-"
+          export CROSS_COMPILE_ARM32="$TOOLCHAIN_GCC32/bin/arm-linux-androideabi-"
+          export LOCALVERSION=
+
+          if [ "$BUILD_DTBO" = "on" ]; then
+            # dtbo (/plugin/;) 需要 -@ 才能生成符号/修复信息
+            make -j"$(nproc)" O=out Image.gz-dtb V=1 DTC_FLAGS="-@" 2>&1 | tee build.log
+          else
+            # 先确保能编译出内核镜像；dtbo 问题后续再单独修
+            make -j"$(nproc)" O=out Image.gz V=1 2>&1 | tee build.log
+
+            mkdir -p dist
+            rm -f dist/dtb
+
+            STOCK_DTB_B64="ci_assets/laurus_q_dtb.bin.gz.b64"
+            if [ -f "${STOCK_DTB_B64}" ]; then
+              # 优先使用 stock dtb blob，避免 trinket dtb 编译失败
+              if gzip -t "${STOCK_DTB_B64}" >/dev/null 2>&1; then
+                gzip -dc "${STOCK_DTB_B64}" > dist/dtb
+              else
+                base64 -d "${STOCK_DTB_B64}" | gzip -d > dist/dtb
+              fi
+            else
+              # 编译 trinket 相关 dtb（失败跳过，后续按 size 白名单拼接）
+              set +e
+              for dts in $(find arch/arm64/boot/dts/qcom -maxdepth 1 -name 'trinket*.dts' ! -name '*-overlay.dts' -print | sort); do
+                dtb="$(basename "${dts%.dts}.dtb")"
+                if make -j"$(nproc)" O=out "qcom/${dtb}" V=1 2>&1 | tee -a build.log; then
+                  echo "built dtb: ${dtb}" | tee -a build.log
+                else
+                  echo "skip dtb build failed: ${dtb}" | tee -a build.log
+                fi
+              done
+              set -e
+
+              # 根据 stock dtb 的 size 列表重建 dtb blob（Q 版本）
+              STOCK_DTB_SIZES=("54743" "33269" "4065" "46749" "5306" "4753" "27379" "327570")
+              tmp_map="$(mktemp)"
+              find out/arch/arm64/boot/dts/qcom -maxdepth 1 -name 'trinket*.dtb' -print0 | xargs -0 -I{} stat -c '%s %n' {} | sort > "${tmp_map}"
+
+              : > dist/dtb
+              for size in "${STOCK_DTB_SIZES[@]}"; do
+                match="$(awk -v s="${size}" '$1==s{print $2; exit}' "${tmp_map}")"
+                if [ -z "${match}" ]; then
+                  echo "missing dtb size: ${size}" | tee -a build.log
+                  exit 1
+                fi
+                cat "${match}" >> dist/dtb
+              done
+              rm -f "${tmp_map}"
+            fi
+
+            # 生成 CC 9e/Trinket 多 DTB Image.gz-dtb（直接用于打包/刷机）
+            cat out/arch/arm64/boot/Image.gz dist/dtb > dist/Image.gz-dtb
+          fi
+
+      - name: 打包 AnyKernel3（可直接刷）
+        id: package
+        if: steps.build.outcome == 'success'
+        run: |
+          set -euxo pipefail
+          mkdir -p dist
+
+          # build_dtbo=on 时，尝试复用 out 里生成的 Image.gz-dtb
+          if [ ! -f dist/Image.gz-dtb ] && [ -f out/arch/arm64/boot/Image.gz-dtb ]; then
+            cp -f out/arch/arm64/boot/Image.gz-dtb dist/Image.gz-dtb
+          fi
+
+          test -f dist/Image.gz-dtb
+
+          git clone --depth=1 https://github.com/osm0sis/AnyKernel3 anykernel3
+          cp -f dist/Image.gz-dtb anykernel3/Image.gz-dtb
+
+          # 仅做最小定制：限制设备代号（CC 9e=laurus；同平台 Mi A3=laurel_sprout）
+          sed -i \
+            -e 's/^do.devicecheck=.*/do.devicecheck=1/' \
+            -e 's/^device.name1=.*/device.name1=laurus/' \
+            -e 's/^device.name2=.*/device.name2=laurel_sprout/' \
+            anykernel3/anykernel.sh || true
+
+          (cd anykernel3 && zip -r9 ../dist/AnyKernel3-laurus-${RUN_ID}.zip . -x '.git/*')
+
+      - name: 生成 boot.img（可 fastboot 刷入）
+        id: bootimg
+        if: steps.build.outcome == 'success'
+        run: |
+          set -euxo pipefail
+          mkdir -p dist
+          test -f out/arch/arm64/boot/Image.gz
+
+          rm -rf repack
+          mkdir -p repack/out
+          cp -f out/arch/arm64/boot/Image.gz repack/out/kernel
+          : > repack/out/ramdisk
+
+          test -f dist/dtb
+          cp -f dist/dtb repack/out/dtb
+          ls -lh dist/dtb repack/out/dtb
+
+          # 使用仓库自带 mkbootimg.py 生成 boot.img
+          test -f tools/mkbootimg.py
+
+          CMDLINE="console=ttyMSM0,115200n8 androidboot.hardware=qcom androidboot.console=ttyMSM0 androidboot.memcg=1 lpm_levels.sleep_disabled=1 video=vfb:640x400,bpp=32,memsize=3072000 msm_rtb.filter=0x237 service_locator.enable=1 swiotlb=1 earlycon=msm_geni_serial,0x4a90000 loop.max_part=7 cgroup.memory=nokmem,nosocket androidboot.selinux=enforcing buildvariant=user"
+
+          (cd repack && python3 ../tools/mkbootimg.py \
+            --header_version 2 \
+            --os_version 10.0.0 \
+            --os_patch_level 2021-09 \
+            --kernel out/kernel \
+            --ramdisk out/ramdisk \
+            --dtb out/dtb \
+            --pagesize 0x00001000 \
+            --base 0x00000000 \
+            --kernel_offset 0x00008000 \
+            --ramdisk_offset 0x01000000 \
+            --second_offset 0x00f00000 \
+            --tags_offset 0x00000100 \
+            --dtb_offset 0x0000000001f00000 \
+            --board "" \
+            --cmdline "$CMDLINE" \
+            -o ../dist/boot.img)
+
+          # laurus boot 分区固定 64MB，做一次 truncate 与 stock 对齐
+          truncate -s 64M dist/boot.img
+          ls -lh dist/boot.img
+
+      - name: 写入精简日志（方便无鉴权查看）
+        if: always()
+        env:
+          STEP_CHECKOUT: ${{ steps.checkout.outcome }}
+          STEP_DEPS: ${{ steps.deps.outcome }}
+          STEP_TOOLCHAIN: ${{ steps.toolchain.outcome }}
+          STEP_SUKISU: ${{ steps.sukisu.outcome }}
+          STEP_CONFIG: ${{ steps.config.outcome }}
+          STEP_BUILD: ${{ steps.build.outcome }}
+          STEP_PACKAGE: ${{ steps.package.outcome }}
+        run: |
+          set -euxo pipefail
+          mkdir -p ci_logs
+          outfile="ci_logs/${RUN_ID}.txt"
+          {
+            echo "run_id=${RUN_ID}"
+            echo "head_sha=${HEAD_SHA}"
+            echo "kernel_ref=${KERNEL_BRANCH}"
+            echo "defconfig=${DEFCONFIG_INPUT}"
+            echo "fortify=${FORTIFY_MODE}"
+            echo "build_dtbo=${BUILD_DTBO}"
+            echo "with_sukisu=${WITH_SUKISU}"
+            echo
+            echo "==== step outcomes ===="
+            echo "checkout=${STEP_CHECKOUT}"
+            echo "deps=${STEP_DEPS}"
+            echo "toolchain=${STEP_TOOLCHAIN}"
+            echo "sukisu=${STEP_SUKISU}"
+            echo "config=${STEP_CONFIG}"
+            echo "build=${STEP_BUILD}"
+            echo "package=${STEP_PACKAGE}"
+            echo
+            echo "==== ksu config snapshot (out/.config) ===="
+            if [ -f out/.config ]; then
+              grep -nE "KSU|KPM|SUSFS|KPROBES|KRETPROBES|KPROBES_ON_FTRACE|KPROBE_EVENTS|KALLSYMS|FTRACE" out/.config 2>&1 | head -n 200 || true
+            else
+              echo "out/.config not found"
+            fi
+            echo
+            echo "==== artifacts existence ===="
+            ls -l build.log 2>&1 || true
+            ls -l out/arch/arm64/boot/Image.gz-dtb out/arch/arm64/boot/Image.gz out/arch/arm64/boot/dts/qcom/trinket.dtb 2>&1 || true
+            ls -l dist/Image.gz-dtb dist/AnyKernel3-laurus-${RUN_ID}.zip dist/boot.img 2>&1 || true
+            echo
+            echo "==== build.log errors (tail 200) ===="
+            grep -nE "error:|fatal error:" build.log 2>&1 | tail -n 200 || true
+            echo
+            echo "==== make failures (tail 120) ===="
+            grep -nE "make(\[[0-9]+\])?: \*\*\*|make: \*\*\*|Error [0-9]+" build.log 2>&1 | tail -n 120 || true
+            echo
+            echo "==== dtc/dts errors (tail 200) ===="
+            grep -nE "FATAL ERROR|syntax error|parse error|Error:" build.log 2>&1 | tail -n 200 || true
+            echo
+            echo "==== forbidden warnings (tail 80) ===="
+            grep -n "warn, forbidden warning" build.log 2>&1 | tail -n 80 || true
+            echo
+            echo "==== bad_copy / fortify hits (head 200) ===="
+            grep -nE "__bad_copy_(to|from)|copy (source|destination) size is too small|__compiletime_error\(\"copy (source|destination) size is too small\"\)|__read_overflow2|FORTIFY|__check_object_size" build.log 2>&1 | head -n 200 || true
+            echo
+            echo "==== bad_copy context (first 3 hits, each +/-60 lines) ===="
+            hits="$(grep -nE "__bad_copy_(to|from)" build.log 2>/dev/null | head -n 3 | cut -d: -f1 | tr '\n' ' ' || true)"
+            if [ -n "${hits}" ]; then
+              for n in ${hits}; do
+                start=$((n-60)); end=$((n+60)); if [ "$start" -lt 1 ]; then start=1; fi
+                echo "--- context around build.log:$n (lines $start-$end) ---"
+                sed -n "${start},${end}p" build.log 2>&1 || true
+                echo
+              done
+            else
+              echo "(no __bad_copy_* strings found in build.log)"
+            fi
+            echo
+            echo "==== tail build.log (last 1200) ===="
+            tail -n 1200 build.log 2>&1 || true
+          } > "$outfile"
+
+          cp -f "$outfile" ci_logs/latest.txt
+          echo "Wrote $outfile"
+
+      - name: 上传产物（无论成功失败）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: laurus-${{ github.run_id }}
+          include-hidden-files: true
+          if-no-files-found: warn
+          path: |
+            build.log
+            ci_logs/latest.txt
+            out/.config
+            out/arch/arm64/boot/Image.gz-dtb
+            out/arch/arm64/boot/Image.gz
+            out/arch/arm64/boot/dts/qcom/trinket.dtb
+            dist/Image.gz-dtb
+            dist/AnyKernel3-laurus-${{ github.run_id }}.zip
+            dist/boot.img
