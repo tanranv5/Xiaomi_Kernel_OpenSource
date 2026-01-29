@@ -565,10 +565,10 @@ jobs:
                                        struct user_arg_ptr *argv,
                                        struct user_arg_ptr *envp, int *flags);
 
-          // 强定义 + 导出，确保 manual hook 实际生效
-          bool ksu_execveat_hook __read_mostly = true;
-          bool ksu_vfs_read_hook __read_mostly = true;
-          bool ksu_input_hook __read_mostly = true;
+          // 弱符号：若 ksud.c 已定义强符号则避免重复定义
+          bool ksu_execveat_hook __read_mostly __weak = true;
+          bool ksu_vfs_read_hook __read_mostly __weak = true;
+          bool ksu_input_hook __read_mostly __weak = true;
 
           EXPORT_SYMBOL(ksu_execveat_hook);
           EXPORT_SYMBOL(ksu_vfs_read_hook);
