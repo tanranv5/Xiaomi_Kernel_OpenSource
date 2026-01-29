@@ -1,1 +1,1 @@
-trigger: planA guard kprobe 2026-01-29T05:23:28Z
+trigger: planB disable kprobe 2026-01-29T07:23:57Z
