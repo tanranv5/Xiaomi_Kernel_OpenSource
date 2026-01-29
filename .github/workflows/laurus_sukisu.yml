@@ -457,6 +457,11 @@ jobs:
                                        struct user_arg_ptr *argv,
                                        struct user_arg_ptr *envp, int *flags);
 
+          int __weak ksu_handle_setresuid(uid_t ruid, uid_t euid, uid_t suid)
+          {
+              return 0;
+          }
+
           // 弱符号：若 ksud.c 已定义强符号则避免重复定义
           bool ksu_execveat_hook __read_mostly __weak = true;
           bool ksu_vfs_read_hook __read_mostly __weak = true;
