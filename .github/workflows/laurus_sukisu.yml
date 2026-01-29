@@ -454,6 +454,16 @@ jobs:
                       anchor + "\\nextern bool ksu_vfs_read_hook __read_mostly;\\n",
                       1,
                   )
+          if "sys_read_kp_registered" not in ksud_text:
+              anchor = "static struct kprobe sys_read_kp"
+              if anchor in ksud_text:
+                  ksud_text = ksud_text.replace(
+                      anchor,
+                      "static bool sys_read_kp_registered;\\n"
+                      "static bool sys_fstat_kp_registered;\\n\\n"
+                      + anchor,
+                      1,
+                  )
           if "ksu_vfs_read_hook" in ksud_text:
               if "skip sys_read/sys_fstat kprobe" not in ksud_text:
                   ksud_text = ksud_text.replace(
@@ -463,9 +473,15 @@ jobs:
                       "    pr_info(\\\"ksud: sys_fstat_kp: %d\\\\n\\\", ret);\\n",
                       "    if (!ksu_vfs_read_hook) {\\n"
                       "        ret = register_kprobe(&sys_read_kp);\\n"
-                      "        pr_info(\\\"ksud: sys_read_kp: %d\\\\n\\\", ret);\\n\\n"
+                      "        pr_info(\\\"ksud: sys_read_kp: %d\\\\n\\\", ret);\\n"
+                      "        if (!ret) {\\n"
+                      "            sys_read_kp_registered = true;\\n"
+                      "        }\\n\\n"
                       "        ret = register_kretprobe(&sys_fstat_kp);\\n"
                       "        pr_info(\\\"ksud: sys_fstat_kp: %d\\\\n\\\", ret);\\n"
+                      "        if (!ret) {\\n"
+                      "            sys_fstat_kp_registered = true;\\n"
+                      "        }\\n"
                       "    } else {\\n"
                       "        pr_info(\\\"ksud: skip sys_read/sys_fstat kprobe (vfs_read hook enabled)\\\\n\\\");\\n"
                       "    }\\n",
@@ -477,6 +493,23 @@ jobs:
                       "static void stop_init_rc_hook()\\n{\\n"
                       "    if (ksu_vfs_read_hook) {\\n"
                       "        return;\\n"
+                      "    }\\n",
+                      1,
+                  )
+              if "sys_read_kp_registered" in ksud_text:
+                  ksud_text = ksud_text.replace(
+                      "    unregister_kprobe(&sys_read_kp);\\n",
+                      "    if (sys_read_kp_registered) {\\n"
+                      "        unregister_kprobe(&sys_read_kp);\\n"
+                      "        sys_read_kp_registered = false;\\n"
+                      "    }\\n",
+                      1,
+                  )
+                  ksud_text = ksud_text.replace(
+                      "    unregister_kretprobe(&sys_fstat_kp);\\n",
+                      "    if (sys_fstat_kp_registered) {\\n"
+                      "        unregister_kretprobe(&sys_fstat_kp);\\n"
+                      "        sys_fstat_kp_registered = false;\\n"
                       "    }\\n",
                       1,
                   )
