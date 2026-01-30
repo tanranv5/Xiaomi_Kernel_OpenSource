@@ -310,10 +310,40 @@ jobs:
           ksud_path = ksu_dir / "ksud.c"
           ksud_text = ksud_path.read_text()
           vfs_body = (
+              "\nextern bool ksu_execveat_hook __read_mostly;\n"
+              "extern bool ksu_vfs_read_hook __read_mostly;\n"
+              "extern bool ksu_input_hook __read_mostly;\n"
+              "\nbool vfs_read_hook_ready __read_mostly = false;\n"
+              "bool vfs_read_hook_locked __read_mostly = false;\n"
+              "\nstatic bool ksu_match_init_rc_path(struct file *file)\n"
+              "{\n"
+              "    char path[256];\n"
+              "    char *dpath;\n"
+              "\n"
+              "    if (!file)\n"
+              "        return false;\n"
+              "\n"
+              "    dpath = d_path(&file->f_path, path, sizeof(path));\n"
+              "    if (IS_ERR(dpath))\n"
+              "        return false;\n"
+              "\n"
+              "    if (!strcmp(dpath, \"/system/etc/init/hw/init.rc\"))\n"
+              "        return true;\n"
+              "    if (!strcmp(dpath, \"/system/etc/init/init.rc\"))\n"
+              "        return true;\n"
+              "    if (!strcmp(dpath, \"/init.rc\"))\n"
+              "        return true;\n"
+              "\n"
+              "    return false;\n"
+              "}\n"
               "\nint ksu_handle_vfs_read(struct file **file_ptr, char __user **buf_ptr,\n"
               "                        size_t *count_ptr, loff_t **pos)\n"
               "{\n"
               "    struct file *file;\n"
+              "    const char *name;\n"
+              "\n"
+              "    if (!vfs_read_hook_ready || vfs_read_hook_locked)\n"
+              "        return 0;\n"
               "\n"
               "    if (!file_ptr)\n"
               "        return 0;\n"
@@ -329,17 +359,14 @@ jobs:
               "    if (!file->f_inode || !S_ISREG(file->f_inode->i_mode))\n"
               "        return 0;\n"
               "\n"
-              "    if (!is_init_rc(file))\n"
+              "    name = file->f_path.dentry->d_name.name;\n"
+              "    if (!name || strcmp(name, \"init.rc\"))\n"
+              "        return 0;\n"
+              "    if (!ksu_match_init_rc_path(file))\n"
               "        return 0;\n"
               "\n"
-              "    static bool rc_hooked = false;\n"
-              "    if (rc_hooked) {\n"
-              "        stop_init_rc_hook();\n"
-              "        return 0;\n"
-              "    }\n"
-              "    rc_hooked = true;\n"
-              "\n"
-              "    pr_info(\"read init.rc, comm: %s, rc_count: %zu\\n\", current->comm, ksu_rc_len);\n"
+              "    vfs_read_hook_locked = true;\n"
+              "    pr_info(\"read init.rc(vfs_read), comm: %s, rc_count: %zu\\n\", current->comm, ksu_rc_len);\n"
               "\n"
               "    memcpy(&fops_proxy, file->f_op, sizeof(struct file_operations));\n"
               "    orig_read = file->f_op->read;\n"
@@ -351,6 +378,7 @@ jobs:
               "        fops_proxy.read_iter = read_iter_proxy;\n"
               "    }\n"
               "    file->f_op = &fops_proxy;\n"
+              "    ksu_vfs_read_hook = false;\n"
               "\n"
               "    return 0;\n"
               "}\n"
@@ -388,22 +416,28 @@ jobs:
               ksud_path.write_text(ksud_text)
 
           ksud_text = ksud_path.read_text()
-          if "ksu_vfs_read_hook" not in ksud_text:
-              anchor = '#include "ksud.h"\\n'
-              if anchor in ksud_text:
-                  ksud_text = ksud_text.replace(
-                      anchor,
-                      anchor + "\\nextern bool ksu_vfs_read_hook __read_mostly;\\n",
-                      1,
+          anchor = '#include "ksud.h"\\n'
+          if anchor in ksud_text:
+              insert = ""
+              if "ksu_execveat_hook" not in ksud_text:
+                  insert += (
+                      "extern bool ksu_execveat_hook __read_mostly;\\n"
+                      "extern bool ksu_vfs_read_hook __read_mostly;\\n"
+                      "extern bool ksu_input_hook __read_mostly;\\n"
                   )
-          if "sys_read_kp_registered" not in ksud_text:
-              anchor = "static struct kprobe sys_read_kp"
-              if anchor in ksud_text:
+              if "extern bool vfs_read_hook_ready" not in ksud_text:
+                  insert += (
+                      "extern bool vfs_read_hook_ready __read_mostly;\\n"
+                      "extern bool vfs_read_hook_locked __read_mostly;\\n"
+                  )
+              if insert:
+                  ksud_text = ksud_text.replace(anchor, anchor + "\\n" + insert, 1)
+          if "vfs_read_hook_ready" in ksud_text:
+              marker = "            pr_info(\"/system/bin/init second_stage executed\\n\");\\n"
+              if marker in ksud_text and "vfs_read_hook_ready = true;" not in ksud_text:
                   ksud_text = ksud_text.replace(
-                      anchor,
-                      "static bool sys_read_kp_registered;\\n"
-                      "static bool sys_fstat_kp_registered;\\n\\n"
-                      + anchor,
+                      marker,
+                      marker + "            vfs_read_hook_ready = true;\\n",
                       1,
                   )
           if "ksu_vfs_read_hook" in ksud_text:
@@ -413,7 +447,14 @@ jobs:
                       "    pr_info(\\\"ksud: sys_read_kp: %d\\\\n\\\", ret);\\n\\n"
                       "    ret = register_kretprobe(&sys_fstat_kp);\\n"
                       "    pr_info(\\\"ksud: sys_fstat_kp: %d\\\\n\\\", ret);\\n",
-                      "    pr_info(\\\"ksud: skip sys_read/sys_fstat kprobe (force manual hook)\\\\n\\\");\\n",
+                      "    if (!ksu_vfs_read_hook) {\\n"
+                      "        ret = register_kprobe(&sys_read_kp);\\n"
+                      "        pr_info(\\\"ksud: sys_read_kp: %d\\\\n\\\", ret);\\n\\n"
+                      "        ret = register_kretprobe(&sys_fstat_kp);\\n"
+                      "        pr_info(\\\"ksud: sys_fstat_kp: %d\\\\n\\\", ret);\\n"
+                      "    } else {\\n"
+                      "        pr_info(\\\"ksud: skip sys_read/sys_fstat kprobe (vfs_read hook enabled)\\\\n\\\");\\n"
+                      "    }\\n",
                       1,
                   )
               if "if (ksu_vfs_read_hook)" not in ksud_text:
@@ -422,23 +463,6 @@ jobs:
                       "static void stop_init_rc_hook()\\n{\\n"
                       "    if (ksu_vfs_read_hook) {\\n"
                       "        return;\\n"
-                      "    }\\n",
-                      1,
-                  )
-              if "sys_read_kp_registered" in ksud_text:
-                  ksud_text = ksud_text.replace(
-                      "    unregister_kprobe(&sys_read_kp);\\n",
-                      "    if (sys_read_kp_registered) {\\n"
-                      "        unregister_kprobe(&sys_read_kp);\\n"
-                      "        sys_read_kp_registered = false;\\n"
-                      "    }\\n",
-                      1,
-                  )
-                  ksud_text = ksud_text.replace(
-                      "    unregister_kretprobe(&sys_fstat_kp);\\n",
-                      "    if (sys_fstat_kp_registered) {\\n"
-                      "        unregister_kretprobe(&sys_fstat_kp);\\n"
-                      "        sys_fstat_kp_registered = false;\\n"
                       "    }\\n",
                       1,
                   )
@@ -470,9 +494,9 @@ jobs:
           }
 
           // 弱符号：若 ksud.c 已定义强符号则避免重复定义
-          bool ksu_execveat_hook __read_mostly __weak = false;
-          bool ksu_vfs_read_hook __read_mostly __weak = false;
-          bool ksu_input_hook __read_mostly __weak = false;
+          bool ksu_execveat_hook __read_mostly __weak = true;
+          bool ksu_vfs_read_hook __read_mostly __weak = true;
+          bool ksu_input_hook __read_mostly __weak = true;
 
           EXPORT_SYMBOL(ksu_execveat_hook);
           EXPORT_SYMBOL(ksu_vfs_read_hook);
