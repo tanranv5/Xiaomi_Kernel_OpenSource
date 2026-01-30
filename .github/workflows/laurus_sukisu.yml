@@ -313,7 +313,7 @@ jobs:
               "\nextern bool ksu_execveat_hook __read_mostly;\n"
               "extern bool ksu_vfs_read_hook __read_mostly;\n"
               "extern bool ksu_input_hook __read_mostly;\n"
-              "\nbool vfs_read_hook_ready __read_mostly = false;\n"
+              "\nbool vfs_read_hook_ready __read_mostly = true;\n"
               "bool vfs_read_hook_locked __read_mostly = false;\n"
               "\nstatic bool ksu_match_init_rc_path(struct file *file)\n"
               "{\n"
@@ -1105,5 +1105,5 @@ jobs:
             out/arch/arm64/boot/Image.gz
             out/arch/arm64/boot/dts/qcom/trinket.dtb
             dist/Image.gz-dtb
-            dist/AnyKernel3-laurus-${{ github.run_id }}.zip
+            dist/AnyKernel3-laurus-${RUN_ID}.zip
             dist/boot.img
