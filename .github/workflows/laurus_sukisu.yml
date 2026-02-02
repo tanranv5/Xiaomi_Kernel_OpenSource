@@ -204,9 +204,17 @@ jobs:
         run: |
           set -euxo pipefail
           if [ -d "common/drivers/kernelsu" ]; then
-            git apply --directory=common ci_assets/ksu_kprobe_fallback.patch
+            if git apply --reverse --check --directory=common ci_assets/ksu_kprobe_fallback.patch; then
+              echo "ksu kprobe fallback patch already applied (common)"
+            else
+              git apply --directory=common ci_assets/ksu_kprobe_fallback.patch
+            fi
           else
-            git apply ci_assets/ksu_kprobe_fallback.patch
+            if git apply --reverse --check --unsafe-paths ci_assets/ksu_kprobe_fallback.patch; then
+              echo "ksu kprobe fallback patch already applied (drivers)"
+            else
+              git apply --unsafe-paths ci_assets/ksu_kprobe_fallback.patch
+            fi
           fi
 
       - name: 配置 defconfig
