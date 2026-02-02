@@ -123,8 +123,10 @@ jobs:
           curl -fsSL "$patch_url" -o /tmp/ksu_manual_hook.patch
           if git apply --reverse --check /tmp/ksu_manual_hook.patch; then
             echo "manual hook patch already applied"
-          else
+          elif git apply --check /tmp/ksu_manual_hook.patch; then
             git apply /tmp/ksu_manual_hook.patch
+          else
+            echo "manual hook patch not applicable, skip"
           fi
 
           # 补齐 manual hook 适配符号，避免链接错误
@@ -206,30 +208,188 @@ jobs:
         id: ksu_kprobe_fallback
         run: |
           set -euxo pipefail
-          if [ -L "drivers/kernelsu" ]; then
-            real_path="$(python3 -c 'import os; print(os.path.realpath("drivers/kernelsu"))')"
-            rel_path="${real_path#${PWD}/}"
-            sed "s|drivers/kernelsu/|${rel_path}/|g" ci_assets/ksu_kprobe_fallback.patch > /tmp/ksu_kprobe_fallback.patch
-            if git apply --reverse --check --unsafe-paths /tmp/ksu_kprobe_fallback.patch; then
-              echo "ksu kprobe fallback patch already applied (symlink)"
-            else
-              git apply --unsafe-paths /tmp/ksu_kprobe_fallback.patch
-            fi
-            exit 0
-          fi
-          if [ -d "common/drivers/kernelsu" ]; then
-            if git apply --reverse --check --directory=common ci_assets/ksu_kprobe_fallback.patch; then
-              echo "ksu kprobe fallback patch already applied (common)"
-            else
-              git apply --directory=common ci_assets/ksu_kprobe_fallback.patch
-            fi
+          if [ -f "KernelSU/kernel/ksud.c" ]; then
+            ksu_dir="KernelSU/kernel"
+          elif [ -f "drivers/kernelsu/ksud.c" ]; then
+            ksu_dir="drivers/kernelsu"
+          elif [ -f "common/drivers/kernelsu/ksud.c" ]; then
+            ksu_dir="common/drivers/kernelsu"
+          elif [ -L "drivers/kernelsu" ]; then
+            ksu_dir="$(python3 -c 'import os; print(os.path.realpath("drivers/kernelsu"))')"
           else
-            if git apply --reverse --check --unsafe-paths ci_assets/ksu_kprobe_fallback.patch; then
-              echo "ksu kprobe fallback patch already applied (drivers)"
-            else
-              git apply --unsafe-paths ci_assets/ksu_kprobe_fallback.patch
-            fi
+            echo "ksu source dir not found"
+            exit 1
           fi
+
+          python3 - "$ksu_dir" <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+
+          base = Path(sys.argv[1])
+          ksud = base / "ksud.c"
+          supercalls = base / "supercalls.c"
+
+          def ensure_include(text, header):
+            if header in text:
+              return text
+            lines = text.splitlines()
+            insert_at = None
+            for i, line in enumerate(lines):
+              if line.strip().startswith("#include"):
+                insert_at = i + 1
+              if line.strip() == "#include <linux/fs.h>":
+                insert_at = i + 1
+            if insert_at is None:
+              insert_at = 0
+            lines.insert(insert_at, header)
+            return "\n".join(lines) + "\n"
+
+          def insert_after_anchor(text, anchor, block):
+            if block.strip() in text:
+              return text
+            idx = text.find(anchor)
+            if idx == -1:
+              return text
+            tail = text[idx:]
+            end = tail.find("};")
+            if end == -1:
+              return text
+            insert_pos = idx + end + 2
+            return text[:insert_pos] + "\n\n" + block.rstrip() + "\n" + text[insert_pos:]
+
+          def replace_call(text, pattern, replacement):
+            if re.search(pattern, text):
+              return re.sub(pattern, replacement, text, count=1)
+            return text
+
+          ksud_text = ksud.read_text()
+          ksud_text = ensure_include(ksud_text, "#include <linux/kernel.h>")
+
+          ksud_block = """
+          static const char *const ksu_sys_read_syms[] = {
+              SYS_READ_SYMBOL,
+              \"sys_read\",
+              \"__se_sys_read\",
+          };
+
+          static const char *const ksu_sys_execve_syms[] = {
+              SYS_EXECVE_SYMBOL,
+              \"sys_execve\",
+              \"__se_sys_execve\",
+          };
+
+          static const char *const ksu_sys_fstat_syms[] = {
+              SYS_FSTAT_SYMBOL,
+              \"sys_newfstat\",
+              \"__se_sys_newfstat\",
+          };
+
+          static int register_kprobe_fallback(struct kprobe *kp,
+                                              const char *const *syms,
+                                              size_t count,
+                                              const char *tag)
+          {
+              size_t i;
+              int ret = -ENOENT;
+
+              for (i = 0; i < count; i++) {
+                  kp->symbol_name = syms[i];
+                  ret = register_kprobe(kp);
+                  if (!ret) {
+                      pr_info(\"ksud: %s kprobe -> %s\\n\", tag, syms[i]);
+                      return 0;
+                  }
+                  pr_warn(\"ksud: %s kprobe %s failed: %d\\n\", tag, syms[i], ret);
+              }
+
+              pr_err(\"ksud: %s kprobe all candidates failed\\n\", tag);
+              return ret;
+          }
+
+          static int register_kretprobe_fallback(struct kretprobe *rp,
+                                                 const char *const *syms,
+                                                 size_t count,
+                                                 const char *tag)
+          {
+              size_t i;
+              int ret = -ENOENT;
+
+              for (i = 0; i < count; i++) {
+                  rp->kp.symbol_name = syms[i];
+                  ret = register_kretprobe(rp);
+                  if (!ret) {
+                      pr_info(\"ksud: %s kretprobe -> %s\\n\", tag, syms[i]);
+                      return 0;
+                  }
+                  pr_warn(\"ksud: %s kretprobe %s failed: %d\\n\", tag, syms[i], ret);
+              }
+
+              pr_err(\"ksud: %s kretprobe all candidates failed\\n\", tag);
+              return ret;
+          }
+          """
+
+          ksud_text = insert_after_anchor(ksud_text, "static struct kprobe input_event_kp", ksud_block)
+
+          ksud_text = replace_call(
+              ksud_text,
+              r"ret\s*=\s*register_kprobe\(\s*&execve_kp\s*\)\s*;",
+              "ret = register_kprobe_fallback(&execve_kp, ksu_sys_execve_syms, ARRAY_SIZE(ksu_sys_execve_syms), \"execve\");",
+          )
+          ksud_text = replace_call(
+              ksud_text,
+              r"ret\s*=\s*register_kprobe\(\s*&sys_read_kp\s*\)\s*;",
+              "ret = register_kprobe_fallback(&sys_read_kp, ksu_sys_read_syms, ARRAY_SIZE(ksu_sys_read_syms), \"sys_read\");",
+          )
+          ksud_text = replace_call(
+              ksud_text,
+              r"ret\s*=\s*register_kretprobe\(\s*&sys_fstat_kp\s*\)\s*;",
+              "ret = register_kretprobe_fallback(&sys_fstat_kp, ksu_sys_fstat_syms, ARRAY_SIZE(ksu_sys_fstat_syms), \"sys_fstat\");",
+          )
+
+          ksud.write_text(ksud_text)
+
+          super_text = supercalls.read_text()
+          super_text = ensure_include(super_text, "#include <linux/kernel.h>")
+
+          super_block = """
+          static const char *const ksu_reboot_syms[] = {
+              REBOOT_SYMBOL,
+              \"sys_reboot\",
+              \"__se_sys_reboot\",
+          };
+
+          static int register_kprobe_fallback(struct kprobe *kp,
+                                              const char *const *syms,
+                                              size_t count,
+                                              const char *tag)
+          {
+              size_t i;
+              int ret = -ENOENT;
+
+              for (i = 0; i < count; i++) {
+                  kp->symbol_name = syms[i];
+                  ret = register_kprobe(kp);
+                  if (!ret) {
+                      pr_info(\"ksu: %s kprobe -> %s\\n\", tag, syms[i]);
+                      return 0;
+                  }
+                  pr_warn(\"ksu: %s kprobe %s failed: %d\\n\", tag, syms[i], ret);
+              }
+
+              pr_err(\"ksu: %s kprobe all candidates failed\\n\", tag);
+              return ret;
+          }
+          """
+          super_text = insert_after_anchor(super_text, "static struct kprobe reboot_kp", super_block)
+          super_text = replace_call(
+              super_text,
+              r"int\s+rc\s*=\s*register_kprobe\(\s*&reboot_kp\s*\)\s*;",
+              "int rc = register_kprobe_fallback(&reboot_kp, ksu_reboot_syms, ARRAY_SIZE(ksu_reboot_syms), \"reboot\");",
+          )
+          supercalls.write_text(super_text)
+          PY
 
       - name: 配置 defconfig
         id: config
