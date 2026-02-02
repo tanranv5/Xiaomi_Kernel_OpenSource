@@ -1,0 +1,162 @@
+diff --git a/drivers/kernelsu/ksud.c b/drivers/kernelsu/ksud.c
+index 715f891f..b96a6921 100644
+--- a/drivers/kernelsu/ksud.c
++++ b/drivers/kernelsu/ksud.c
+@@ -8,6 +8,7 @@
+ #include <linux/err.h>
+ #include <linux/file.h>
+ #include <linux/fs.h>
++#include <linux/kernel.h>
+ #include <linux/version.h>
+ #include <linux/input-event-codes.h>
+ #include <linux/kprobes.h>
+@@ -593,6 +594,68 @@ static struct kprobe input_event_kp = {
+     .pre_handler = input_handle_event_handler_pre,
+ };
+ 
++static const char *const ksu_sys_read_syms[] = {
++    SYS_READ_SYMBOL,
++    "sys_read",
++    "__se_sys_read",
++};
++
++static const char *const ksu_sys_execve_syms[] = {
++    SYS_EXECVE_SYMBOL,
++    "sys_execve",
++    "__se_sys_execve",
++};
++
++static const char *const ksu_sys_fstat_syms[] = {
++    SYS_FSTAT_SYMBOL,
++    "sys_newfstat",
++    "__se_sys_newfstat",
++};
++
++static int register_kprobe_fallback(struct kprobe *kp,
++                                    const char *const *syms,
++                                    size_t count,
++                                    const char *tag)
++{
++    size_t i;
++    int ret = -ENOENT;
++
++    for (i = 0; i < count; i++) {
++        kp->symbol_name = syms[i];
++        ret = register_kprobe(kp);
++        if (!ret) {
++            pr_info("ksud: %s kprobe -> %s\n", tag, syms[i]);
++            return 0;
++        }
++        pr_warn("ksud: %s kprobe %s failed: %d\n", tag, syms[i], ret);
++    }
++
++    pr_err("ksud: %s kprobe all candidates failed\n", tag);
++    return ret;
++}
++
++static int register_kretprobe_fallback(struct kretprobe *rp,
++                                       const char *const *syms,
++                                       size_t count,
++                                       const char *tag)
++{
++    size_t i;
++    int ret = -ENOENT;
++
++    for (i = 0; i < count; i++) {
++        rp->kp.symbol_name = syms[i];
++        ret = register_kretprobe(rp);
++        if (!ret) {
++            pr_info("ksud: %s kretprobe -> %s\n", tag, syms[i]);
++            return 0;
++        }
++        pr_warn("ksud: %s kretprobe %s failed: %d\n", tag, syms[i], ret);
++    }
++
++    pr_err("ksud: %s kretprobe all candidates failed\n", tag);
++    return ret;
++}
++
+ static void do_stop_init_rc_hook(struct work_struct *work)
+ {
+     unregister_kprobe(&sys_read_kp);
+@@ -637,13 +700,19 @@ void ksu_ksud_init()
+ {
+     int ret;
+ 
+-    ret = register_kprobe(&execve_kp);
++    ret = register_kprobe_fallback(&execve_kp, ksu_sys_execve_syms,
++                                   ARRAY_SIZE(ksu_sys_execve_syms),
++                                   "execve");
+     pr_info("ksud: execve_kp: %d\n", ret);
+ 
+-    ret = register_kprobe(&sys_read_kp);
++    ret = register_kprobe_fallback(&sys_read_kp, ksu_sys_read_syms,
++                                   ARRAY_SIZE(ksu_sys_read_syms),
++                                   "sys_read");
+     pr_info("ksud: sys_read_kp: %d\n", ret);
+ 
+-    ret = register_kretprobe(&sys_fstat_kp);
++    ret = register_kretprobe_fallback(&sys_fstat_kp, ksu_sys_fstat_syms,
++                                      ARRAY_SIZE(ksu_sys_fstat_syms),
++                                      "sys_fstat");
+     pr_info("ksud: sys_fstat_kp: %d\n", ret);
+ 
+     ret = register_kprobe(&input_event_kp);
+diff --git a/drivers/kernelsu/supercalls.c b/drivers/kernelsu/supercalls.c
+index d8cb9803..26a60b35 100644
+--- a/drivers/kernelsu/supercalls.c
++++ b/drivers/kernelsu/supercalls.c
+@@ -5,6 +5,7 @@
+ #include <linux/fdtable.h>
+ #include <linux/file.h>
+ #include <linux/fs.h>
++#include <linux/kernel.h>
+ #include <linux/slab.h>
+ #include <linux/kprobes.h>
+ #include <linux/syscalls.h>
+@@ -901,6 +902,34 @@ static struct kprobe reboot_kp = {
+     .pre_handler = reboot_handler_pre,
+ };
+ 
++static const char *const ksu_reboot_syms[] = {
++    REBOOT_SYMBOL,
++    "sys_reboot",
++    "__se_sys_reboot",
++};
++
++static int register_kprobe_fallback(struct kprobe *kp,
++                                    const char *const *syms,
++                                    size_t count,
++                                    const char *tag)
++{
++    size_t i;
++    int ret = -ENOENT;
++
++    for (i = 0; i < count; i++) {
++        kp->symbol_name = syms[i];
++        ret = register_kprobe(kp);
++        if (!ret) {
++            pr_info("ksu: %s kprobe -> %s\n", tag, syms[i]);
++            return 0;
++        }
++        pr_warn("ksu: %s kprobe %s failed: %d\n", tag, syms[i], ret);
++    }
++
++    pr_err("ksu: %s kprobe all candidates failed\n", tag);
++    return ret;
++}
++
+ void ksu_supercalls_init(void)
+ {
+     int i;
+@@ -910,7 +939,9 @@ void ksu_supercalls_init(void)
+         pr_info("  %-18s = 0x%08x\n", ksu_ioctl_handlers[i].name,
+                 ksu_ioctl_handlers[i].cmd);
+     }
+-    int rc = register_kprobe(&reboot_kp);
++    int rc = register_kprobe_fallback(&reboot_kp, ksu_reboot_syms,
++                                      ARRAY_SIZE(ksu_reboot_syms),
++                                      "reboot");
+     if (rc) {
+         pr_err("reboot kprobe failed: %d\n", rc);
+     } else {
