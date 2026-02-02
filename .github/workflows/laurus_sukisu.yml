@@ -579,7 +579,8 @@ jobs:
             ls -l out/arch/arm64/boot/Image.gz-dtb out/arch/arm64/boot/Image.gz out/arch/arm64/boot/dts/qcom/trinket.dtb 2>&1 || true
             ls -l dist/Image.gz-dtb dist/AnyKernel3-laurus-${{ github.run_id }}.zip dist/boot.img 2>&1 || true
             echo
-            echo "==== build.log errors (tail 200) ===="n            grep -nE "error:|fatal error:" build.log 2>&1 | tail -n 200 || true
+            echo "==== build.log errors (tail 200) ===="
+            grep -nE "error:|fatal error:" build.log 2>&1 | tail -n 200 || true
             echo
             echo "==== make failures (tail 120) ===="
             grep -nE "make(\[[0-9]+\])?: \*\*\*|make: \*\*\*|Error [0-9]+" build.log 2>&1 | tail -n 120 || true
