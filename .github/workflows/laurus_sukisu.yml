@@ -1,6 +1,6 @@
 name: build-laurus-sukisu
 
-"on":
+on:
   workflow_dispatch:
     inputs:
       kernel_branch:
@@ -55,6 +55,9 @@ name: build-laurus-sukisu
         description: "ARM GCC 4.9 工具链分支"
         required: true
         default: "lineage-19.1"
+  push:
+    branches:
+      - laurus-p-oss-ci-ksu-kprobe-fallback
 
 permissions:
   contents: write
