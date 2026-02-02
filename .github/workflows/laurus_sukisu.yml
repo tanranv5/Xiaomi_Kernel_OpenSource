@@ -75,7 +75,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.kernel_branch || 'laurus-p-oss-ci' }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.kernel_branch || github.ref }}
 
       - name: 安装依赖
         id: deps
