@@ -207,11 +207,7 @@ jobs:
         run: |
           set -euxo pipefail
           if [ -L "drivers/kernelsu" ]; then
-            real_path="$(python3 - <<'PY'
-import os
-print(os.path.realpath("drivers/kernelsu"))
-PY
-)"
+            real_path="$(python3 -c 'import os; print(os.path.realpath("drivers/kernelsu"))')"
             rel_path="${real_path#${PWD}/}"
             sed "s|drivers/kernelsu/|${rel_path}/|g" ci_assets/ksu_kprobe_fallback.patch > /tmp/ksu_kprobe_fallback.patch
             if git apply --reverse --check --unsafe-paths /tmp/ksu_kprobe_fallback.patch; then
