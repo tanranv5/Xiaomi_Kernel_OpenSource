@@ -118,92 +118,6 @@ jobs:
           # SukiSU 官方脚本
           curl -fsSL "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/${ref}/kernel/setup.sh" | bash -s "$mode"
 
-          # 应用 manual hook 补丁（4.14）
-          patch_url="https://raw.githubusercontent.com/rksuorg/kernel_patches/master/manual_hook/kernel-4.14.patch"
-          curl -fsSL "$patch_url" -o /tmp/ksu_manual_hook.patch
-          if git apply --reverse --check /tmp/ksu_manual_hook.patch; then
-            echo "manual hook patch already applied"
-          elif git apply --check /tmp/ksu_manual_hook.patch; then
-            git apply /tmp/ksu_manual_hook.patch
-          else
-            echo "manual hook patch not applicable, skip"
-          fi
-
-          # 补齐 manual hook 适配符号，避免链接错误
-          if [ -d "common/drivers" ]; then
-            ksu_dir="common/drivers/kernelsu"
-          else
-            ksu_dir="drivers/kernelsu"
-          fi
-
-          cat > "${ksu_dir}/manual_hook_adapters.c" <<'EOF'
-          #include <linux/compiler.h>
-          #include <linux/cred.h>
-          #include <linux/err.h>
-          #include <linux/fs.h>
-          #include <linux/namei.h>
-          #include <linux/printk.h>
-          #include <linux/string.h>
-          #include <linux/version.h>
-
-          #include "allowlist.h"
-          #include "app_profile.h"
-          #include "ksud.h"
-
-          struct user_arg_ptr;
-          int ksu_handle_execveat_ksud(int *fd, struct filename **filename_ptr,
-                                       struct user_arg_ptr *argv,
-                                       struct user_arg_ptr *envp, int *flags);
-
-          // 弱符号兜底，避免与 SukiSU 自带实现重复定义
-          bool ksu_execveat_hook __read_mostly __weak = true;
-          bool ksu_vfs_read_hook __read_mostly __weak = false;
-          bool ksu_input_hook __read_mostly __weak = true;
-
-          int __weak ksu_handle_execveat(int *fd, struct filename **filename_ptr,
-                                         void *argv, void *envp, int *flags)
-          {
-              struct user_arg_ptr *argv_ptr = (struct user_arg_ptr *)argv;
-              struct user_arg_ptr *envp_ptr = (struct user_arg_ptr *)envp;
-
-              ksu_handle_execveat_ksud(fd, filename_ptr, argv_ptr, envp_ptr, flags);
-
-              if (!ksu_is_allow_uid_for_current(current_uid().val)) {
-                  return 0;
-              }
-              if (!filename_ptr || !*filename_ptr || IS_ERR(*filename_ptr)) {
-                  return 0;
-              }
-
-              if (!strcmp((*filename_ptr)->name, "/system/bin/su")) {
-                  struct filename *newf = getname_kernel(KSUD_PATH);
-                  if (!IS_ERR(newf)) {
-                      putname(*filename_ptr);
-                      *filename_ptr = newf;
-                      escape_with_root_profile();
-                  }
-              }
-
-              return 0;
-          }
-
-          int __weak ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,
-                                                  void *argv, void *envp, int *flags)
-          {
-              return 0;
-          }
-
-          int __weak ksu_handle_vfs_read(struct file **file_ptr, char __user **buf_ptr,
-                                         size_t *count_ptr, loff_t **pos)
-          {
-              return 0;
-          }
-          EOF
-
-          if ! grep -q "manual_hook_adapters.o" "${ksu_dir}/Kbuild"; then
-            echo "kernelsu-objs += manual_hook_adapters.o" >> "${ksu_dir}/Kbuild"
-          fi
-
       - name: 修补 KSU kprobe 符号回退
         id: ksu_kprobe_fallback
         run: |
@@ -297,13 +211,13 @@ jobs:
                   kp->symbol_name = syms[i];
                   ret = register_kprobe(kp);
                   if (!ret) {
-                      pr_info(\"ksud: %s kprobe -> %s\\n\", tag, syms[i]);
+                      pr_info("ksud: %s kprobe -> %s\n", tag, syms[i]);
                       return 0;
                   }
-                  pr_warn(\"ksud: %s kprobe %s failed: %d\\n\", tag, syms[i], ret);
+                  pr_warn("ksud: %s kprobe %s failed: %d\n", tag, syms[i], ret);
               }
 
-              pr_err(\"ksud: %s kprobe all candidates failed\\n\", tag);
+              pr_err("ksud: %s kprobe all candidates failed\n", tag);
               return ret;
           }
 
@@ -319,13 +233,13 @@ jobs:
                   rp->kp.symbol_name = syms[i];
                   ret = register_kretprobe(rp);
                   if (!ret) {
-                      pr_info(\"ksud: %s kretprobe -> %s\\n\", tag, syms[i]);
+                      pr_info("ksud: %s kretprobe -> %s\n", tag, syms[i]);
                       return 0;
                   }
-                  pr_warn(\"ksud: %s kretprobe %s failed: %d\\n\", tag, syms[i], ret);
+                  pr_warn("ksud: %s kretprobe %s failed: %d\n", tag, syms[i], ret);
               }
 
-              pr_err(\"ksud: %s kretprobe all candidates failed\\n\", tag);
+              pr_err("ksud: %s kretprobe all candidates failed\n", tag);
               return ret;
           }
           """
@@ -372,13 +286,13 @@ jobs:
                   kp->symbol_name = syms[i];
                   ret = register_kprobe(kp);
                   if (!ret) {
-                      pr_info(\"ksu: %s kprobe -> %s\\n\", tag, syms[i]);
+                      pr_info("ksu: %s kprobe -> %s\n", tag, syms[i]);
                       return 0;
                   }
-                  pr_warn(\"ksu: %s kprobe %s failed: %d\\n\", tag, syms[i], ret);
+                  pr_warn("ksu: %s kprobe %s failed: %d\n", tag, syms[i], ret);
               }
 
-              pr_err(\"ksu: %s kprobe all candidates failed\\n\", tag);
+              pr_err("ksu: %s kprobe all candidates failed\n", tag);
               return ret;
           }
           """
@@ -416,16 +330,13 @@ jobs:
           rm -f .scmversion
 
           if [ "$WITH_SUKISU" = "on" ]; then
-            # non-GKI 使用 manual hook
+            # non-GKI 使用 kprobe
             sed -i -E '/^CONFIG_KSU=/d' "${DEFCONFIG_PATH}"
             sed -i -E '/^# CONFIG_KSU is not set/d' "${DEFCONFIG_PATH}"
-            sed -i -E '/^CONFIG_KSU_MANUAL_HOOK/d' "${DEFCONFIG_PATH}"
-            sed -i -E '/^# CONFIG_KSU_MANUAL_HOOK is not set/d' "${DEFCONFIG_PATH}"
             sed -i -E '/^CONFIG_KSU_MANUAL_SU/d' "${DEFCONFIG_PATH}"
             sed -i -E '/^# CONFIG_KSU_MANUAL_SU is not set/d' "${DEFCONFIG_PATH}"
             printf '%s\n' \
               'CONFIG_KSU=y' \
-              'CONFIG_KSU_MANUAL_HOOK=y' \
               '# CONFIG_KSU_MANUAL_SU is not set' \
               'CONFIG_KPROBES=y' \
               'CONFIG_KRETPROBES=y' \
@@ -443,9 +354,8 @@ jobs:
           make O=out "$DEFCONFIG"
 
           if [ "$WITH_SUKISU" = "on" ]; then
-            # KernelSU：manual hook 路线
+            # KernelSU：kprobe 路线
             ./scripts/config --file out/.config -e KSU || true
-            ./scripts/config --file out/.config -e KSU_MANUAL_HOOK || true
             ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
             ./scripts/config --file out/.config -e KPROBES || true
             ./scripts/config --file out/.config -e KRETPROBES || true
@@ -480,9 +390,8 @@ jobs:
           make O=out olddefconfig
 
           if [ "$WITH_SUKISU" = "on" ]; then
-            # olddefconfig 后确认 manual hook 仍保持开启
+            # olddefconfig 后确认 kprobe 仍保持开启
             ./scripts/config --file out/.config -e KSU || true
-            ./scripts/config --file out/.config -e KSU_MANUAL_HOOK || true
             ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
             ./scripts/config --file out/.config -e KPROBES || true
             ./scripts/config --file out/.config -e KRETPROBES || true
@@ -503,11 +412,6 @@ jobs:
             ./scripts/config --file out/.config --set-str LOCALVERSION "-perf+-tanran" || true
 
             make O=out olddefconfig
-
-            if ! grep -q '^CONFIG_KSU_MANUAL_HOOK=y' out/.config; then
-              echo "CONFIG_KSU_MANUAL_HOOK 未开启，停止构建"
-              exit 1
-            fi
           fi
 
           # 保持默认版本字符串，避免 vendor 模块 vermagic 不匹配（例如 Wi-Fi 驱动）
@@ -675,8 +579,7 @@ jobs:
             ls -l out/arch/arm64/boot/Image.gz-dtb out/arch/arm64/boot/Image.gz out/arch/arm64/boot/dts/qcom/trinket.dtb 2>&1 || true
             ls -l dist/Image.gz-dtb dist/AnyKernel3-laurus-${{ github.run_id }}.zip dist/boot.img 2>&1 || true
             echo
-            echo "==== build.log errors (tail 200) ===="
-            grep -nE "error:|fatal error:" build.log 2>&1 | tail -n 200 || true
+            echo "==== build.log errors (tail 200) ===="n            grep -nE "error:|fatal error:" build.log 2>&1 | tail -n 200 || true
             echo
             echo "==== make failures (tail 120) ===="
             grep -nE "make(\[[0-9]+\])?: \*\*\*|make: \*\*\*|Error [0-9]+" build.log 2>&1 | tail -n 120 || true
