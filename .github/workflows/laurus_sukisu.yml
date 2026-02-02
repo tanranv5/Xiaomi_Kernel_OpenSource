@@ -199,6 +199,16 @@ jobs:
             echo "kernelsu-objs += manual_hook_adapters.o" >> "${ksu_dir}/Kbuild"
           fi
 
+      - name: 修补 KSU kprobe 符号回退
+        id: ksu_kprobe_fallback
+        run: |
+          set -euxo pipefail
+          if [ -d "common/drivers/kernelsu" ]; then
+            git apply --directory=common ci_assets/ksu_kprobe_fallback.patch
+          else
+            git apply ci_assets/ksu_kprobe_fallback.patch
+          fi
+
       - name: 配置 defconfig
         id: config
         run: |
