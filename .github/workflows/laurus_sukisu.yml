@@ -509,7 +509,15 @@ jobs:
 
           # 使用 stock boot 模板重打（避免刷机卡 fastboot）
           test -f ci_assets/stock_boot.img.gz.b64
-          base64 -d ci_assets/stock_boot.img.gz.b64 | gzip -d > dist/stock_boot.img
+          python3 - <<'PY'
+          import base64
+          import gzip
+          from pathlib import Path
+
+          data = Path("ci_assets/stock_boot.img.gz.b64").read_text()
+          raw = base64.b64decode("".join(data.split()))
+          Path("dist/stock_boot.img").write_bytes(gzip.decompress(raw))
+          PY
 
           rm -rf repack
           mkdir -p repack/stock
