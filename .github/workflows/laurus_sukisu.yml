@@ -514,9 +514,15 @@ jobs:
           import gzip
           from pathlib import Path
 
-          data = Path("ci_assets/stock_boot.img.gz.b64").read_text()
-          raw = base64.b64decode("".join(data.split()))
-          Path("dist/stock_boot.img").write_bytes(gzip.decompress(raw))
+          path = Path("ci_assets/stock_boot.img.gz.b64")
+          raw = path.read_bytes()
+          # 如果文件本身已是 gzip（二进制），直接解压；否则当作 base64 文本解码
+          if raw[:2] == b"\x1f\x8b":
+              data = raw
+          else:
+              text = raw.decode("utf-8", errors="ignore")
+              data = base64.b64decode("".join(text.split()))
+          Path("dist/stock_boot.img").write_bytes(gzip.decompress(data))
           PY
 
           rm -rf repack
