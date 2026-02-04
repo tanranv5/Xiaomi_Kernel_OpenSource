@@ -115,89 +115,7 @@ jobs:
           # SukiSU 官方脚本
           curl -fsSL "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/${ref}/kernel/setup.sh" | bash -s "$mode"
 
-          # 应用 manual hook 补丁（4.14）
-          patch_url="https://raw.githubusercontent.com/rksuorg/kernel_patches/master/manual_hook/kernel-4.14.patch"
-          curl -fsSL "$patch_url" -o /tmp/ksu_manual_hook.patch
-          if git apply --reverse --check /tmp/ksu_manual_hook.patch; then
-            echo "manual hook patch already applied"
-          else
-            git apply /tmp/ksu_manual_hook.patch
-          fi
-
-          # 补齐 manual hook 适配符号，避免链接错误
-          if [ -d "common/drivers" ]; then
-            ksu_dir="common/drivers/kernelsu"
-          else
-            ksu_dir="drivers/kernelsu"
-          fi
-
-          cat > "${ksu_dir}/manual_hook_adapters.c" <<'EOF'
-          #include <linux/compiler.h>
-          #include <linux/cred.h>
-          #include <linux/err.h>
-          #include <linux/fs.h>
-          #include <linux/namei.h>
-          #include <linux/printk.h>
-          #include <linux/string.h>
-          #include <linux/version.h>
-
-          #include "allowlist.h"
-          #include "app_profile.h"
-          #include "ksud.h"
-
-          struct user_arg_ptr;
-          int ksu_handle_execveat_ksud(int *fd, struct filename **filename_ptr,
-                                       struct user_arg_ptr *argv,
-                                       struct user_arg_ptr *envp, int *flags);
-
-          // 弱符号兜底，避免与 SukiSU 自带实现重复定义
-          bool ksu_execveat_hook __read_mostly __weak = true;
-          bool ksu_vfs_read_hook __read_mostly __weak = false;
-          bool ksu_input_hook __read_mostly __weak = true;
-
-          int __weak ksu_handle_execveat(int *fd, struct filename **filename_ptr,
-                                         void *argv, void *envp, int *flags)
-          {
-              struct user_arg_ptr *argv_ptr = (struct user_arg_ptr *)argv;
-              struct user_arg_ptr *envp_ptr = (struct user_arg_ptr *)envp;
-
-              ksu_handle_execveat_ksud(fd, filename_ptr, argv_ptr, envp_ptr, flags);
-
-              if (!ksu_is_allow_uid_for_current(current_uid().val)) {
-                  return 0;
-              }
-              if (!filename_ptr || !*filename_ptr || IS_ERR(*filename_ptr)) {
-                  return 0;
-              }
-
-              if (!strcmp((*filename_ptr)->name, "/system/bin/su")) {
-                  struct filename *newf = getname_kernel(KSUD_PATH);
-                  if (!IS_ERR(newf)) {
-                      putname(*filename_ptr);
-                      *filename_ptr = newf;
-                      escape_with_root_profile();
-                  }
-              }
-
-              return 0;
-          }
-
-          int __weak ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,
-                                                  void *argv, void *envp, int *flags)
-          {
-              return 0;
-          }
-
-          int __weak ksu_handle_vfs_read(struct file **file_ptr, char __user **buf_ptr,
-                                         size_t *count_ptr, loff_t **pos)
-          {
-              return 0;
-          }
-          EOF
-
-          if ! grep -q "manual_hook_adapters.o" "${ksu_dir}/Kbuild"; then
-            echo "kernelsu-objs += manual_hook_adapters.o" >> "${ksu_dir}/Kbuild"
-          fi
+          # 方案 B：纯 kprobe（syscall hook），无需 manual hook 补丁/适配层
 
       - name: 配置 defconfig
         id: config
@@ -224,20 +142,24 @@ jobs:
           rm -f .scmversion
 
           if [ "$WITH_SUKISU" = "on" ]; then
-            # non-GKI 使用 manual hook
+            # 方案 B：使用 syscall hook（kprobe）
             sed -i -E '/^CONFIG_KSU=/d' "${DEFCONFIG_PATH}"
             sed -i -E '/^# CONFIG_KSU is not set/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^CONFIG_KSU_SYSCALL_HOOK/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^# CONFIG_KSU_SYSCALL_HOOK is not set/d' "${DEFCONFIG_PATH}"
             sed -i -E '/^CONFIG_KSU_MANUAL_HOOK/d' "${DEFCONFIG_PATH}"
             sed -i -E '/^# CONFIG_KSU_MANUAL_HOOK is not set/d' "${DEFCONFIG_PATH}"
             sed -i -E '/^CONFIG_KSU_MANUAL_SU/d' "${DEFCONFIG_PATH}"
             sed -i -E '/^# CONFIG_KSU_MANUAL_SU is not set/d' "${DEFCONFIG_PATH}"
             printf '%s\n' \
               'CONFIG_KSU=y' \
-              'CONFIG_KSU_MANUAL_HOOK=y' \
+              'CONFIG_KSU_SYSCALL_HOOK=y' \
+              '# CONFIG_KSU_MANUAL_HOOK is not set' \
               '# CONFIG_KSU_MANUAL_SU is not set' \
               'CONFIG_KPROBES=y' \
               'CONFIG_KRETPROBES=y' \
               'CONFIG_KPROBE_EVENTS=y' \
+              'CONFIG_HAVE_SYSCALL_TRACEPOINTS=y' \
               'CONFIG_KALLSYMS=y' \
               'CONFIG_KALLSYMS_ALL=y' \
               'CONFIG_SECURITYFS=y' \
@@ -251,13 +173,15 @@ jobs:
           make O=out "$DEFCONFIG"
 
           if [ "$WITH_SUKISU" = "on" ]; then
-            # KernelSU：manual hook 路线
+            # KernelSU：syscall hook 路线
             ./scripts/config --file out/.config -e KSU || true
-            ./scripts/config --file out/.config -e KSU_MANUAL_HOOK || true
+            ./scripts/config --file out/.config -e KSU_SYSCALL_HOOK || true
+            ./scripts/config --file out/.config -d KSU_MANUAL_HOOK || true
             ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
             ./scripts/config --file out/.config -e KPROBES || true
             ./scripts/config --file out/.config -e KRETPROBES || true
             ./scripts/config --file out/.config -e KPROBE_EVENTS || true
+            ./scripts/config --file out/.config -e HAVE_SYSCALL_TRACEPOINTS || true
             ./scripts/config --file out/.config -e KALLSYMS || true
             ./scripts/config --file out/.config -e KALLSYMS_ALL || true
             ./scripts/config --file out/.config -e SECURITYFS || true
@@ -288,13 +212,15 @@ jobs:
           make O=out olddefconfig
 
           if [ "$WITH_SUKISU" = "on" ]; then
-            # olddefconfig 后确认 manual hook 仍保持开启
+            # olddefconfig 后确认 syscall hook 仍保持开启
             ./scripts/config --file out/.config -e KSU || true
-            ./scripts/config --file out/.config -e KSU_MANUAL_HOOK || true
+            ./scripts/config --file out/.config -e KSU_SYSCALL_HOOK || true
+            ./scripts/config --file out/.config -d KSU_MANUAL_HOOK || true
             ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
             ./scripts/config --file out/.config -e KPROBES || true
             ./scripts/config --file out/.config -e KRETPROBES || true
             ./scripts/config --file out/.config -e KPROBE_EVENTS || true
+            ./scripts/config --file out/.config -e HAVE_SYSCALL_TRACEPOINTS || true
             ./scripts/config --file out/.config -e KALLSYMS || true
             ./scripts/config --file out/.config -e KALLSYMS_ALL || true
             ./scripts/config --file out/.config -e SECURITYFS || true
@@ -312,8 +238,8 @@ jobs:
 
             make O=out olddefconfig
 
-            if ! grep -q '^CONFIG_KSU_MANUAL_HOOK=y' out/.config; then
-              echo "CONFIG_KSU_MANUAL_HOOK 未开启，停止构建"
+            if ! grep -q '^CONFIG_KSU_SYSCALL_HOOK=y' out/.config; then
+              echo "CONFIG_KSU_SYSCALL_HOOK 未开启，停止构建"
               exit 1
             fi
           fi
