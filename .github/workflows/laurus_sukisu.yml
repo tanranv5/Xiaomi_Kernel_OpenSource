@@ -507,37 +507,25 @@ jobs:
           mkdir -p dist
           test -f out/arch/arm64/boot/Image.gz
 
+          # 使用 stock boot 模板重打（避免刷机卡 fastboot）
+          test -f ci_assets/stock_boot.img.gz.b64
+          base64 -d ci_assets/stock_boot.img.gz.b64 | gzip -d > dist/stock_boot.img
+
           rm -rf repack
-          mkdir -p repack/out
-          cp -f out/arch/arm64/boot/Image.gz repack/out/kernel
-          : > repack/out/ramdisk
+          mkdir -p repack/stock
 
-          test -f dist/dtb
-          cp -f dist/dtb repack/out/dtb
-          ls -lh dist/dtb repack/out/dtb
+          python3 tools/unpack_bootimg.py \
+            --boot_img dist/stock_boot.img \
+            --out repack/stock \
+            --format=mkbootimg > repack/mkbootimg_args
 
-          # 使用仓库自带 mkbootimg.py 生成 boot.img
-          test -f tools/mkbootimg.py
-
-          CMDLINE="console=ttyMSM0,115200n8 androidboot.hardware=qcom androidboot.console=ttyMSM0 androidboot.memcg=1 lpm_levels.sleep_disabled=1 video=vfb:640x400,bpp=32,memsize=3072000 msm_rtb.filter=0x237 service_locator.enable=1 swiotlb=1 earlycon=msm_geni_serial,0x4a90000 loop.max_part=7 cgroup.memory=nokmem,nosocket androidboot.selinux=enforcing buildvariant=user"
-
-          (cd repack && python3 ../tools/mkbootimg.py \
-            --header_version 2 \
-            --os_version 10.0.0 \
-            --os_patch_level 2021-09 \
-            --kernel out/kernel \
-            --ramdisk out/ramdisk \
-            --dtb out/dtb \
-            --pagesize 0x00001000 \
-            --base 0x00000000 \
-            --kernel_offset 0x00008000 \
-            --ramdisk_offset 0x01000000 \
-            --second_offset 0x00f00000 \
-            --tags_offset 0x00000100 \
-            --dtb_offset 0x0000000001f00000 \
-            --board "" \
-            --cmdline "$CMDLINE" \
-            -o ../dist/boot.img)
+          # 用 stock boot 参数重建，只替换 kernel
+          ARGS="$(cat repack/mkbootimg_args)"
+          python3 tools/mkbootimg.py $ARGS \
+            --kernel out/arch/arm64/boot/Image.gz \
+            --ramdisk repack/stock/ramdisk \
+            --dtb repack/stock/dtb \
+            -o dist/boot.img
 
           # laurus boot 分区固定 64MB，做一次 truncate 与 stock 对齐
           truncate -s 64M dist/boot.img
