@@ -506,6 +506,28 @@ jobs:
           set -euxo pipefail
           mkdir -p dist
           test -f out/arch/arm64/boot/Image.gz
+          cp -f out/arch/arm64/boot/Image.gz dist/Image.gz
+
+          # 确认内核包含 KernelSU（防止打包回 stock 内核）
+          python3 - <<'PY'
+          import gzip
+          import sys
+          from pathlib import Path
+
+          data = Path("dist/Image.gz").read_bytes()
+          if data[:2] == b"\x1f\x8b":
+            try:
+              data = gzip.decompress(data)
+            except Exception:
+              # 部分环境下 gzip 末尾附带数据，容错解压
+              import zlib
+              d = zlib.decompressobj(16 + zlib.MAX_WBITS)
+              data = d.decompress(data)
+          if b"KernelSU" not in data:
+            print("KernelSU string not found in dist/Image.gz")
+            sys.exit(1)
+          print("KernelSU string found in dist/Image.gz")
+          PY
 
           # 使用 stock boot 模板重打（避免刷机卡 fastboot）
           test -f ci_assets/stock_boot.img.gz.b64
@@ -540,6 +562,24 @@ jobs:
             --ramdisk repack/stock/ramdisk \
             --dtb repack/stock/dtb \
             -o dist/boot.img
+
+          # 校验 boot.img 确实使用了新内核
+          mkdir -p repack/check
+          python3 tools/unpack_bootimg.py \
+            --boot_img dist/boot.img \
+            --out repack/check \
+            --format=mkbootimg -0 >/dev/null
+          python3 - <<'PY'
+          import hashlib
+          from pathlib import Path
+
+          def sha(path):
+            return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+          if sha("repack/check/kernel") != sha("dist/Image.gz"):
+            raise SystemExit("boot.img kernel mismatch with dist/Image.gz")
+          print("boot.img kernel matches dist/Image.gz")
+          PY
 
           # laurus boot 分区固定 64MB，做一次 truncate 与 stock 对齐
           truncate -s 64M dist/boot.img
@@ -579,7 +619,7 @@ jobs:
             echo "==== artifacts existence ===="
             ls -l build.log 2>&1 || true
             ls -l out/arch/arm64/boot/Image.gz-dtb out/arch/arm64/boot/Image.gz out/arch/arm64/boot/dts/qcom/trinket.dtb 2>&1 || true
-            ls -l dist/Image.gz-dtb dist/AnyKernel3-laurus-${{ github.run_id }}.zip dist/boot.img 2>&1 || true
+            ls -l dist/Image.gz dist/Image.gz-dtb dist/AnyKernel3-laurus-${{ github.run_id }}.zip dist/boot.img 2>&1 || true
             echo
             echo "==== build.log errors (tail 200) ===="
             grep -nE "error:|fatal error:" build.log 2>&1 | tail -n 200 || true
@@ -630,6 +670,7 @@ jobs:
             out/arch/arm64/boot/Image.gz-dtb
             out/arch/arm64/boot/Image.gz
             out/arch/arm64/boot/dts/qcom/trinket.dtb
+            dist/Image.gz
             dist/Image.gz-dtb
             dist/AnyKernel3-laurus-${{ github.run_id }}.zip
             dist/boot.img
