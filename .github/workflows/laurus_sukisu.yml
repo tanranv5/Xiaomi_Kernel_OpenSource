@@ -387,6 +387,19 @@ jobs:
               "proc_create(\\\"ksu_status\\\", 0444, NULL, &ksu_status_fops);\\n    INIT_WORK(&stop_init_rc_hook_work, do_stop_init_rc_hook);",
           )
 
+          if "proc_create(\"ksu_status\"" not in ksud_text:
+            ksud_text = replace_call(
+                ksud_text,
+                r"(void\\s+ksu_ksud_init\\(\\s*void\\s*\\)\\s*\\{)",
+                "\\1\\n    proc_create(\\\"ksu_status\\\", 0444, NULL, &ksu_status_fops);",
+            )
+          if "proc_create(\"ksu_status\"" not in ksud_text:
+            ksud_text = replace_call(
+                ksud_text,
+                r"(void\\s+ksu_ksud_init\\(\\)\\s*\\{)",
+                "\\1\\n    proc_create(\\\"ksu_status\\\", 0444, NULL, &ksu_status_fops);",
+            )
+
           ksud.write_text(ksud_text)
 
           if supercalls.exists():
