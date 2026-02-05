@@ -401,7 +401,7 @@ jobs:
                   inserted = True
                 break
             if inserted:
-              ksud_text = "\\n".join(lines) + "\\n"
+              ksud_text = "\n".join(lines) + "\n"
 
           ksud.write_text(ksud_text)
 
