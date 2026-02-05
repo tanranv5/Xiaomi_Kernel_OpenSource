@@ -183,7 +183,7 @@ jobs:
           ksud_text = ensure_include(ksud_text, "#include <linux/seq_file.h>")
           ksud_text = ensure_include(ksud_text, "#include <linux/module.h>")
 
-          ksud_block = """
+          ksu_debug_block = """
           static int ksu_execve_kp_ret = -999;
           static int ksu_sys_read_kp_ret = -999;
           static int ksu_sys_fstat_kp_ret = -999;
@@ -223,7 +223,9 @@ jobs:
               .llseek = seq_lseek,
               .release = single_release,
           };
+          """
 
+          ksud_block = """
           static const char *const ksu_sys_read_syms[] = {
               SYS_READ_SYMBOL,
               \"sys_read\",
@@ -293,6 +295,7 @@ jobs:
           }
           """
 
+          ksud_text = insert_after_anchor(ksud_text, "bool ksu_boot_completed __read_mostly = false;", ksu_debug_block)
           ksud_text = insert_after_anchor(ksud_text, "static struct kprobe input_event_kp", ksud_block)
 
           ksud_text = replace_call(
