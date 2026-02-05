@@ -534,11 +534,12 @@ jobs:
             --format=mkbootimg -0 > repack/mkbootimg_args
 
           # 用 stock boot 参数重建，只替换 kernel（用 -0 避免 cmdline 被拆分）
-          xargs -0 python3 tools/mkbootimg.py -o dist/boot.img \
+          mapfile -d '' -t MKBOOTIMG_ARGS < repack/mkbootimg_args
+          python3 tools/mkbootimg.py "${MKBOOTIMG_ARGS[@]}" \
             --kernel out/arch/arm64/boot/Image.gz \
             --ramdisk repack/stock/ramdisk \
             --dtb repack/stock/dtb \
-            < repack/mkbootimg_args
+            -o dist/boot.img
 
           # laurus boot 分区固定 64MB，做一次 truncate 与 stock 对齐
           truncate -s 64M dist/boot.img
