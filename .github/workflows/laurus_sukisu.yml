@@ -122,19 +122,37 @@ jobs:
         id: ksu_kprobe_fallback
         run: |
           set -euxo pipefail
-          if [ -f "KernelSU/kernel/ksud.c" ]; then
-            ksu_dir="KernelSU/kernel"
-          elif [ -f "drivers/kernelsu/ksud.c" ]; then
-            ksu_dir="drivers/kernelsu"
-          elif [ -f "common/drivers/kernelsu/ksud.c" ]; then
-            ksu_dir="common/drivers/kernelsu"
-          elif [ -L "drivers/kernelsu" ]; then
-            ksu_dir="$(python3 -c 'import os; print(os.path.realpath("drivers/kernelsu"))')"
-          else
+          ksu_dirs=()
+          add_ksu_dir() {
+            local d="$1"
+            if [ -f "${d}/ksud.c" ]; then
+              local real
+              real="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "${d}")"
+              for e in "${ksu_dirs[@]:-}"; do
+                if [ "${e}" = "${real}" ]; then
+                  return
+                fi
+              done
+              ksu_dirs+=("${real}")
+            fi
+          }
+
+          add_ksu_dir "KernelSU/kernel"
+          add_ksu_dir "drivers/kernelsu"
+          add_ksu_dir "common/drivers/kernelsu"
+          if [ -L "drivers/kernelsu" ]; then
+            add_ksu_dir "drivers/kernelsu"
+          fi
+
+          if [ "${#ksu_dirs[@]}" -eq 0 ]; then
             echo "ksu source dir not found"
             exit 1
           fi
 
+          echo "ksu candidate dirs:"
+          printf ' - %s\n' "${ksu_dirs[@]}"
+
+          for ksu_dir in "${ksu_dirs[@]}"; do
           python3 - "$ksu_dir" <<'PY'
           import re
           import sys
@@ -143,6 +161,9 @@ jobs:
           base = Path(sys.argv[1])
           ksud = base / "ksud.c"
           supercalls = base / "supercalls.c"
+          if not ksud.exists():
+            print(f"skip: {ksud} not found")
+            raise SystemExit(0)
 
           def ensure_include(text, header):
             if header in text:
@@ -262,13 +283,13 @@ jobs:
                   kp->symbol_name = syms[i];
                   ret = register_kprobe(kp);
                   if (!ret) {
-                      pr_info("ksud: %s kprobe -> %s\n", tag, syms[i]);
+                      pr_info(\"ksud: %s kprobe -> %s\\n\", tag, syms[i]);
                       return 0;
                   }
-                  pr_warn("ksud: %s kprobe %s failed: %d\n", tag, syms[i], ret);
+                  pr_warn(\"ksud: %s kprobe %s failed: %d\\n\", tag, syms[i], ret);
               }
 
-              pr_err("ksud: %s kprobe all candidates failed\n", tag);
+              pr_err(\"ksud: %s kprobe all candidates failed\\n\", tag);
               return ret;
           }
 
@@ -284,13 +305,13 @@ jobs:
                   rp->kp.symbol_name = syms[i];
                   ret = register_kretprobe(rp);
                   if (!ret) {
-                      pr_info("ksud: %s kretprobe -> %s\n", tag, syms[i]);
+                      pr_info(\"ksud: %s kretprobe -> %s\\n\", tag, syms[i]);
                       return 0;
                   }
-                  pr_warn("ksud: %s kretprobe %s failed: %d\n", tag, syms[i], ret);
+                  pr_warn(\"ksud: %s kretprobe %s failed: %d\\n\", tag, syms[i], ret);
               }
 
-              pr_err("ksud: %s kretprobe all candidates failed\n", tag);
+              pr_err(\"ksud: %s kretprobe all candidates failed\\n\", tag);
               return ret;
           }
           """
@@ -363,54 +384,64 @@ jobs:
           ksud_text = replace_call(
               ksud_text,
               r"INIT_WORK\\(\\s*&stop_init_rc_hook_work\\s*,\\s*do_stop_init_rc_hook\\s*\\)\\s*;",
-              "proc_create(\"ksu_status\", 0444, NULL, &ksu_status_fops);\\n    INIT_WORK(&stop_init_rc_hook_work, do_stop_init_rc_hook);",
+              "proc_create(\\\"ksu_status\\\", 0444, NULL, &ksu_status_fops);\\n    INIT_WORK(&stop_init_rc_hook_work, do_stop_init_rc_hook);",
           )
 
           ksud.write_text(ksud_text)
 
-          super_text = supercalls.read_text()
-          super_text = ensure_include(super_text, "#include <linux/kernel.h>")
+          if supercalls.exists():
+            super_text = supercalls.read_text()
+            super_text = ensure_include(super_text, "#include <linux/kernel.h>")
 
-          super_block = """
-          static const char *const ksu_reboot_syms[] = {
-              REBOOT_SYMBOL,
-              \"sys_reboot\",
-              \"__se_sys_reboot\",
-          };
+            super_block = """
+            static const char *const ksu_reboot_syms[] = {
+                REBOOT_SYMBOL,
+                \"sys_reboot\",
+                \"__se_sys_reboot\",
+            };
 
-          static int register_kprobe_fallback(struct kprobe *kp,
-                                              const char *const *syms,
-                                              size_t count,
-                                              const char *tag)
-          {
-              size_t i;
-              int ret = -ENOENT;
+            static int register_kprobe_fallback(struct kprobe *kp,
+                                                const char *const *syms,
+                                                size_t count,
+                                                const char *tag)
+            {
+                size_t i;
+                int ret = -ENOENT;
 
-              for (i = 0; i < count; i++) {
-                  kp->symbol_name = syms[i];
-                  ret = register_kprobe(kp);
-                  if (!ret) {
-                      pr_info("ksu: %s kprobe -> %s\n", tag, syms[i]);
-                      return 0;
-                  }
-                  pr_warn("ksu: %s kprobe %s failed: %d\n", tag, syms[i], ret);
-              }
+                for (i = 0; i < count; i++) {
+                    kp->symbol_name = syms[i];
+                    ret = register_kprobe(kp);
+                    if (!ret) {
+                        pr_info("ksu: %s kprobe -> %s\n", tag, syms[i]);
+                        return 0;
+                    }
+                    pr_warn("ksu: %s kprobe %s failed: %d\n", tag, syms[i], ret);
+                }
 
-              pr_err("ksu: %s kprobe all candidates failed\n", tag);
-              return ret;
-          }
-          """
-          super_text = insert_after_anchor(super_text, "static struct kprobe reboot_kp", super_block)
-          super_text = replace_call(
-              super_text,
-              r"int\s+rc\s*=\s*register_kprobe\(\s*&reboot_kp\s*\)\s*;",
-              "int rc = register_kprobe_fallback(&reboot_kp, ksu_reboot_syms, ARRAY_SIZE(ksu_reboot_syms), \"reboot\");",
-          )
-          supercalls.write_text(super_text)
+                pr_err("ksu: %s kprobe all candidates failed\n", tag);
+                return ret;
+            }
+            """
+            super_text = insert_after_anchor(super_text, "static struct kprobe reboot_kp", super_block)
+            super_text = replace_call(
+                super_text,
+                r"int\s+rc\s*=\s*register_kprobe\(\s*&reboot_kp\s*\)\s*;",
+                "int rc = register_kprobe_fallback(&reboot_kp, ksu_reboot_syms, ARRAY_SIZE(ksu_reboot_syms), \"reboot\");",
+            )
+            supercalls.write_text(super_text)
+          else:
+            print(f"skip: {supercalls} not found")
           PY
+          done
 
           mkdir -p ci_logs
-          cp -f "$ksu_dir/ksud.c" ci_logs/ksud.c
+          i=0
+          for ksu_dir in "${ksu_dirs[@]}"; do
+            if [ -f "${ksu_dir}/ksud.c" ]; then
+              cp -f "${ksu_dir}/ksud.c" "ci_logs/ksud.${i}.c"
+              i=$((i+1))
+            fi
+          done
 
       - name: 配置 defconfig
         id: config
@@ -732,6 +763,20 @@ jobs:
               echo "System.map not found"
             fi
             echo
+            echo "==== ksud.o compile lines ===="
+            if [ -f build.log ]; then
+              grep -nE "ksud\\.o" build.log 2>&1 | head -n 50 || true
+            else
+              echo "build.log not found"
+            fi
+            echo
+            echo "==== ksu_status strings in Image.gz ===="
+            if [ -f out/arch/arm64/boot/Image.gz ]; then
+              (gzip -dc out/arch/arm64/boot/Image.gz 2>/dev/null | strings | grep -E "ksu_status|init_rc_seen|last_rc_path" | head -n 50) || true
+            else
+              echo "Image.gz not found"
+            fi
+            echo
             echo "==== artifacts existence ===="
             ls -l build.log 2>&1 || true
             ls -l out/arch/arm64/boot/Image.gz-dtb out/arch/arm64/boot/Image.gz out/arch/arm64/boot/dts/qcom/trinket.dtb 2>&1 || true
@@ -782,7 +827,7 @@ jobs:
           path: |
             build.log
             ci_logs/latest.txt
-            ci_logs/ksud.c
+            ci_logs/ksud*.c
             out/.config
             out/System.map
             out/arch/arm64/boot/System.map
