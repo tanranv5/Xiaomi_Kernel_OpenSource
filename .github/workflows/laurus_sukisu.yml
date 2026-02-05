@@ -185,18 +185,24 @@ jobs:
               SYS_READ_SYMBOL,
               \"sys_read\",
               \"__se_sys_read\",
+              \"SyS_read\",
+              \"ksys_read\",
           };
 
           static const char *const ksu_sys_execve_syms[] = {
               SYS_EXECVE_SYMBOL,
               \"sys_execve\",
               \"__se_sys_execve\",
+              \"SyS_execve\",
+              \"do_execveat_common\",
           };
 
           static const char *const ksu_sys_fstat_syms[] = {
               SYS_FSTAT_SYMBOL,
               \"sys_newfstat\",
               \"__se_sys_newfstat\",
+              \"SyS_newfstat\",
+              \"vfs_fstat\",
           };
 
           static int register_kprobe_fallback(struct kprobe *kp,
@@ -260,6 +266,16 @@ jobs:
               ksud_text,
               r"ret\s*=\s*register_kretprobe\(\s*&sys_fstat_kp\s*\)\s*;",
               "ret = register_kretprobe_fallback(&sys_fstat_kp, ksu_sys_fstat_syms, ARRAY_SIZE(ksu_sys_fstat_syms), \"sys_fstat\");",
+          )
+
+          ksud_text = replace_call(
+              ksud_text,
+              r"if\s*\\(\\s*strcmp\\(\\s*dpath,\\s*\\\"/system/etc/init/hw/init\\.rc\\\"\\s*\\)\\s*\\)\\s*\\{\\s*return\\s+false;\\s*\\}",
+              "if (strcmp(dpath, \\\"/system/etc/init/hw/init.rc\\\") &&\\n"
+              "        strcmp(dpath, \\\"/system/etc/init/init.rc\\\") &&\\n"
+              "        strcmp(dpath, \\\"/init.rc\\\")) {\\n"
+              "        return false;\\n"
+              "    }",
           )
 
           ksud.write_text(ksud_text)
@@ -616,6 +632,15 @@ jobs:
               echo "out/.config not found"
             fi
             echo
+            echo "==== System.map syscall symbols ===="
+            if [ -f out/System.map ]; then
+              grep -E "T.*(sys_read|SyS_read|sys_execve|SyS_execve|sys_newfstat|SyS_newfstat)" out/System.map 2>&1 | head -n 50 || true
+            elif [ -f out/arch/arm64/boot/System.map ]; then
+              grep -E "T.*(sys_read|SyS_read|sys_execve|SyS_execve|sys_newfstat|SyS_newfstat)" out/arch/arm64/boot/System.map 2>&1 | head -n 50 || true
+            else
+              echo "System.map not found"
+            fi
+            echo
             echo "==== artifacts existence ===="
             ls -l build.log 2>&1 || true
             ls -l out/arch/arm64/boot/Image.gz-dtb out/arch/arm64/boot/Image.gz out/arch/arm64/boot/dts/qcom/trinket.dtb 2>&1 || true
@@ -667,6 +692,8 @@ jobs:
             build.log
             ci_logs/latest.txt
             out/.config
+            out/System.map
+            out/arch/arm64/boot/System.map
             out/arch/arm64/boot/Image.gz-dtb
             out/arch/arm64/boot/Image.gz
             out/arch/arm64/boot/dts/qcom/trinket.dtb
