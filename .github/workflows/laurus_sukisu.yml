@@ -270,10 +270,21 @@ jobs:
 
           ksud_text = replace_call(
               ksud_text,
+              r"if\s*\\(\\s*strcmp\\(\\s*short_name,\\s*\\\"init\\.rc\\\"\\s*\\)\\s*\\)\\s*\\{\\s*// we are only interest `init\\.rc` file name file\\s*return\\s+false;\\s*\\}",
+              "if (!strstr(short_name, \\\".rc\\\")) {\\n"
+              "        return false;\\n"
+              "    }",
+          )
+
+          ksud_text = replace_call(
+              ksud_text,
               r"if\s*\\(\\s*strcmp\\(\\s*dpath,\\s*\\\"/system/etc/init/hw/init\\.rc\\\"\\s*\\)\\s*\\)\\s*\\{\\s*return\\s+false;\\s*\\}",
-              "if (strcmp(dpath, \\\"/system/etc/init/hw/init.rc\\\") &&\\n"
-              "        strcmp(dpath, \\\"/system/etc/init/init.rc\\\") &&\\n"
-              "        strcmp(dpath, \\\"/init.rc\\\")) {\\n"
+              "if (strncmp(dpath, \\\"/system/etc/init/\\\", 17) &&\\n"
+              "        strncmp(dpath, \\\"/vendor/etc/init/\\\", 17) &&\\n"
+              "        strncmp(dpath, \\\"/product/etc/init/\\\", 18) &&\\n"
+              "        strncmp(dpath, \\\"/system_ext/etc/init/\\\", 22) &&\\n"
+              "        strncmp(dpath, \\\"/odm/etc/init/\\\", 14) &&\\n"
+              "        strncmp(dpath, \\\"/oem/etc/init/\\\", 14)) {\\n"
               "        return false;\\n"
               "    }",
           )
