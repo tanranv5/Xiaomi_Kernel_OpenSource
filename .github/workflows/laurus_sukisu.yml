@@ -388,26 +388,20 @@ jobs:
           )
 
           if "proc_create(\"ksu_status\"" not in ksud_text:
+            lines = ksud_text.splitlines()
             inserted = False
-            for marker in (
-                "void ksu_ksud_init(void)\\n{",
-                "void ksu_ksud_init(void)\\r\\n{",
-                "void ksu_ksud_init(void){",
-            ):
-                if marker in ksud_text:
-                    ksud_text = ksud_text.replace(
-                        marker,
-                        marker + "\\n    proc_create(\\\"ksu_status\\\", 0444, NULL, &ksu_status_fops);",
-                        1,
-                    )
-                    inserted = True
-                    break
-            if not inserted:
-                ksud_text = replace_call(
-                    ksud_text,
-                    r"(void\\s+ksu_ksud_init\\(\\s*void\\s*\\)\\s*\\{)",
-                    "\\1\\n    proc_create(\\\"ksu_status\\\", 0444, NULL, &ksu_status_fops);",
-                )
+            for i, line in enumerate(lines):
+              if line.strip() == "void ksu_ksud_init(void)":
+                j = i + 1
+                while j < len(lines) and "{" not in lines[j]:
+                  j += 1
+                if j < len(lines):
+                  indent = lines[j][:len(lines[j]) - len(lines[j].lstrip())]
+                  lines.insert(j + 1, indent + "    proc_create(\\\"ksu_status\\\", 0444, NULL, &ksu_status_fops);")
+                  inserted = True
+                break
+            if inserted:
+              ksud_text = "\\n".join(lines) + "\\n"
 
           ksud.write_text(ksud_text)
 
@@ -790,6 +784,13 @@ jobs:
               grep -nE "ksud\\.o" build.log 2>&1 | head -n 50 || true
             else
               echo "build.log not found"
+            fi
+            echo
+            echo "==== ksud.c proc_create ===="
+            if ls ci_logs/ksud*.c >/dev/null 2>&1; then
+              grep -n "proc_create(\\\"ksu_status\\\"" ci_logs/ksud*.c 2>&1 | head -n 20 || true
+            else
+              echo "ci_logs/ksud*.c not found"
             fi
             echo
             echo "==== ksu_status strings in Image.gz ===="
