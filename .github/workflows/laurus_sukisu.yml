@@ -388,17 +388,26 @@ jobs:
           )
 
           if "proc_create(\"ksu_status\"" not in ksud_text:
-            ksud_text = replace_call(
-                ksud_text,
-                r"(void\\s+ksu_ksud_init\\(\\s*void\\s*\\)\\s*\\{)",
-                "\\1\\n    proc_create(\\\"ksu_status\\\", 0444, NULL, &ksu_status_fops);",
-            )
-          if "proc_create(\"ksu_status\"" not in ksud_text:
-            ksud_text = replace_call(
-                ksud_text,
-                r"(void\\s+ksu_ksud_init\\(\\)\\s*\\{)",
-                "\\1\\n    proc_create(\\\"ksu_status\\\", 0444, NULL, &ksu_status_fops);",
-            )
+            inserted = False
+            for marker in (
+                "void ksu_ksud_init(void)\\n{",
+                "void ksu_ksud_init(void)\\r\\n{",
+                "void ksu_ksud_init(void){",
+            ):
+                if marker in ksud_text:
+                    ksud_text = ksud_text.replace(
+                        marker,
+                        marker + "\\n    proc_create(\\\"ksu_status\\\", 0444, NULL, &ksu_status_fops);",
+                        1,
+                    )
+                    inserted = True
+                    break
+            if not inserted:
+                ksud_text = replace_call(
+                    ksud_text,
+                    r"(void\\s+ksu_ksud_init\\(\\s*void\\s*\\)\\s*\\{)",
+                    "\\1\\n    proc_create(\\\"ksu_status\\\", 0444, NULL, &ksu_status_fops);",
+                )
 
           ksud.write_text(ksud_text)
 
