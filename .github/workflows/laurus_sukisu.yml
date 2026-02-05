@@ -179,8 +179,51 @@ jobs:
 
           ksud_text = ksud.read_text()
           ksud_text = ensure_include(ksud_text, "#include <linux/kernel.h>")
+          ksud_text = ensure_include(ksud_text, "#include <linux/proc_fs.h>")
+          ksud_text = ensure_include(ksud_text, "#include <linux/seq_file.h>")
+          ksud_text = ensure_include(ksud_text, "#include <linux/module.h>")
 
           ksud_block = """
+          static int ksu_execve_kp_ret = -999;
+          static int ksu_sys_read_kp_ret = -999;
+          static int ksu_sys_fstat_kp_ret = -999;
+          static int ksu_input_kp_ret = -999;
+          static int ksu_init_rc_seen = 0;
+          static char ksu_last_rc_path[256];
+
+          static void ksu_record_init_rc_path(const char *dpath)
+          {
+              if (!dpath) {
+                  return;
+              }
+              strlcpy(ksu_last_rc_path, dpath, sizeof(ksu_last_rc_path));
+              ksu_init_rc_seen = 1;
+          }
+
+          static int ksu_status_show(struct seq_file *m, void *v)
+          {
+              seq_printf(m, "execve_kp=%d\\n", ksu_execve_kp_ret);
+              seq_printf(m, "sys_read_kp=%d\\n", ksu_sys_read_kp_ret);
+              seq_printf(m, "sys_fstat_kp=%d\\n", ksu_sys_fstat_kp_ret);
+              seq_printf(m, "input_kp=%d\\n", ksu_input_kp_ret);
+              seq_printf(m, "init_rc_seen=%d\\n", ksu_init_rc_seen);
+              seq_printf(m, "last_rc_path=%s\\n", ksu_last_rc_path[0] ? ksu_last_rc_path : "(none)");
+              return 0;
+          }
+
+          static int ksu_status_open(struct inode *inode, struct file *file)
+          {
+              return single_open(file, ksu_status_show, NULL);
+          }
+
+          static const struct file_operations ksu_status_fops = {
+              .owner = THIS_MODULE,
+              .open = ksu_status_open,
+              .read = seq_read,
+              .llseek = seq_lseek,
+              .release = single_release,
+          };
+
           static const char *const ksu_sys_read_syms[] = {
               SYS_READ_SYMBOL,
               \"sys_read\",
@@ -259,13 +302,33 @@ jobs:
           )
           ksud_text = replace_call(
               ksud_text,
+              r"pr_info\\(\\s*\\\"ksud:\\s*execve_kp:\\s*%d\\\\n\\\"\\s*,\\s*ret\\s*\\)\\s*;",
+              "ksu_execve_kp_ret = ret;\\n    pr_info(\"ksud: execve_kp: %d\\n\", ret);",
+          )
+          ksud_text = replace_call(
+              ksud_text,
               r"ret\s*=\s*register_kprobe\(\s*&sys_read_kp\s*\)\s*;",
               "ret = register_kprobe_fallback(&sys_read_kp, ksu_sys_read_syms, ARRAY_SIZE(ksu_sys_read_syms), \"sys_read\");",
           )
           ksud_text = replace_call(
               ksud_text,
+              r"pr_info\\(\\s*\\\"ksud:\\s*sys_read_kp:\\s*%d\\\\n\\\"\\s*,\\s*ret\\s*\\)\\s*;",
+              "ksu_sys_read_kp_ret = ret;\\n    pr_info(\"ksud: sys_read_kp: %d\\n\", ret);",
+          )
+          ksud_text = replace_call(
+              ksud_text,
               r"ret\s*=\s*register_kretprobe\(\s*&sys_fstat_kp\s*\)\s*;",
               "ret = register_kretprobe_fallback(&sys_fstat_kp, ksu_sys_fstat_syms, ARRAY_SIZE(ksu_sys_fstat_syms), \"sys_fstat\");",
+          )
+          ksud_text = replace_call(
+              ksud_text,
+              r"pr_info\\(\\s*\\\"ksud:\\s*sys_fstat_kp:\\s*%d\\\\n\\\"\\s*,\\s*ret\\s*\\)\\s*;",
+              "ksu_sys_fstat_kp_ret = ret;\\n    pr_info(\"ksud: sys_fstat_kp: %d\\n\", ret);",
+          )
+          ksud_text = replace_call(
+              ksud_text,
+              r"pr_info\\(\\s*\\\"ksud:\\s*input_event_kp:\\s*%d\\\\n\\\"\\s*,\\s*ret\\s*\\)\\s*;",
+              "ksu_input_kp_ret = ret;\\n    pr_info(\"ksud: input_event_kp: %d\\n\", ret);",
           )
 
           ksud_text = replace_call(
@@ -287,6 +350,17 @@ jobs:
               "        strncmp(dpath, \\\"/oem/etc/init/\\\", 14)) {\\n"
               "        return false;\\n"
               "    }",
+          )
+          ksud_text = replace_call(
+              ksud_text,
+              r"return\\s+true\\s*;",
+              "ksu_record_init_rc_path(dpath);\\n    return true;",
+          )
+
+          ksud_text = replace_call(
+              ksud_text,
+              r"INIT_WORK\\(\\s*&stop_init_rc_hook_work\\s*,\\s*do_stop_init_rc_hook\\s*\\)\\s*;",
+              "proc_create(\"ksu_status\", 0444, NULL, &ksu_status_fops);\\n    INIT_WORK(&stop_init_rc_hook_work, do_stop_init_rc_hook);",
           )
 
           ksud.write_text(ksud_text)
