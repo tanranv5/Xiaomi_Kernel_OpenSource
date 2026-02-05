@@ -397,7 +397,7 @@ jobs:
                   j += 1
                 if j < len(lines):
                   indent = lines[j][:len(lines[j]) - len(lines[j].lstrip())]
-                  lines.insert(j + 1, indent + "    proc_create(\\\"ksu_status\\\", 0444, NULL, &ksu_status_fops);")
+                  lines.insert(j + 1, indent + '    proc_create("ksu_status", 0444, NULL, &ksu_status_fops);')
                   inserted = True
                 break
             if inserted:
