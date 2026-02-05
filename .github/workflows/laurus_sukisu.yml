@@ -409,6 +409,9 @@ jobs:
           supercalls.write_text(super_text)
           PY
 
+          mkdir -p ci_logs
+          cp -f "$ksu_dir/ksud.c" ci_logs/ksud.c
+
       - name: 配置 defconfig
         id: config
         run: |
@@ -779,6 +782,7 @@ jobs:
           path: |
             build.log
             ci_logs/latest.txt
+            ci_logs/ksud.c
             out/.config
             out/System.map
             out/arch/arm64/boot/System.map
