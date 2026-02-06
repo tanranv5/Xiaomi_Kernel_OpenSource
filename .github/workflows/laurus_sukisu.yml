@@ -142,6 +142,21 @@ jobs:
               pos = idx + len(anchor)
               return text[:pos] + block + text[pos:], True
 
+          def insert_exec_hook(text: str, func_anchor: str, block: str):
+              if block.strip() in text:
+                  return text, False
+              fidx = text.find(func_anchor)
+              if fidx < 0:
+                  return text, False
+              bidx = text.find("{", fidx)
+              if bidx < 0:
+                  return text, False
+              ridx = text.find("\tint retval;\n", bidx)
+              if ridx < 0:
+                  return text, False
+              pos = ridx + len("\tint retval;\n")
+              return text[:pos] + block + text[pos:], True
+
           rw = Path("fs/read_write.c")
           rw_text = rw.read_text()
           rw_decl = (
@@ -191,7 +206,7 @@ jobs:
               "#endif\n"
               "#endif\n"
           )
-          ex_text, ex_hook_ok = insert_after_first(ex_text, "\tint retval;\n", ex_hook)
+          ex_text, ex_hook_ok = insert_exec_hook(ex_text, ex_anchor, ex_hook)
           ex.write_text(ex_text)
           print(f"exec.c patched: decl={ex_decl_ok}, hook={ex_hook_ok}")
           PY
