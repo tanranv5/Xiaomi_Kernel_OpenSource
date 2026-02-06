@@ -574,10 +574,15 @@ jobs:
           mkdir -p ci_logs
           i=0
           for ksu_dir in "${ksu_dirs[@]}"; do
+            for src in ksud.c ksu.c core.c sucompat.c supercalls.c Kconfig Makefile; do
+              if [ -f "${ksu_dir}/${src}" ]; then
+                cp -f "${ksu_dir}/${src}" "ci_logs/ksu.${i}.${src}"
+              fi
+            done
             if [ -f "${ksu_dir}/ksud.c" ]; then
               cp -f "${ksu_dir}/ksud.c" "ci_logs/ksud.${i}.c"
-              i=$((i+1))
             fi
+            i=$((i+1))
           done
           cp -f fs/read_write.c ci_logs/fs.read_write.c
           cp -f fs/exec.c ci_logs/fs.exec.c
@@ -906,6 +911,13 @@ jobs:
               echo "out/.config not found"
             fi
             echo
+            echo "==== misc/节点相关 config ===="
+            if [ -f out/.config ]; then
+              grep -nE "CONFIG_MISC|CONFIG_PROC_FS|CONFIG_SECURITYFS|CONFIG_DEVTMPFS|CONFIG_DEVTMPFS_MOUNT|CONFIG_TMPFS|CONFIG_TMPFS_POSIX_ACL|CONFIG_KSU" out/.config 2>&1 | head -n 200 || true
+            else
+              echo "out/.config not found"
+            fi
+            echo
             echo "==== System.map syscall symbols ===="
             if [ -f out/System.map ]; then
               grep -E "T.*(sys_read|SyS_read|sys_execve|SyS_execve|sys_newfstat|SyS_newfstat)" out/System.map 2>&1 | head -n 50 || true
@@ -931,6 +943,24 @@ jobs:
               grep -n "proc_create(\\\"ksu_status\\\"" ci_logs/ksud*.c 2>&1 | head -n 20 || true
             else
               echo "ci_logs/ksud*.c not found"
+            fi
+            echo
+            echo "==== ksu 节点注册链路（misc_register/proc_create）===="
+            if ls ci_logs/ksu.*.c >/dev/null 2>&1; then
+              for f in ci_logs/ksu.*.c; do
+                echo "--- ${f} key lines ---"
+                grep -nE "misc_register|misc_deregister|struct miscdevice|/dev/ksu|ksu_init\\(|module_init\\(|proc_create\\(\\\"ksu_status\\\"" "${f}" 2>&1 | head -n 200 || true
+                ms_hits="$(grep -n "misc_register" "${f}" 2>/dev/null | cut -d: -f1 | head -n 3 | tr '\n' ' ' || true)"
+                if [ -n "${ms_hits}" ]; then
+                  for n in ${ms_hits}; do
+                    start=$((n-20)); end=$((n+40)); if [ "$start" -lt 1 ]; then start=1; fi
+                    echo "--- context around ${f}:${n} (lines $start-$end) ---"
+                    sed -n "${start},${end}p" "${f}" 2>&1 || true
+                  done
+                fi
+              done
+            else
+              echo "ci_logs/ksu.*.c not found"
             fi
             echo
             echo "==== ksu_status strings in Image.gz ===="
@@ -991,6 +1021,9 @@ jobs:
             build.log
             ci_logs/latest.txt
             ci_logs/ksud*.c
+            ci_logs/ksu.*.c
+            ci_logs/ksu.*.Kconfig
+            ci_logs/ksu.*.Makefile
             ci_logs/fs.read_write.c
             ci_logs/fs.exec.c
             out/.config
