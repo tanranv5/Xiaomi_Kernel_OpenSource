@@ -701,25 +701,50 @@ jobs:
               fi
             done
 
-            STOCK_DTB_B64="ci_assets/laurus_p_dtb.bin.gz.b64"
-            if [ -f "${STOCK_DTB_B64}" ]; then
-              base64 -d "${STOCK_DTB_B64}" | gzip -d > dist/dtb
-            else
-              # 根据 stock dtb 的 size 列表重建 dtb blob（P 版本）
-              STOCK_DTB_SIZES=("4065" "54743" "4753" "323654" "33249" "27359" "46749" "5306" "173")
-              tmp_map="$(mktemp)"
-              find out/arch/arm64/boot/dts/qcom -maxdepth 1 -name 'trinket*.dtb' -print0 | xargs -0 -I{} stat -c '%s %n' {} | sort > "${tmp_map}"
+            KERNEL_REF="${{ github.event_name == 'workflow_dispatch' && inputs.kernel_branch || 'laurus-q-oss-ci' }}"
+            STOCK_DTB_B64="ci_assets/laurus_q_dtb.bin.gz.b64"
+            if [[ "${KERNEL_REF}" == laurus-p-* ]]; then
+              STOCK_DTB_B64="ci_assets/laurus_p_dtb.bin.gz.b64"
+            fi
 
-              : > dist/dtb
-              for size in "${STOCK_DTB_SIZES[@]}"; do
-                match="$(awk -v s="${size}" '$1==s{print $2; exit}' "${tmp_map}")"
-                if [ -z "${match}" ]; then
-                  echo "missing dtb size: ${size}" | tee -a build.log
-                  exit 1
-                fi
-                cat "${match}" >> dist/dtb
-              done
-              rm -f "${tmp_map}"
+            use_stock_boot_dtb=0
+            if [ -f "${STOCK_DTB_B64}" ]; then
+              if base64 -d "${STOCK_DTB_B64}" | gzip -d > dist/dtb; then
+                echo "use dtb blob: ${STOCK_DTB_B64}" | tee -a build.log
+              else
+                echo "decode ${STOCK_DTB_B64} failed, fallback to stock boot dtb" | tee -a build.log
+                use_stock_boot_dtb=1
+              fi
+            else
+              echo "missing ${STOCK_DTB_B64}, fallback to stock boot dtb" | tee -a build.log
+              use_stock_boot_dtb=1
+            fi
+
+            if [ "${use_stock_boot_dtb}" = "1" ]; then
+              test -f ci_assets/stock_boot.img.gz.b64
+              python3 - <<'PY'
+              import base64
+              import gzip
+              from pathlib import Path
+
+              raw = Path("ci_assets/stock_boot.img.gz.b64").read_bytes()
+              if raw[:2] == b"\x1f\x8b":
+                  data = raw
+              else:
+                  text = raw.decode("utf-8", errors="ignore")
+                  data = base64.b64decode("".join(text.split()))
+              Path("dist/stock_boot_for_dtb.img").write_bytes(gzip.decompress(data))
+              PY
+
+              rm -rf dist/stock_boot_for_dtb
+              mkdir -p dist/stock_boot_for_dtb
+              python3 tools/unpack_bootimg.py \
+                --boot_img dist/stock_boot_for_dtb.img \
+                --out dist/stock_boot_for_dtb \
+                --format=mkbootimg -0 >/dev/null
+              test -f dist/stock_boot_for_dtb/dtb
+              cp -f dist/stock_boot_for_dtb/dtb dist/dtb
+              echo "use dtb from stock boot template" | tee -a build.log
             fi
 
             # 生成 CC 9e/Trinket 多 DTB Image.gz-dtb（直接用于打包/刷机）
