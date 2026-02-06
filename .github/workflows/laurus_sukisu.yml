@@ -31,6 +31,15 @@ on:
         options:
           - "off"
           - "on"
+      reboot_hook_mode:
+        description: "reboot manual hook 模式：off=关闭，safe=仅非 Linux reboot magic 触发，full=始终触发"
+        required: true
+        default: "off"
+        type: choice
+        options:
+          - "off"
+          - "safe"
+          - "full"
       build_dtbo:
         description: "是否构建 DTBO（overlay）；off 会绕过 trinket dtbo 编译失败（先确保内核能出镜像）"
         required: true
@@ -146,7 +155,10 @@ jobs:
         id: ksu_manual_hook
         run: |
           set -euxo pipefail
+          REBOOT_HOOK_MODE="${{ github.event_name == 'workflow_dispatch' && inputs.reboot_hook_mode || 'off' }}"
+          echo "REBOOT_HOOK_MODE=${REBOOT_HOOK_MODE}"
           python3 - <<'PY'
+          import os
           from pathlib import Path
 
           def insert_before(text: str, anchor: str, block: str):
@@ -234,28 +246,42 @@ jobs:
           ex.write_text(ex_text)
           print(f"exec.c patched: decl={ex_decl_ok}, hook={ex_hook_ok}")
 
-          rb = Path("kernel/reboot.c")
-          rb_text = rb.read_text()
-          rb_decl = (
-              "#ifdef CONFIG_KSU\n"
-              "#ifdef CONFIG_KSU_MANUAL_HOOK\n"
-              "extern int ksu_handle_sys_reboot(int magic1, int magic2, unsigned int cmd,\n"
-              "\t\t\t\t void __user **arg);\n"
-              "#endif\n"
-              "#endif\n"
-          )
-          rb_anchor = "SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,\n"
-          rb_text, rb_decl_ok = insert_before(rb_text, rb_anchor, rb_decl)
-          rb_hook = (
-              "\n#ifdef CONFIG_KSU\n"
-              "#ifdef CONFIG_KSU_MANUAL_HOOK\n"
-              "\tksu_handle_sys_reboot(magic1, magic2, cmd, &arg);\n"
-              "#endif\n"
-              "#endif\n"
-          )
-          rb_text, rb_hook_ok = insert_after_first(rb_text, "\tint ret = 0;\n", rb_hook)
-          rb.write_text(rb_text)
-          print(f"reboot.c patched: decl={rb_decl_ok}, hook={rb_hook_ok}")
+          reboot_hook_mode = os.environ.get("REBOOT_HOOK_MODE", "off").strip().lower()
+          if reboot_hook_mode in ("safe", "full"):
+              rb = Path("kernel/reboot.c")
+              rb_text = rb.read_text()
+              rb_decl = (
+                  "#ifdef CONFIG_KSU\n"
+                  "#ifdef CONFIG_KSU_MANUAL_HOOK\n"
+                  "extern int ksu_handle_sys_reboot(int magic1, int magic2, unsigned int cmd,\n"
+                  "\t\t\t\t void __user **arg);\n"
+                  "#endif\n"
+                  "#endif\n"
+              )
+              rb_anchor = "SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,\n"
+              rb_text, rb_decl_ok = insert_before(rb_text, rb_anchor, rb_decl)
+              if reboot_hook_mode == "safe":
+                  rb_hook = (
+                      "\n#ifdef CONFIG_KSU\n"
+                      "#ifdef CONFIG_KSU_MANUAL_HOOK\n"
+                      "\tif (magic1 != LINUX_REBOOT_MAGIC1)\n"
+                      "\t\tksu_handle_sys_reboot(magic1, magic2, cmd, &arg);\n"
+                      "#endif\n"
+                      "#endif\n"
+                  )
+              else:
+                  rb_hook = (
+                      "\n#ifdef CONFIG_KSU\n"
+                      "#ifdef CONFIG_KSU_MANUAL_HOOK\n"
+                      "\tksu_handle_sys_reboot(magic1, magic2, cmd, &arg);\n"
+                      "#endif\n"
+                      "#endif\n"
+                  )
+              rb_text, rb_hook_ok = insert_after_first(rb_text, "\tint ret = 0;\n", rb_hook)
+              rb.write_text(rb_text)
+              print(f"reboot.c patched ({reboot_hook_mode}): decl={rb_decl_ok}, hook={rb_hook_ok}")
+          else:
+              print("reboot.c patch skipped (mode=off)")
           PY
 
           echo "manual hook callsite check:"
@@ -917,6 +943,7 @@ jobs:
             echo "defconfig=${{ github.event_name == 'workflow_dispatch' && inputs.defconfig || 'vendor/laurus-perf_defconfig' }}"
             echo "fortify=${{ github.event_name == 'workflow_dispatch' && inputs.fortify || 'off' }}"
             echo "build_dtbo=${{ github.event_name == 'workflow_dispatch' && inputs.build_dtbo || 'off' }}"
+            echo "reboot_hook_mode=${{ github.event_name == 'workflow_dispatch' && inputs.reboot_hook_mode || 'off' }}"
             echo "with_sukisu=${WITH_SUKISU}"
             echo
             echo "==== step outcomes ===="
