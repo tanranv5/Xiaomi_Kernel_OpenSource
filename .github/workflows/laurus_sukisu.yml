@@ -722,19 +722,7 @@ jobs:
 
             if [ "${use_stock_boot_dtb}" = "1" ]; then
               test -f ci_assets/stock_boot.img.gz.b64
-              python3 - <<'PY'
-              import base64
-              import gzip
-              from pathlib import Path
-
-              raw = Path("ci_assets/stock_boot.img.gz.b64").read_bytes()
-              if raw[:2] == b"\x1f\x8b":
-                  data = raw
-              else:
-                  text = raw.decode("utf-8", errors="ignore")
-                  data = base64.b64decode("".join(text.split()))
-              Path("dist/stock_boot_for_dtb.img").write_bytes(gzip.decompress(data))
-              PY
+              python3 -c 'import base64,gzip; from pathlib import Path; raw=Path("ci_assets/stock_boot.img.gz.b64").read_bytes(); data=raw if raw[:2]==b"\\x1f\\x8b" else base64.b64decode("".join(raw.decode("utf-8", errors="ignore").split())); Path("dist/stock_boot_for_dtb.img").write_bytes(gzip.decompress(data))'
 
               rm -rf dist/stock_boot_for_dtb
               mkdir -p dist/stock_boot_for_dtb
