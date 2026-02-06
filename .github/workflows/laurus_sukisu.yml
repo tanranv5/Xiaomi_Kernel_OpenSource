@@ -118,6 +118,88 @@ jobs:
           # SukiSU 官方脚本
           curl -fsSL "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/${ref}/kernel/setup.sh" | bash -s "$mode"
 
+      - name: 修补 KSU manual hook 调用点（4.14）
+        id: ksu_manual_hook
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def insert_before(text: str, anchor: str, block: str):
+              if block.strip() in text:
+                  return text, False
+              idx = text.find(anchor)
+              if idx < 0:
+                  return text, False
+              return text[:idx] + block + text[idx:], True
+
+          def insert_after_first(text: str, anchor: str, block: str):
+              if block.strip() in text:
+                  return text, False
+              idx = text.find(anchor)
+              if idx < 0:
+                  return text, False
+              pos = idx + len(anchor)
+              return text[:pos] + block + text[pos:], True
+
+          rw = Path("fs/read_write.c")
+          rw_text = rw.read_text()
+          rw_decl = (
+              "#ifdef CONFIG_KSU\n"
+              "#ifdef CONFIG_KSU_MANUAL_HOOK\n"
+              "extern bool ksu_init_rc_hook __read_mostly;\n"
+              "extern void ksu_handle_sys_read(unsigned int fd);\n"
+              "#endif\n"
+              "#endif\n"
+          )
+          rw_anchor = "SYSCALL_DEFINE3(read, unsigned int, fd, char __user *, buf, size_t, count)\n{\n"
+          rw_text, rw_decl_ok = insert_before(rw_text, rw_anchor, rw_decl)
+          rw_hook = (
+              "\n#ifdef CONFIG_KSU\n"
+              "#ifdef CONFIG_KSU_MANUAL_HOOK\n"
+              "\tif (unlikely(ksu_init_rc_hook))\n"
+              "\t\tksu_handle_sys_read(fd);\n"
+              "#endif\n"
+              "#endif\n"
+          )
+          rw_text, rw_hook_ok = insert_after_first(rw_text, "\tssize_t ret = -EBADF;\n", rw_hook)
+          rw.write_text(rw_text)
+          print(f"read_write.c patched: decl={rw_decl_ok}, hook={rw_hook_ok}")
+
+          ex = Path("fs/exec.c")
+          ex_text = ex.read_text()
+          ex_decl = (
+              "#ifdef CONFIG_KSU\n"
+              "#ifdef CONFIG_KSU_MANUAL_HOOK\n"
+              "extern bool ksu_execveat_hook __read_mostly;\n"
+              "extern int ksu_handle_execveat(int *fd, struct filename **filename_ptr, void *argv,\n"
+              "\t\t\tvoid *envp, int *flags);\n"
+              "extern int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,\n"
+              "\t\t\t\t void *argv, void *envp, int *flags);\n"
+              "#endif\n"
+              "#endif\n"
+          )
+          ex_anchor = "static int do_execveat_common(int fd, struct filename *filename,\n"
+          ex_text, ex_decl_ok = insert_before(ex_text, ex_anchor, ex_decl)
+          ex_hook = (
+              "\n#ifdef CONFIG_KSU\n"
+              "#ifdef CONFIG_KSU_MANUAL_HOOK\n"
+              "\tif (unlikely(ksu_execveat_hook))\n"
+              "\t\tksu_handle_execveat(&fd, &filename, &argv, &envp, &flags);\n"
+              "\telse\n"
+              "\t\tksu_handle_execveat_sucompat(&fd, &filename, &argv, &envp, &flags);\n"
+              "#endif\n"
+              "#endif\n"
+          )
+          ex_text, ex_hook_ok = insert_after_first(ex_text, "\tint retval;\n", ex_hook)
+          ex.write_text(ex_text)
+          print(f"exec.c patched: decl={ex_decl_ok}, hook={ex_hook_ok}")
+          PY
+
+          echo "manual hook callsite check:"
+          grep -nE "ksu_handle_sys_read|ksu_init_rc_hook" fs/read_write.c | head -n 20 || true
+          grep -nE "ksu_handle_execveat|ksu_execveat_hook" fs/exec.c | head -n 20 || true
+
       - name: 修补 KSU kprobe 符号回退
         id: ksu_kprobe_fallback
         run: |
@@ -458,6 +540,8 @@ jobs:
               i=$((i+1))
             fi
           done
+          cp -f fs/read_write.c ci_logs/fs.read_write.c
+          cp -f fs/exec.c ci_logs/fs.exec.c
 
       - name: 配置 defconfig
         id: config
@@ -779,6 +863,10 @@ jobs:
               echo "System.map not found"
             fi
             echo
+            echo "==== manual hook callsites ===="
+            grep -nE "ksu_handle_sys_read|ksu_init_rc_hook" ci_logs/fs.read_write.c 2>&1 | head -n 40 || true
+            grep -nE "ksu_handle_execveat|ksu_execveat_hook|ksu_handle_execveat_sucompat" ci_logs/fs.exec.c 2>&1 | head -n 40 || true
+            echo
             echo "==== ksud.o compile lines ===="
             if [ -f build.log ]; then
               grep -nE "ksud\\.o" build.log 2>&1 | head -n 50 || true
@@ -851,6 +939,8 @@ jobs:
             build.log
             ci_logs/latest.txt
             ci_logs/ksud*.c
+            ci_logs/fs.read_write.c
+            ci_logs/fs.exec.c
             out/.config
             out/System.map
             out/arch/arm64/boot/System.map
