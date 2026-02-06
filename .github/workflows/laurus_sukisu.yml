@@ -88,6 +88,30 @@ jobs:
             python3 rsync unzip xz-utils \
             device-tree-compiler zip
 
+      - name: 同步 CI 资产（来自 workflow 分支）
+        id: ci_assets
+        run: |
+          set -euxo pipefail
+          ASSET_REF="${{ github.ref_name }}"
+          mkdir -p ci_assets
+
+          fetch_asset() {
+            local name="$1"
+            local url="https://raw.githubusercontent.com/${{ github.repository }}/${ASSET_REF}/ci_assets/${name}"
+            if curl -fsSL "${url}" -o "ci_assets/${name}.tmp"; then
+              mv -f "ci_assets/${name}.tmp" "ci_assets/${name}"
+              echo "fetched ${name} from ${ASSET_REF}"
+            else
+              rm -f "ci_assets/${name}.tmp"
+              echo "skip missing asset: ${name}"
+            fi
+          }
+
+          fetch_asset "stock_boot.img.gz.b64"
+          fetch_asset "laurus_p_dtb.bin.gz.b64"
+          fetch_asset "laurus_q_dtb.bin.gz.b64"
+          ls -lh ci_assets || true
+
       - name: 拉取工具链（GCC 4.9）
         id: toolchain
         run: |
@@ -709,7 +733,7 @@ jobs:
 
             use_stock_boot_dtb=0
             if [ -f "${STOCK_DTB_B64}" ]; then
-              if base64 -d "${STOCK_DTB_B64}" | gzip -d > dist/dtb; then
+              if python3 -c 'import base64,gzip,sys; from pathlib import Path; raw=Path(sys.argv[1]).read_bytes(); data=raw if raw[:2]==b"\x1f\x8b" else base64.b64decode("".join(raw.decode("utf-8", errors="ignore").split())); Path("dist/dtb").write_bytes(gzip.decompress(data))' "${STOCK_DTB_B64}"; then
                 echo "use dtb blob: ${STOCK_DTB_B64}" | tee -a build.log
               else
                 echo "decode ${STOCK_DTB_B64} failed, fallback to stock boot dtb" | tee -a build.log
