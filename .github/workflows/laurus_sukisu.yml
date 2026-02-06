@@ -32,13 +32,14 @@ on:
           - "off"
           - "on"
       reboot_hook_mode:
-        description: "reboot manual hook 模式：off=关闭，safe=仅非 Linux reboot magic 触发，full=始终触发"
+        description: "reboot manual hook 模式：off=关闭，safe=仅非 Linux reboot magic 触发，ksu_only=仅 KSU magic 触发，full=始终触发"
         required: true
         default: "off"
         type: choice
         options:
           - "off"
           - "safe"
+          - "ksu_only"
           - "full"
       build_dtbo:
         description: "是否构建 DTBO（overlay）；off 会绕过 trinket dtbo 编译失败（先确保内核能出镜像）"
@@ -247,7 +248,7 @@ jobs:
           print(f"exec.c patched: decl={ex_decl_ok}, hook={ex_hook_ok}")
 
           reboot_hook_mode = os.environ.get("REBOOT_HOOK_MODE", "off").strip().lower()
-          if reboot_hook_mode in ("safe", "full"):
+          if reboot_hook_mode in ("safe", "ksu_only", "full"):
               rb = Path("kernel/reboot.c")
               rb_text = rb.read_text()
               rb_decl = (
@@ -265,6 +266,15 @@ jobs:
                       "\n#ifdef CONFIG_KSU\n"
                       "#ifdef CONFIG_KSU_MANUAL_HOOK\n"
                       "\tif (magic1 != LINUX_REBOOT_MAGIC1)\n"
+                      "\t\tksu_handle_sys_reboot(magic1, magic2, cmd, &arg);\n"
+                      "#endif\n"
+                      "#endif\n"
+                  )
+              elif reboot_hook_mode == "ksu_only":
+                  rb_hook = (
+                      "\n#ifdef CONFIG_KSU\n"
+                      "#ifdef CONFIG_KSU_MANUAL_HOOK\n"
+                      "\tif (magic1 == 0xDEADBEEF && magic2 == 0xCAFEBABE)\n"
                       "\t\tksu_handle_sys_reboot(magic1, magic2, cmd, &arg);\n"
                       "#endif\n"
                       "#endif\n"
