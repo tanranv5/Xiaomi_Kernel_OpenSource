@@ -6,7 +6,7 @@ on:
       kernel_branch:
         description: "要编译的内核分支"
         required: true
-        default: "laurus-p-oss-ci"
+        default: "laurus-q-oss-ci"
       defconfig:
         description: "defconfig（相对 arch/arm64/configs/）"
         required: true
@@ -75,7 +75,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.kernel_branch || github.ref }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.kernel_branch || 'laurus-q-oss-ci' }}
 
       - name: 安装依赖
         id: deps
@@ -577,8 +577,8 @@ jobs:
             exit 1
           fi
 
-          # 对齐 vendor 模块 vermagic（避免 Wi-Fi 模块加载失败）
-          sed -i -E 's/^SUBLEVEL = .*/SUBLEVEL = 98/' Makefile
+          # 对齐 stock 内核版本（避免 Wi-Fi vendor 模块 vermagic 不匹配）
+          sed -i -E 's/^SUBLEVEL = .*/SUBLEVEL = 117/' Makefile
           sed -i -E 's/^EXTRAVERSION = .*/EXTRAVERSION =/' Makefile
           rm -f .scmversion
 
@@ -630,7 +630,7 @@ jobs:
 
           # 对齐版本字符串，避免 vermagic 不匹配
           ./scripts/config --file out/.config -d LOCALVERSION_AUTO || true
-          ./scripts/config --file out/.config --set-str LOCALVERSION "-perf+-tanran" || true
+          ./scripts/config --file out/.config --set-str LOCALVERSION "-perf-g4732215" || true
 
           FORTIFY="${{ github.event_name == 'workflow_dispatch' && inputs.fortify || 'off' }}"
           if [ "$FORTIFY" = "on" ]; then
@@ -662,7 +662,7 @@ jobs:
             ./scripts/config --file out/.config -d MODULE_SIG_ALL || true
             ./scripts/config --file out/.config -e MODVERSIONS || true
             ./scripts/config --file out/.config -d LOCALVERSION_AUTO || true
-            ./scripts/config --file out/.config --set-str LOCALVERSION "-perf+-tanran" || true
+            ./scripts/config --file out/.config --set-str LOCALVERSION "-perf-g4732215" || true
 
             make O=out olddefconfig
           fi
@@ -847,7 +847,7 @@ jobs:
           {
             echo "run_id=${{ github.run_id }}"
             echo "head_sha=${{ github.sha }}"
-            echo "kernel_ref=${{ github.event_name == 'workflow_dispatch' && inputs.kernel_branch || 'laurus-p-oss-ci' }}"
+            echo "kernel_ref=${{ github.event_name == 'workflow_dispatch' && inputs.kernel_branch || 'laurus-q-oss-ci' }}"
             echo "defconfig=${{ github.event_name == 'workflow_dispatch' && inputs.defconfig || 'vendor/laurus-perf_defconfig' }}"
             echo "fortify=${{ github.event_name == 'workflow_dispatch' && inputs.fortify || 'off' }}"
             echo "build_dtbo=${{ github.event_name == 'workflow_dispatch' && inputs.build_dtbo || 'off' }}"
