@@ -233,11 +233,35 @@ jobs:
           ex_text, ex_hook_ok = insert_exec_hook(ex_text, ex_anchor, ex_hook)
           ex.write_text(ex_text)
           print(f"exec.c patched: decl={ex_decl_ok}, hook={ex_hook_ok}")
+
+          rb = Path("kernel/reboot.c")
+          rb_text = rb.read_text()
+          rb_decl = (
+              "#ifdef CONFIG_KSU\n"
+              "#ifdef CONFIG_KSU_MANUAL_HOOK\n"
+              "extern int ksu_handle_sys_reboot(int magic1, int magic2, unsigned int cmd,\n"
+              "\t\t\t\t void __user **arg);\n"
+              "#endif\n"
+              "#endif\n"
+          )
+          rb_anchor = "SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,\n"
+          rb_text, rb_decl_ok = insert_before(rb_text, rb_anchor, rb_decl)
+          rb_hook = (
+              "\n#ifdef CONFIG_KSU\n"
+              "#ifdef CONFIG_KSU_MANUAL_HOOK\n"
+              "\tksu_handle_sys_reboot(magic1, magic2, cmd, &arg);\n"
+              "#endif\n"
+              "#endif\n"
+          )
+          rb_text, rb_hook_ok = insert_after_first(rb_text, "\tint ret = 0;\n", rb_hook)
+          rb.write_text(rb_text)
+          print(f"reboot.c patched: decl={rb_decl_ok}, hook={rb_hook_ok}")
           PY
 
           echo "manual hook callsite check:"
           grep -nE "ksu_handle_sys_read|ksu_init_rc_hook" fs/read_write.c | head -n 20 || true
           grep -nE "ksu_handle_execveat|ksu_execveat_hook" fs/exec.c | head -n 20 || true
+          grep -nE "ksu_handle_sys_reboot|CONFIG_KSU_MANUAL_HOOK" kernel/reboot.c | head -n 20 || true
 
       - name: 修补 KSU kprobe 符号回退
         id: ksu_kprobe_fallback
@@ -574,10 +598,9 @@ jobs:
           mkdir -p ci_logs
           i=0
           for ksu_dir in "${ksu_dirs[@]}"; do
-            for src in ksud.c ksu.c core.c sucompat.c supercalls.c Kconfig Makefile; do
-              if [ -f "${ksu_dir}/${src}" ]; then
-                cp -f "${ksu_dir}/${src}" "ci_logs/ksu.${i}.${src}"
-              fi
+            for src in $(find "${ksu_dir}" -maxdepth 1 -type f \( -name '*.c' -o -name '*.h' -o -name 'Kconfig' -o -name 'Kbuild' -o -name 'Makefile' \) | sort); do
+              bn="$(basename "${src}")"
+              cp -f "${src}" "ci_logs/ksu.${i}.${bn}"
             done
             if [ -f "${ksu_dir}/ksud.c" ]; then
               cp -f "${ksu_dir}/ksud.c" "ci_logs/ksud.${i}.c"
@@ -586,6 +609,7 @@ jobs:
           done
           cp -f fs/read_write.c ci_logs/fs.read_write.c
           cp -f fs/exec.c ci_logs/fs.exec.c
+          cp -f kernel/reboot.c ci_logs/kernel.reboot.c
 
       - name: 配置 defconfig
         id: config
@@ -930,6 +954,7 @@ jobs:
             echo "==== manual hook callsites ===="
             grep -nE "ksu_handle_sys_read|ksu_init_rc_hook" ci_logs/fs.read_write.c 2>&1 | head -n 40 || true
             grep -nE "ksu_handle_execveat|ksu_execveat_hook|ksu_handle_execveat_sucompat" ci_logs/fs.exec.c 2>&1 | head -n 40 || true
+            grep -nE "ksu_handle_sys_reboot|CONFIG_KSU_MANUAL_HOOK" ci_logs/kernel.reboot.c 2>&1 | head -n 40 || true
             echo
             echo "==== ksud.o compile lines ===="
             if [ -f build.log ]; then
@@ -1026,6 +1051,7 @@ jobs:
             ci_logs/ksu.*.Makefile
             ci_logs/fs.read_write.c
             ci_logs/fs.exec.c
+            ci_logs/kernel.reboot.c
             out/.config
             out/System.map
             out/arch/arm64/boot/System.map
