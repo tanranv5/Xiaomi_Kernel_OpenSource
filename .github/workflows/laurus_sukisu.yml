@@ -155,7 +155,7 @@ jobs:
         id: ksu_manual_hook
         run: |
           set -euxo pipefail
-          REBOOT_HOOK_MODE="${{ github.event_name == 'workflow_dispatch' && inputs.reboot_hook_mode || 'off' }}"
+          export REBOOT_HOOK_MODE="${{ github.event_name == 'workflow_dispatch' && inputs.reboot_hook_mode || 'off' }}"
           echo "REBOOT_HOOK_MODE=${REBOOT_HOOK_MODE}"
           python3 - <<'PY'
           import os
