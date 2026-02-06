@@ -590,7 +590,7 @@ jobs:
             sed -i -E '/^# CONFIG_KSU_MANUAL_SU is not set/d' "${DEFCONFIG_PATH}"
             printf '%s\n' \
               'CONFIG_KSU=y' \
-              '# CONFIG_KSU_MANUAL_SU is not set' \
+              'CONFIG_KSU_MANUAL_SU=y' \
               'CONFIG_KPROBES=y' \
               'CONFIG_KRETPROBES=y' \
               'CONFIG_KPROBE_EVENTS=y' \
@@ -609,7 +609,7 @@ jobs:
           if [ "$WITH_SUKISU" = "on" ]; then
             # KernelSU：kprobe 路线
             ./scripts/config --file out/.config -e KSU || true
-            ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
+            ./scripts/config --file out/.config -e KSU_MANUAL_SU || true
             ./scripts/config --file out/.config -e KPROBES || true
             ./scripts/config --file out/.config -e KRETPROBES || true
             ./scripts/config --file out/.config -e KPROBE_EVENTS || true
@@ -645,7 +645,7 @@ jobs:
           if [ "$WITH_SUKISU" = "on" ]; then
             # olddefconfig 后确认 kprobe 仍保持开启
             ./scripts/config --file out/.config -e KSU || true
-            ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
+            ./scripts/config --file out/.config -e KSU_MANUAL_SU || true
             ./scripts/config --file out/.config -e KPROBES || true
             ./scripts/config --file out/.config -e KRETPROBES || true
             ./scripts/config --file out/.config -e KPROBE_EVENTS || true
