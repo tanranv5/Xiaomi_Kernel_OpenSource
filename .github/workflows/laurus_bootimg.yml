@@ -201,7 +201,7 @@ jobs:
 
           mkdir -p .tmp
           curl -fsSL \
-            "https://raw.githubusercontent.com/aosp-mirror/platform_system_tools_mkbootimg/master/mkbootimg.py" \
+            "https://raw.githubusercontent.com/LineageOS/android_system_tools_mkbootimg/lineage-19.1/mkbootimg.py" \
             -o .tmp/mkbootimg.py
 
           STOCK_ENV="ci_assets/stock_bootimg.env"
