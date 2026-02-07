@@ -651,6 +651,7 @@ jobs:
         id: config
         run: |
           set -euxo pipefail
+          export KSU_MANAGER_PACKAGE="com.sukisu.ultra"
           export ARCH=arm64
           export SUBARCH=arm64
           export PATH="$TOOLCHAIN_GCC64/bin:$TOOLCHAIN_GCC32/bin:$PATH"
@@ -761,6 +762,7 @@ jobs:
         id: build
         run: |
           set -euxo pipefail
+          export KSU_MANAGER_PACKAGE="com.sukisu.ultra"
           export ARCH=arm64
           export SUBARCH=arm64
           export PATH="$TOOLCHAIN_GCC64/bin:$TOOLCHAIN_GCC32/bin:$PATH"
