@@ -152,6 +152,23 @@ jobs:
           fix_dir "drivers"
           fix_dir "common/drivers"
 
+      - name: 应用 KSU kprobe 兼容补丁（4.14）
+        if: env.WITH_SUKISU == 'on' && env.KSU_MODE == 'builtin'
+        run: |
+          set -euxo pipefail
+          if [ ! -f ci_assets/ksu_kprobe_fallback.patch ]; then
+            echo "ci_assets/ksu_kprobe_fallback.patch not found"
+            exit 1
+          fi
+          if git apply --check ci_assets/ksu_kprobe_fallback.patch; then
+            git apply ci_assets/ksu_kprobe_fallback.patch
+          elif git apply --reverse --check ci_assets/ksu_kprobe_fallback.patch; then
+            echo "kprobe patch already applied"
+          else
+            echo "kprobe patch apply failed"
+            exit 1
+          fi
+
       - name: 修补 manager 探测时序（无 ksud 也能识别 Manager）
         id: ksu-throne-fix
         run: |
@@ -344,12 +361,17 @@ jobs:
             sed -i -E '/^# CONFIG_KSU_MANUAL_HOOK is not set/d' "${DEFCONFIG_PATH}"
             sed -i -E '/^CONFIG_KSU_MANUAL_SU/d' "${DEFCONFIG_PATH}"
             sed -i -E '/^# CONFIG_KSU_MANUAL_SU is not set/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^CONFIG_KSU_SUSFS/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^# CONFIG_KSU_SUSFS is not set/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^CONFIG_KSU_SUSFS_/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^# CONFIG_KSU_SUSFS_.* is not set/d' "${DEFCONFIG_PATH}"
             if [ "$KSU_MODE" = "builtin" ]; then
               printf '%s\n' \
                 'CONFIG_KSU=y' \
                 'CONFIG_KSU_SYSCALL_HOOK=y' \
                 '# CONFIG_KSU_MANUAL_HOOK is not set' \
                 '# CONFIG_KSU_MANUAL_SU is not set' \
+                '# CONFIG_KSU_SUSFS is not set' \
                 'CONFIG_KPROBES=y' \
                 'CONFIG_KRETPROBES=y' \
                 'CONFIG_KPROBE_EVENTS=y' \
@@ -365,6 +387,7 @@ jobs:
               printf '%s\n' \
                 'CONFIG_KSU=y' \
                 'CONFIG_KSU_MANUAL_SU=y' \
+                '# CONFIG_KSU_SUSFS is not set' \
                 >> "${DEFCONFIG_PATH}"
             fi
           fi
@@ -379,6 +402,7 @@ jobs:
               ./scripts/config --file out/.config -e KSU_SYSCALL_HOOK || true
               ./scripts/config --file out/.config -d KSU_MANUAL_HOOK || true
               ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
+              ./scripts/config --file out/.config -d KSU_SUSFS || true
               ./scripts/config --file out/.config -e KPROBES || true
               ./scripts/config --file out/.config -e KRETPROBES || true
               ./scripts/config --file out/.config -e KPROBE_EVENTS || true
@@ -393,6 +417,7 @@ jobs:
               # main：无 syscall hook 配置，仅保证 KSU 与 manual su
               ./scripts/config --file out/.config -e KSU || true
               ./scripts/config --file out/.config -e KSU_MANUAL_SU || true
+              ./scripts/config --file out/.config -d KSU_SUSFS || true
             fi
           fi
 
@@ -424,6 +449,7 @@ jobs:
               ./scripts/config --file out/.config -e KSU_SYSCALL_HOOK || true
               ./scripts/config --file out/.config -d KSU_MANUAL_HOOK || true
               ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
+              ./scripts/config --file out/.config -d KSU_SUSFS || true
               ./scripts/config --file out/.config -e KPROBES || true
               ./scripts/config --file out/.config -e KRETPROBES || true
               ./scripts/config --file out/.config -e KPROBE_EVENTS || true
@@ -437,6 +463,7 @@ jobs:
             else
               ./scripts/config --file out/.config -e KSU || true
               ./scripts/config --file out/.config -e KSU_MANUAL_SU || true
+              ./scripts/config --file out/.config -d KSU_SUSFS || true
             fi
 
             # 再次确保模块签名/版本字符串设置生效
