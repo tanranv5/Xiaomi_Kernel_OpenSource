@@ -114,7 +114,7 @@ jobs:
 
           # SukiSU 官方脚本
           rm -rf KernelSU
-          curl -fsSL "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/${ref}/kernel/setup.sh" | bash -s "$mode"
+          curl -fsSL "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/${ref}/kernel/setup.sh" | bash -s "$ref"
 
           # 方案 B：纯 kprobe（syscall hook），无需 manual hook 补丁/适配层
 
