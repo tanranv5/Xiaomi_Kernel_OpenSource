@@ -158,6 +158,7 @@ jobs:
           set -euxo pipefail
           python3 - <<'PY'
           from pathlib import Path
+          import re
 
           def patch_arch_h(path: Path) -> bool:
               if not path.exists():
@@ -241,8 +242,8 @@ jobs:
                       "#endif\n",
                       1,
                   )
-                  txt = txt.replace("copy_from_user_nofault(", "ksu_copy_from_user_nofault(")
-                  txt = txt.replace("copy_to_user_nofault(", "ksu_copy_to_user_nofault(")
+                  txt = re.sub(r"(?<!ksu_)copy_from_user_nofault\(", "ksu_copy_from_user_nofault(", txt)
+                  txt = re.sub(r"(?<!ksu_)copy_to_user_nofault\(", "ksu_copy_to_user_nofault(", txt)
                   changed = True
               if "stop_vfs_read_work" in txt and "stop_init_rc_hook_work" in txt:
                   txt = txt.replace("stop_vfs_read_work", "stop_init_rc_hook_work")
