@@ -131,22 +131,35 @@ jobs:
               except Exception:
                   return p.read_text(errors="ignore")
 
+          def looks_like_throne(text: str) -> bool:
+              return ("track_throne(" in text and
+                      ("packages.list" in text or "SYSTEM_PACKAGES_LIST_PATH" in text))
+
           def find_throne_tracker():
-              # 优先找包含 track_throne + packages.list 的文件
-              for p in Path(".").rglob("*.c"):
-                  text = read_text(p)
-                  if "track_throne(" in text and "packages.list" in text:
+              # 优先用 KernelSU 固定路径
+              direct = Path("KernelSU/kernel/throne_tracker.c")
+              if direct.exists():
+                  return direct
+              # 其次在 KernelSU 目录内搜索
+              for p in Path("KernelSU").rglob("throne_tracker.c"):
+                  if looks_like_throne(read_text(p)):
                       return p
-              # 次选：文件名匹配且包含 track_throne
+              # 再全仓库兜底
               for p in Path(".").rglob("throne_tracker.c"):
-                  text = read_text(p)
-                  if "track_throne(" in text:
+                  if looks_like_throne(read_text(p)):
+                      return p
+              for p in Path(".").rglob("*.c"):
+                  if looks_like_throne(read_text(p)):
                       return p
               return None
 
           path = find_throne_tracker()
           if not path:
               print("throne_tracker.c not found, skip")
+              for p in Path(".").rglob("*.c"):
+                  text = read_text(p)
+                  if "track_throne(" in text:
+                      print("candidate:", p)
               raise SystemExit(0)
 
           text = read_text(path)
