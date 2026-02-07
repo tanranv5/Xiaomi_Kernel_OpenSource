@@ -159,17 +159,29 @@ jobs:
                                       "#include <linux/types.h>\\n#include <linux/workqueue.h>\\n")
 
           needle = '#define SYSTEM_PACKAGES_LIST_PATH "/data/system/packages.list"\\n'
-          if needle not in text:
-              raise SystemExit("SYSTEM_PACKAGES_LIST_PATH not found")
-          text = text.replace(
-              needle,
-              needle +
-              "#define KSU_THRONE_RETRY_MS 5000\\n"
-              "#define KSU_THRONE_MAX_RETRY 60\\n"
-              "\\n"
-              "static struct delayed_work ksu_throne_retry_work;\\n"
-              "static atomic_t ksu_throne_retry_count = ATOMIC_INIT(0);\\n"
-          )
+          if needle in text:
+              text = text.replace(
+                  needle,
+                  needle +
+                  "#define KSU_THRONE_RETRY_MS 5000\\n"
+                  "#define KSU_THRONE_MAX_RETRY 60\\n"
+                  "\\n"
+                  "static struct delayed_work ksu_throne_retry_work;\\n"
+                  "static atomic_t ksu_throne_retry_count = ATOMIC_INIT(0);\\n"
+              )
+          else:
+              anchor = "uid_t ksu_manager_appid = KSU_INVALID_APPID;"
+              if anchor not in text:
+                  raise SystemExit("SYSTEM_PACKAGES_LIST_PATH/manager appid anchor not found")
+              text = text.replace(
+                  anchor,
+                  anchor +
+                  "\\n\\n#define KSU_THRONE_RETRY_MS 5000\\n"
+                  "#define KSU_THRONE_MAX_RETRY 60\\n"
+                  "\\n"
+                  "static struct delayed_work ksu_throne_retry_work;\\n"
+                  "static atomic_t ksu_throne_retry_count = ATOMIC_INIT(0);\\n"
+              )
 
           marker = "void ksu_throne_tracker_init()"
           if marker not in text:
