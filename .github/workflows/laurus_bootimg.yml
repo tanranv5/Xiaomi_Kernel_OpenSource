@@ -187,12 +187,16 @@ jobs:
           cp -f out/arch/arm64/boot/Image.gz repack/out/kernel
           : > repack/out/ramdisk
 
-          # 生成 trinket 多 DTB 拼接（更接近 stock 的“多 DTB”布局，避免单 DTB 不匹配）
+          # 使用已编译好的 DTB，避免在打包阶段触发 interactive oldconfig
+          DTB_DIR="out/arch/arm64/boot/dts/qcom"
+          DTB_LIST="$(ls -1 "${DTB_DIR}"/trinket*.dtb 2>/dev/null | sort || true)"
+          if [ -z "$DTB_LIST" ]; then
+            echo "未找到 trinket*.dtb（路径：${DTB_DIR}）"
+            exit 1
+          fi
           : > repack/out/dtb
-          for dts in $(find arch/arm64/boot/dts/qcom -maxdepth 1 -name 'trinket*.dts' ! -name '*-overlay.dts' -print | sort); do
-            dtb="$(basename "${dts%.dts}.dtb")"
-            make -j"$(nproc)" O=out "qcom/${dtb}" V=1
-            cat "out/arch/arm64/boot/dts/qcom/${dtb}" >> repack/out/dtb
+          for dtb in $DTB_LIST; do
+            cat "$dtb" >> repack/out/dtb
           done
 
           mkdir -p .tmp
