@@ -200,23 +200,29 @@ jobs:
             "https://raw.githubusercontent.com/aosp-mirror/platform_system_tools_mkbootimg/master/mkbootimg.py" \
             -o .tmp/mkbootimg.py
 
-          CMDLINE="console=ttyMSM0,115200n8 androidboot.hardware=qcom androidboot.console=ttyMSM0 androidboot.memcg=1 lpm_levels.sleep_disabled=1 video=vfb:640x400,bpp=32,memsize=3072000 msm_rtb.filter=0x237 service_locator.enable=1 swiotlb=1 earlycon=msm_geni_serial,0x4a90000 loop.max_part=7 cgroup.memory=nokmem,nosocket androidboot.selinux=enforcing buildvariant=user"
+          STOCK_ENV="ci_assets/stock_bootimg.env"
+          if [ ! -f "$STOCK_ENV" ]; then
+            echo "stock boot 参数缺失：$STOCK_ENV"
+            exit 1
+          fi
+          # shellcheck disable=SC1090
+          source "$STOCK_ENV"
 
           (cd repack && python3 ../.tmp/mkbootimg.py \
-            --header_version 2 \
-            --os_version 10.0.0 \
-            --os_patch_level 2021-09 \
+            --header_version "$HEADER_VERSION" \
+            --os_version "$OS_VERSION" \
+            --os_patch_level "$OS_PATCH_LEVEL" \
             --kernel out/kernel \
             --ramdisk out/ramdisk \
             --dtb out/dtb \
-            --pagesize 0x00001000 \
-            --base 0x00000000 \
-            --kernel_offset 0x00008000 \
-            --ramdisk_offset 0x01000000 \
-            --second_offset 0x00f00000 \
-            --tags_offset 0x00000100 \
-            --dtb_offset 0x0000000001f00000 \
-            --board "" \
+            --pagesize "$PAGESIZE" \
+            --base "$BASE" \
+            --kernel_offset "$KERNEL_OFFSET" \
+            --ramdisk_offset "$RAMDISK_OFFSET" \
+            --second_offset "$SECOND_OFFSET" \
+            --tags_offset "$TAGS_OFFSET" \
+            --dtb_offset "$DTB_OFFSET" \
+            --board "$BOARD" \
             --cmdline "$CMDLINE" \
             -o ../dist/boot.img)
 
