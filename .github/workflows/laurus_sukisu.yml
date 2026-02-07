@@ -136,15 +136,12 @@ jobs:
                       ("packages.list" in text or "SYSTEM_PACKAGES_LIST_PATH" in text))
 
           def find_throne_tracker():
-              # 优先用 KernelSU 固定路径
               direct = Path("KernelSU/kernel/throne_tracker.c")
               if direct.exists():
                   return direct
-              # 其次在 KernelSU 目录内搜索
               for p in Path("KernelSU").rglob("throne_tracker.c"):
                   if looks_like_throne(read_text(p)):
                       return p
-              # 再全仓库兜底
               for p in Path(".").rglob("throne_tracker.c"):
                   if looks_like_throne(read_text(p)):
                       return p
@@ -153,35 +150,22 @@ jobs:
                       return p
               return None
 
-          path = find_throne_tracker()
-          if not path:
-              print("throne_tracker.c not found, skip")
-              for p in Path(".").rglob("*.c"):
-                  text = read_text(p)
-                  if "track_throne(" in text:
-                      print("candidate:", p)
-              raise SystemExit(0)
+          def ensure_includes(text: str) -> str:
+              if "#include <linux/atomic.h>" not in text:
+                  text = text.replace("#include <linux/err.h>\\n",
+                                      "#include <linux/atomic.h>\\n#include <linux/err.h>\\n")
+              if "#include <linux/workqueue.h>" not in text:
+                  if "#include <linux/version.h>\\n" in text:
+                      text = text.replace("#include <linux/version.h>\\n",
+                                          "#include <linux/version.h>\\n#include <linux/workqueue.h>\\n")
+                  else:
+                      text = text.replace("#include <linux/types.h>\\n",
+                                          "#include <linux/types.h>\\n#include <linux/workqueue.h>\\n")
+              return text
 
-          text = read_text(path)
-          print("patch target:", path)
-          if "ksu_throne_retry" in text:
-              print("already patched:", path)
-              raise SystemExit(0)
-
-          if "#include <linux/atomic.h>" not in text:
-              text = text.replace("#include <linux/err.h>\\n",
-                                  "#include <linux/atomic.h>\\n#include <linux/err.h>\\n")
-          if "#include <linux/workqueue.h>" not in text:
-              if "#include <linux/version.h>\\n" in text:
-                  text = text.replace("#include <linux/version.h>\\n",
-                                      "#include <linux/version.h>\\n#include <linux/workqueue.h>\\n")
-              else:
-                  text = text.replace("#include <linux/types.h>\\n",
-                                      "#include <linux/types.h>\\n#include <linux/workqueue.h>\\n")
-
-          # 插入宏与全局变量（放在 includes 之后，避免依赖特定宏）
-          if "KSU_THRONE_RETRY_MS" not in text:
-              m = re.search(r"(?:^#include[^\\n]*\\n)+", text, flags=re.M)
+          def insert_defs(text: str) -> str:
+              if "KSU_THRONE_RETRY_MS" in text:
+                  return text
               insert_defs = (
                   "\\n#define KSU_THRONE_RETRY_MS 5000\\n"
                   "#define KSU_THRONE_MAX_RETRY 60\\n"
@@ -189,62 +173,92 @@ jobs:
                   "static struct delayed_work ksu_throne_retry_work;\\n"
                   "static atomic_t ksu_throne_retry_count = ATOMIC_INIT(0);\\n\\n"
               )
+              m = re.search(r"(?:^#include[^\\n]*\\n)+", text, flags=re.M)
               if not m:
-                  text = insert_defs + text
-              else:
-                  text = text[:m.end()] + insert_defs + text[m.end():]
+                  return insert_defs + text
+              return text[:m.end()] + insert_defs + text[m.end():]
 
-          marker_re = r"(?:void|int)\\s+ksu_throne_tracker_init\\s*\\([^)]*\\)\\s*\\{"
-          if not re.search(marker_re, text):
-              raise SystemExit("ksu_throne_tracker_init not found")
-          insert = (
-              "static void ksu_throne_retry(struct work_struct *work)\\n"
-              "{\\n"
-              "    if (ksu_is_manager_appid_valid()) {\\n"
-              "        return;\\n"
-              "    }\\n"
-              "\\n"
-              "    track_throne(false);\\n"
-              "    if (ksu_is_manager_appid_valid()) {\\n"
-              "        return;\\n"
-              "    }\\n"
-              "\\n"
-              "    if (atomic_inc_return(&ksu_throne_retry_count) < KSU_THRONE_MAX_RETRY) {\\n"
-              "        schedule_delayed_work(&ksu_throne_retry_work,\\n"
-              "                              msecs_to_jiffies(KSU_THRONE_RETRY_MS));\\n"
-              "    } else {\\n"
-              "        pr_err(\\\"ksu: manager not found after %d retries\\\\n\\\",\\n"
-              "               KSU_THRONE_MAX_RETRY);\\n"
-              "    }\\n"
-              "}\\n\\n"
-          )
-          text = re.sub(marker_re, insert + "\\g<0>", text, count=1)
+          def insert_retry_func(text: str) -> str:
+              if "ksu_throne_retry(" in text:
+                  return text
+              retry_func = (
+                  "static void ksu_throne_retry(struct work_struct *work)\\n"
+                  "{\\n"
+                  "    if (ksu_is_manager_appid_valid()) {\\n"
+                  "        return;\\n"
+                  "    }\\n"
+                  "\\n"
+                  "    track_throne(false);\\n"
+                  "    if (ksu_is_manager_appid_valid()) {\\n"
+                  "        return;\\n"
+                  "    }\\n"
+                  "\\n"
+                  "    if (atomic_inc_return(&ksu_throne_retry_count) < KSU_THRONE_MAX_RETRY) {\\n"
+                  "        schedule_delayed_work(&ksu_throne_retry_work,\\n"
+                  "                              msecs_to_jiffies(KSU_THRONE_RETRY_MS));\\n"
+                  "    } else {\\n"
+                  "        pr_err(\\\"ksu: manager not found after %d retries\\\\n\\\",\\n"
+                  "               KSU_THRONE_MAX_RETRY);\\n"
+                  "    }\\n"
+                  "}\\n\\n"
+              )
+              idx = text.find("ksu_throne_tracker_init")
+              if idx < 0:
+                  return text + "\\n" + retry_func
+              line_start = text.rfind("\\n", 0, idx) + 1
+              return text[:line_start] + retry_func + text[line_start:]
 
-          text = re.sub(
-              r"(?:void|int)\\s+ksu_throne_tracker_init\\s*\\([^)]*\\)\\s*\\{[^}]*\\}",
-              "void ksu_throne_tracker_init()\\n{\\n"
+          def replace_func_body(text: str, name: str, new_body: str):
+              idx = text.find(name)
+              if idx < 0:
+                  return text, False
+              brace = text.find("{", idx)
+              if brace < 0:
+                  return text, False
+              depth = 0
+              i = brace
+              end = -1
+              while i < len(text):
+                  if text[i] == "{":
+                      depth += 1
+                  elif text[i] == "}":
+                      depth -= 1
+                      if depth == 0:
+                          end = i
+                          break
+                  i += 1
+              if end < 0:
+                  return text, False
+              new_text = text[:brace+1] + "\\n" + new_body + "\\n" + text[end:]
+              return new_text, True
+
+          path = find_throne_tracker()
+          if not path:
+              print("throne_tracker.c not found, skip")
+              raise SystemExit(0)
+
+          text = read_text(path)
+          print("patch target:", path)
+          text = ensure_includes(text)
+          text = insert_defs(text)
+          text = insert_retry_func(text)
+
+          init_body = (
               "    if (ksu_is_manager_appid_valid()) {\\n"
               "        return;\\n"
               "    }\\n"
               "    atomic_set(&ksu_throne_retry_count, 0);\\n"
               "    INIT_DELAYED_WORK(&ksu_throne_retry_work, ksu_throne_retry);\\n"
               "    schedule_delayed_work(&ksu_throne_retry_work,\\n"
-              "                          msecs_to_jiffies(KSU_THRONE_RETRY_MS));\\n"
-              "}\\n",
-              text,
-              count=1,
-              flags=re.S,
+              "                          msecs_to_jiffies(KSU_THRONE_RETRY_MS));"
           )
+          exit_body = "    cancel_delayed_work_sync(&ksu_throne_retry_work);"
 
-          text = re.sub(
-              r"(?:void|int)\\s+ksu_throne_tracker_exit\\s*\\([^)]*\\)\\s*\\{[^}]*\\}",
-              "void ksu_throne_tracker_exit()\\n{\\n"
-              "    cancel_delayed_work_sync(&ksu_throne_retry_work);\\n"
-              "}\\n",
-              text,
-              count=1,
-              flags=re.S,
-          )
+          text, ok1 = replace_func_body(text, "ksu_throne_tracker_init", init_body)
+          text, ok2 = replace_func_body(text, "ksu_throne_tracker_exit", exit_body)
+          if not ok1 or not ok2:
+              print("warn: cannot patch init/exit", ok1, ok2)
+              raise SystemExit(0)
 
           path.write_text(text)
           print("patched:", path)
