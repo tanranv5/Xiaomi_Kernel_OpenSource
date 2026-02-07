@@ -650,8 +650,8 @@ jobs:
       - name: 注入 Manager 签名（用于识别官方管理器）
         run: |
           set -euxo pipefail
-          export KSU_EXPECTED_SIZE=0x108
-          export KSU_EXPECTED_HASH="3afd2375e779b2ccf8d56cde8e07fdc7f0db56eadd0ae16c6b39687fa07c2911"
+          export KSU_EXPECTED_SIZE=0x35c
+          export KSU_EXPECTED_HASH="947ae944f3de4ed4c21a7e4f7953ecf351bfa2b36239da37a34111ad29993eef"
 
 
       - name: 配置 defconfig
