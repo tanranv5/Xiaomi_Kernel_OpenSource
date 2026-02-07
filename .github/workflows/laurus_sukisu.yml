@@ -156,18 +156,107 @@ jobs:
         if: env.WITH_SUKISU == 'on' && env.KSU_MODE == 'builtin'
         run: |
           set -euxo pipefail
-          if [ ! -f ci_assets/ksu_kprobe_fallback.patch ]; then
-            echo "ci_assets/ksu_kprobe_fallback.patch not found"
-            exit 1
-          fi
-          if git apply --check ci_assets/ksu_kprobe_fallback.patch; then
-            git apply ci_assets/ksu_kprobe_fallback.patch
-          elif git apply --reverse --check ci_assets/ksu_kprobe_fallback.patch; then
-            echo "kprobe patch already applied"
-          else
-            echo "kprobe patch apply failed"
-            exit 1
-          fi
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def patch_arch_h(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              if "KERNEL_VERSION(4, 17, 0)" in txt:
+                  return True
+              old = (
+                  '#define REBOOT_SYMBOL "__arm64_sys_reboot"\n'
+                  '#define SYS_READ_SYMBOL "__arm64_sys_read"\n'
+                  '#define SYS_EXECVE_SYMBOL "__arm64_sys_execve"\n'
+                  '// https://cs.android.com/android/kernel/superproject/+/common-android-mainline:common/scripts/syscalltbl.sh;l=57;drc=9142be9e6443fd641ca37f820efe00d9cd890eb1\n'
+                  '// https://cs.android.com/android/kernel/superproject/+/common-android-mainline:common/scripts/syscall.tbl;l=104;drc=b36d4b6aa88ef039647228b98c59a875e92f8c8e\n'
+                  '#define SYS_FSTAT_SYMBOL "__arm64_sys_newfstat"\n'
+              )
+              new = (
+                  '#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 17, 0)\n'
+                  '#define REBOOT_SYMBOL "__arm64_sys_reboot"\n'
+                  '#define SYS_READ_SYMBOL "__arm64_sys_read"\n'
+                  '#define SYS_EXECVE_SYMBOL "__arm64_sys_execve"\n'
+                  '#define SYS_FSTAT_SYMBOL "__arm64_sys_newfstat"\n'
+                  '#else\n'
+                  '#define REBOOT_SYMBOL "sys_reboot"\n'
+                  '#define SYS_READ_SYMBOL "sys_read"\n'
+                  '#define SYS_EXECVE_SYMBOL "sys_execve"\n'
+                  '#define SYS_FSTAT_SYMBOL "sys_newfstat"\n'
+                  '#endif\n'
+              )
+              if old in txt:
+                  txt = txt.replace(old, new, 1)
+                  path.write_text(txt)
+                  return True
+              raise SystemExit(f"arch.h patch anchor not found: {path}")
+
+          def patch_kp_hook(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              changed = False
+              if "#include <linux/kernel.h>" not in txt:
+                  txt = txt.replace(
+                      "#include <linux/workqueue.h>\n",
+                      "#include <linux/workqueue.h>\n#include <linux/kernel.h>\n",
+                      1,
+                  )
+                  changed = True
+              if "extern const size_t ksu_rc_len;" not in txt:
+                  txt = txt.replace(
+                      "#include <linux/kernel.h>\n",
+                      "#include <linux/kernel.h>\n\nextern const size_t ksu_rc_len;\n",
+                      1,
+                  )
+                  changed = True
+              if "stop_vfs_read_work" in txt and "stop_init_rc_hook_work" in txt:
+                  txt = txt.replace("stop_vfs_read_work", "stop_init_rc_hook_work")
+                  changed = True
+              if changed:
+                  path.write_text(txt)
+              return True
+
+          def patch_kp_util(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              if "#include <asm/pgtable.h>" in txt:
+                  return True
+              old = "#include <linux/pgtable.h>\n"
+              new = (
+                  "#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0)\n"
+                  "#include <linux/pgtable.h>\n"
+                  "#else\n"
+                  "#include <asm/pgtable.h>\n"
+                  "#endif\n"
+              )
+              if old not in txt:
+                  raise SystemExit(f"kp_util patch anchor not found: {path}")
+              txt = txt.replace(old, new, 1)
+              path.write_text(txt)
+              return True
+
+          targets = [
+              Path("drivers/kernelsu"),
+              Path("KernelSU/kernel"),
+          ]
+          done = False
+          for base in targets:
+              arch_h = base / "arch.h"
+              kp_hook = base / "kp_hook.c"
+              kp_util = base / "kp_util.c"
+              if not arch_h.exists() and not kp_hook.exists() and not kp_util.exists():
+                  continue
+              patch_arch_h(arch_h)
+              patch_kp_hook(kp_hook)
+              patch_kp_util(kp_util)
+              done = True
+          if not done:
+              raise SystemExit("未找到可修补的 KernelSU 目录")
+          print("patched kprobe compatibility files")
+          PY
 
       - name: 修补 manager 探测时序（无 ksud 也能识别 Manager）
         id: ksu-throne-fix
