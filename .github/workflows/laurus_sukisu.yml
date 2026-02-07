@@ -137,14 +137,11 @@ jobs:
                   text = read_text(p)
                   if "ksu_throne_tracker_init" in text:
                       return p
-              # 次选：文件名匹配且包含 track_throne/ksu_manager_appid
-              candidates = []
+              # 次选：文件名匹配且包含 track_throne
               for p in Path(".").rglob("throne_tracker.c"):
                   text = read_text(p)
-                  if "track_throne" in text or "ksu_manager_appid" in text:
-                      candidates.append(p)
-              if candidates:
-                  return candidates[0]
+                  if "track_throne" in text:
+                      return p
               return None
 
           path = find_throne_tracker()
@@ -153,6 +150,7 @@ jobs:
               raise SystemExit(0)
 
           text = read_text(path)
+          print("patch target:", path)
           if "ksu_throne_retry" in text:
               print("already patched:", path)
               raise SystemExit(0)
@@ -168,30 +166,19 @@ jobs:
                   text = text.replace("#include <linux/types.h>\\n",
                                       "#include <linux/types.h>\\n#include <linux/workqueue.h>\\n")
 
-          needle = '#define SYSTEM_PACKAGES_LIST_PATH "/data/system/packages.list"\\n'
-          if needle in text:
-              text = text.replace(
-                  needle,
-                  needle +
-                  "#define KSU_THRONE_RETRY_MS 5000\\n"
+          # 插入宏与全局变量（放在 includes 之后，避免依赖特定宏）
+          if "KSU_THRONE_RETRY_MS" not in text:
+              m = re.search(r"(?:^#include[^\\n]*\\n)+", text, flags=re.M)
+              if not m:
+                  raise SystemExit("include block not found for insert")
+              insert_defs = (
+                  "\\n#define KSU_THRONE_RETRY_MS 5000\\n"
                   "#define KSU_THRONE_MAX_RETRY 60\\n"
                   "\\n"
                   "static struct delayed_work ksu_throne_retry_work;\\n"
-                  "static atomic_t ksu_throne_retry_count = ATOMIC_INIT(0);\\n"
+                  "static atomic_t ksu_throne_retry_count = ATOMIC_INIT(0);\\n\\n"
               )
-          else:
-              anchor = "uid_t ksu_manager_appid = KSU_INVALID_APPID;"
-              if anchor not in text:
-                  raise SystemExit("SYSTEM_PACKAGES_LIST_PATH/manager appid anchor not found")
-              text = text.replace(
-                  anchor,
-                  anchor +
-                  "\\n\\n#define KSU_THRONE_RETRY_MS 5000\\n"
-                  "#define KSU_THRONE_MAX_RETRY 60\\n"
-                  "\\n"
-                  "static struct delayed_work ksu_throne_retry_work;\\n"
-                  "static atomic_t ksu_throne_retry_count = ATOMIC_INIT(0);\\n"
-              )
+              text = text[:m.end()] + insert_defs + text[m.end():]
 
           marker_re = r"(?:void|int)\\s+ksu_throne_tracker_init\\s*\\([^)]*\\)\\s*\\{"
           if not re.search(marker_re, text):
