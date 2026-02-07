@@ -126,22 +126,23 @@ jobs:
             exit 0
           fi
 
-          if [ -d "common/drivers" ]; then
-            DRIVER_DIR="common/drivers"
-          else
-            DRIVER_DIR="drivers"
-          fi
+          fix_dir() {
+            local d="$1"
+            if [ ! -d "$d" ]; then
+              return
+            fi
+            if [ -e "$d/kernelsu" ] && [ ! -L "$d/kernelsu" ]; then
+              echo "[fix] remove legacy $d/kernelsu"
+              rm -rf "$d/kernelsu"
+            fi
+            if [ ! -L "$d/kernelsu" ]; then
+              ln -sf "$(realpath --relative-to="$d" KernelSU/kernel)" "$d/kernelsu"
+            fi
+            ls -la "$d/kernelsu"
+          }
 
-          if [ -e "${DRIVER_DIR}/kernelsu" ] && [ ! -L "${DRIVER_DIR}/kernelsu" ]; then
-            echo "[fix] remove legacy ${DRIVER_DIR}/kernelsu"
-            rm -rf "${DRIVER_DIR}/kernelsu"
-          fi
-
-          if [ ! -L "${DRIVER_DIR}/kernelsu" ]; then
-            ln -sf "$(realpath --relative-to="${DRIVER_DIR}" KernelSU/kernel)" "${DRIVER_DIR}/kernelsu"
-          fi
-
-          ls -la "${DRIVER_DIR}/kernelsu"
+          fix_dir "drivers"
+          fix_dir "common/drivers"
 
       - name: 修补 manager 探测时序（无 ksud 也能识别 Manager）
         id: ksu-throne-fix
