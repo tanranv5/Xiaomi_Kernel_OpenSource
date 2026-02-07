@@ -117,6 +117,116 @@ jobs:
 
           # 方案 B：纯 kprobe（syscall hook），无需 manual hook 补丁/适配层
 
+      - name: 修补 manager 探测时序（无 ksud 也能识别 Manager）
+        id: ksu-throne-fix
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          def find_throne_tracker():
+              hits = []
+              for p in Path(".").rglob("throne_tracker.c"):
+                  path = str(p)
+                  if "KernelSU" in path or "sukisu" in path or "ksu" in path:
+                      hits.append(p)
+              if hits:
+                  return hits[0]
+              for p in Path(".").rglob("throne_tracker.c"):
+                  return p
+              return None
+
+          path = find_throne_tracker()
+          if not path:
+              print("throne_tracker.c not found, skip")
+              raise SystemExit(0)
+
+          text = path.read_text()
+          if "ksu_throne_retry" in text:
+              print("already patched:", path)
+              raise SystemExit(0)
+
+          if "#include <linux/atomic.h>" not in text:
+              text = text.replace("#include <linux/err.h>\\n",
+                                  "#include <linux/atomic.h>\\n#include <linux/err.h>\\n")
+          if "#include <linux/workqueue.h>" not in text:
+              if "#include <linux/version.h>\\n" in text:
+                  text = text.replace("#include <linux/version.h>\\n",
+                                      "#include <linux/version.h>\\n#include <linux/workqueue.h>\\n")
+              else:
+                  text = text.replace("#include <linux/types.h>\\n",
+                                      "#include <linux/types.h>\\n#include <linux/workqueue.h>\\n")
+
+          needle = '#define SYSTEM_PACKAGES_LIST_PATH "/data/system/packages.list"\\n'
+          if needle not in text:
+              raise SystemExit("SYSTEM_PACKAGES_LIST_PATH not found")
+          text = text.replace(
+              needle,
+              needle +
+              "#define KSU_THRONE_RETRY_MS 5000\\n"
+              "#define KSU_THRONE_MAX_RETRY 60\\n"
+              "\\n"
+              "static struct delayed_work ksu_throne_retry_work;\\n"
+              "static atomic_t ksu_throne_retry_count = ATOMIC_INIT(0);\\n"
+          )
+
+          marker = "void ksu_throne_tracker_init()"
+          if marker not in text:
+              raise SystemExit("ksu_throne_tracker_init not found")
+          insert = (
+              "static void ksu_throne_retry(struct work_struct *work)\\n"
+              "{\\n"
+              "    if (ksu_is_manager_appid_valid()) {\\n"
+              "        return;\\n"
+              "    }\\n"
+              "\\n"
+              "    track_throne(false);\\n"
+              "    if (ksu_is_manager_appid_valid()) {\\n"
+              "        return;\\n"
+              "    }\\n"
+              "\\n"
+              "    if (atomic_inc_return(&ksu_throne_retry_count) < KSU_THRONE_MAX_RETRY) {\\n"
+              "        schedule_delayed_work(&ksu_throne_retry_work,\\n"
+              "                              msecs_to_jiffies(KSU_THRONE_RETRY_MS));\\n"
+              "    } else {\\n"
+              "        pr_err(\\\"ksu: manager not found after %d retries\\\\n\\\",\\n"
+              "               KSU_THRONE_MAX_RETRY);\\n"
+              "    }\\n"
+              "}\\n\\n"
+          )
+          text = text.replace(marker, insert + marker)
+
+          text = re.sub(
+              r"void ksu_throne_tracker_init\\(\\)\\n\\{[^}]*\\}",
+              "void ksu_throne_tracker_init()\\n{\\n"
+              "    if (ksu_is_manager_appid_valid()) {\\n"
+              "        return;\\n"
+              "    }\\n"
+              "    atomic_set(&ksu_throne_retry_count, 0);\\n"
+              "    INIT_DELAYED_WORK(&ksu_throne_retry_work, ksu_throne_retry);\\n"
+              "    schedule_delayed_work(&ksu_throne_retry_work,\\n"
+              "                          msecs_to_jiffies(KSU_THRONE_RETRY_MS));\\n"
+              "}\\n",
+              text,
+              count=1,
+              flags=re.S,
+          )
+
+          text = re.sub(
+              r"void ksu_throne_tracker_exit\\(\\)\\n\\{[^}]*\\}",
+              "void ksu_throne_tracker_exit()\\n{\\n"
+              "    cancel_delayed_work_sync(&ksu_throne_retry_work);\\n"
+              "}\\n",
+              text,
+              count=1,
+              flags=re.S,
+          )
+
+          path.write_text(text)
+          print("patched:", path)
+          PY
+
       - name: 配置 defconfig
         id: config
         run: |
