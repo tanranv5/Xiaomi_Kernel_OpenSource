@@ -125,16 +125,26 @@ jobs:
           from pathlib import Path
           import re
 
+          def read_text(p: Path) -> str:
+              try:
+                  return p.read_text()
+              except Exception:
+                  return p.read_text(errors="ignore")
+
           def find_throne_tracker():
-              hits = []
+              # 优先找包含 ksu_throne_tracker_init 的文件
+              for p in Path(".").rglob("*.c"):
+                  text = read_text(p)
+                  if "ksu_throne_tracker_init" in text:
+                      return p
+              # 次选：文件名匹配且包含 track_throne/ksu_manager_appid
+              candidates = []
               for p in Path(".").rglob("throne_tracker.c"):
-                  path = str(p)
-                  if "KernelSU" in path or "sukisu" in path or "ksu" in path:
-                      hits.append(p)
-              if hits:
-                  return hits[0]
-              for p in Path(".").rglob("throne_tracker.c"):
-                  return p
+                  text = read_text(p)
+                  if "track_throne" in text or "ksu_manager_appid" in text:
+                      candidates.append(p)
+              if candidates:
+                  return candidates[0]
               return None
 
           path = find_throne_tracker()
@@ -142,7 +152,7 @@ jobs:
               print("throne_tracker.c not found, skip")
               raise SystemExit(0)
 
-          text = path.read_text()
+          text = read_text(path)
           if "ksu_throne_retry" in text:
               print("already patched:", path)
               raise SystemExit(0)
@@ -183,8 +193,8 @@ jobs:
                   "static atomic_t ksu_throne_retry_count = ATOMIC_INIT(0);\\n"
               )
 
-          marker = "void ksu_throne_tracker_init()"
-          if marker not in text:
+          marker_re = r"(?:void|int)\\s+ksu_throne_tracker_init\\s*\\([^)]*\\)\\s*\\{"
+          if not re.search(marker_re, text):
               raise SystemExit("ksu_throne_tracker_init not found")
           insert = (
               "static void ksu_throne_retry(struct work_struct *work)\\n"
@@ -207,10 +217,10 @@ jobs:
               "    }\\n"
               "}\\n\\n"
           )
-          text = text.replace(marker, insert + marker)
+          text = re.sub(marker_re, insert + "\\g<0>", text, count=1)
 
           text = re.sub(
-              r"void ksu_throne_tracker_init\\(\\)\\n\\{[^}]*\\}",
+              r"(?:void|int)\\s+ksu_throne_tracker_init\\s*\\([^)]*\\)\\s*\\{[^}]*\\}",
               "void ksu_throne_tracker_init()\\n{\\n"
               "    if (ksu_is_manager_appid_valid()) {\\n"
               "        return;\\n"
@@ -226,7 +236,7 @@ jobs:
           )
 
           text = re.sub(
-              r"void ksu_throne_tracker_exit\\(\\)\\n\\{[^}]*\\}",
+              r"(?:void|int)\\s+ksu_throne_tracker_exit\\s*\\([^)]*\\)\\s*\\{[^}]*\\}",
               "void ksu_throne_tracker_exit()\\n{\\n"
               "    cancel_delayed_work_sync(&ksu_throne_retry_work);\\n"
               "}\\n",
