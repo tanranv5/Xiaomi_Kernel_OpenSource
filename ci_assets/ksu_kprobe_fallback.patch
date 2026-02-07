@@ -1,5 +1,4 @@
 diff --git a/drivers/kernelsu/ksud.c b/drivers/kernelsu/ksud.c
-index 715f891f..b96a6921 100644
 --- a/drivers/kernelsu/ksud.c
 +++ b/drivers/kernelsu/ksud.c
 @@ -8,6 +8,7 @@
@@ -102,8 +101,8 @@ index 715f891f..b96a6921 100644
      pr_info("ksud: sys_fstat_kp: %d\n", ret);
  
      ret = register_kprobe(&input_event_kp);
+
 diff --git a/drivers/kernelsu/supercalls.c b/drivers/kernelsu/supercalls.c
-index d8cb9803..26a60b35 100644
 --- a/drivers/kernelsu/supercalls.c
 +++ b/drivers/kernelsu/supercalls.c
 @@ -5,6 +5,7 @@
@@ -159,7 +158,9 @@ index d8cb9803..26a60b35 100644
 +                                      "reboot");
      if (rc) {
          pr_err("reboot kprobe failed: %d\n", rc);
-    } else {
+     } else {
+         pr_info("reboot kprobe registered successfully\n");
+     }
 
 diff --git a/drivers/kernelsu/kp_hook.c b/drivers/kernelsu/kp_hook.c
 --- a/drivers/kernelsu/kp_hook.c
