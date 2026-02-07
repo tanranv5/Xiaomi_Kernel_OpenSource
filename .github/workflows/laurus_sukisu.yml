@@ -647,6 +647,13 @@ jobs:
           cp -f fs/exec.c ci_logs/fs.exec.c
           cp -f kernel/reboot.c ci_logs/kernel.reboot.c
 
+      - name: 注入 Manager 签名（用于识别官方管理器）
+        run: |
+          set -euxo pipefail
+          export KSU_EXPECTED_SIZE=0x35c
+          export KSU_EXPECTED_HASH="947ae944f3de4ed4c21a7e4f7953ecf351bfa2b36239da37a34111ad29993eef"
+
+
       - name: 配置 defconfig
         id: config
         run: |
