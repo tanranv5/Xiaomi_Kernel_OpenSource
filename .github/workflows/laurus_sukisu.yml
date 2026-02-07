@@ -1,0 +1,681 @@
+name: build-laurus-sukisu
+
+"on":
+  workflow_dispatch:
+    inputs:
+      kernel_branch:
+        description: "要编译的内核分支"
+        required: true
+        default: "laurus-p-oss-ci"
+      defconfig:
+        description: "defconfig（相对 arch/arm64/configs/）"
+        required: true
+        default: "vendor/laurus-perf_defconfig"
+      sukisu_ref:
+        description: "SukiSU Ultra 引用（分支/标签/commit）"
+        required: true
+        default: "builtin"
+      sukisu_mode:
+        description: "SukiSU 集成模式：builtin 更适合非 GKI/老内核"
+        required: true
+        default: "builtin"
+        type: choice
+        options:
+          - builtin
+          - main
+      fortify:
+        description: "是否启用 FORTIFY_SOURCE（推荐日用 on；老 GCC 4.9 需先修触发点再开启）"
+        required: true
+        default: "off"
+        type: choice
+        options:
+          - "off"
+          - "on"
+      build_dtbo:
+        description: "是否构建 DTBO（overlay）；off 会绕过 trinket dtbo 编译失败（先确保内核能出镜像）"
+        required: true
+        default: "off"
+        type: choice
+        options:
+          - "off"
+          - "on"
+      gcc64_repo:
+        description: "AArch64 GCC 4.9 工具链仓库"
+        required: true
+        default: "LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9"
+      gcc64_ref:
+        description: "AArch64 GCC 4.9 工具链分支"
+        required: true
+        default: "lineage-19.1"
+      gcc32_repo:
+        description: "ARM GCC 4.9 工具链仓库"
+        required: true
+        default: "LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9"
+      gcc32_ref:
+        description: "ARM GCC 4.9 工具链分支"
+        required: true
+        default: "lineage-19.1"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    env:
+      WITH_SUKISU: "on"
+
+    steps:
+      - name: 检出内核源码
+        id: checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.kernel_branch || 'laurus-p-oss-ci' }}
+
+      - name: 安装依赖
+        id: deps
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            bc bison build-essential ca-certificates \
+            curl flex git libelf-dev libssl-dev \
+            python3 rsync unzip xz-utils \
+            device-tree-compiler zip
+
+      - name: 拉取工具链（GCC 4.9）
+        id: toolchain
+        run: |
+          set -euxo pipefail
+          GCC64_REPO="${{ github.event_name == 'workflow_dispatch' && inputs.gcc64_repo || 'LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9' }}"
+          GCC64_REF="${{ github.event_name == 'workflow_dispatch' && inputs.gcc64_ref || 'lineage-19.1' }}"
+          GCC32_REPO="${{ github.event_name == 'workflow_dispatch' && inputs.gcc32_repo || 'LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9' }}"
+          GCC32_REF="${{ github.event_name == 'workflow_dispatch' && inputs.gcc32_ref || 'lineage-19.1' }}"
+
+          git clone --depth=1 -b "$GCC64_REF" "https://github.com/${GCC64_REPO}.git" toolchain-gcc64
+          git clone --depth=1 -b "$GCC32_REF" "https://github.com/${GCC32_REPO}.git" toolchain-gcc32
+
+          echo "TOOLCHAIN_GCC64=$PWD/toolchain-gcc64" >> "$GITHUB_ENV"
+          echo "TOOLCHAIN_GCC32=$PWD/toolchain-gcc32" >> "$GITHUB_ENV"
+
+      - name: 集成 SukiSU Ultra
+        id: sukisu
+        run: |
+          set -euxo pipefail
+          if [ "${WITH_SUKISU}" != "on" ]; then
+            echo "WITH_SUKISU=${WITH_SUKISU}, skip SukiSU integrate."
+            exit 0
+          fi
+
+          ref="${{ github.event_name == 'workflow_dispatch' && inputs.sukisu_ref || 'main' }}"
+          mode="${{ github.event_name == 'workflow_dispatch' && inputs.sukisu_mode || 'builtin' }}"
+          if [ "$ref" = "builtin" ]; then
+            mode="builtin"
+          elif [ "$ref" = "main" ]; then
+            mode="main"
+          fi
+          echo "KSU_REF=$ref" >> "$GITHUB_ENV"
+          echo "KSU_MODE=$mode" >> "$GITHUB_ENV"
+
+          # SukiSU 官方脚本
+          rm -rf KernelSU
+          curl -fsSL "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/${ref}/kernel/setup.sh" | bash -s "$ref"
+
+          # 方案 B：纯 kprobe（syscall hook），无需 manual hook 补丁/适配层
+
+      - name: 强制重建 kernelsu 软链接（覆盖历史目录）
+        id: sukisu-link
+        run: |
+          set -euxo pipefail
+          if [ "${WITH_SUKISU}" != "on" ]; then
+            echo "WITH_SUKISU=${WITH_SUKISU}, skip link fix."
+            exit 0
+          fi
+
+          fix_dir() {
+            local d="$1"
+            if [ ! -d "$d" ]; then
+              return
+            fi
+            if [ -e "$d/kernelsu" ] && [ ! -L "$d/kernelsu" ]; then
+              echo "[fix] remove legacy $d/kernelsu"
+              rm -rf "$d/kernelsu"
+            fi
+            if [ ! -L "$d/kernelsu" ]; then
+              ln -sf "$(realpath --relative-to="$d" KernelSU/kernel)" "$d/kernelsu"
+            fi
+            ls -la "$d/kernelsu"
+          }
+
+          fix_dir "drivers"
+          fix_dir "common/drivers"
+
+      - name: 修补 manager 探测时序（无 ksud 也能识别 Manager）
+        id: ksu-throne-fix
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          def read_text(p: Path) -> str:
+              try:
+                  return p.read_text()
+              except Exception:
+                  return p.read_text(errors="ignore")
+
+          def looks_like_throne(text: str) -> bool:
+              return ("track_throne(" in text and
+                      ("packages.list" in text or "SYSTEM_PACKAGES_LIST_PATH" in text))
+
+          def find_throne_tracker():
+              direct = Path("KernelSU/kernel/throne_tracker.c")
+              if direct.exists():
+                  return direct
+              for p in Path("KernelSU").rglob("throne_tracker.c"):
+                  if looks_like_throne(read_text(p)):
+                      return p
+              for p in Path(".").rglob("throne_tracker.c"):
+                  if looks_like_throne(read_text(p)):
+                      return p
+              for p in Path(".").rglob("*.c"):
+                  if looks_like_throne(read_text(p)):
+                      return p
+              return None
+
+          def ensure_includes(text: str) -> str:
+              if "#include <linux/atomic.h>" not in text:
+                  text = text.replace("#include <linux/err.h>\n",
+                                      "#include <linux/atomic.h>\n#include <linux/err.h>\n")
+              if "#include <linux/workqueue.h>" not in text:
+                  if "#include <linux/version.h>\n" in text:
+                      text = text.replace("#include <linux/version.h>\n",
+                                          "#include <linux/version.h>\n#include <linux/workqueue.h>\n")
+                  else:
+                      text = text.replace("#include <linux/types.h>\n",
+                                          "#include <linux/types.h>\n#include <linux/workqueue.h>\n")
+              return text
+
+          def insert_defs(text: str) -> str:
+              if "KSU_THRONE_RETRY_MS" in text:
+                  return text
+              insert_defs = """
+          #define KSU_THRONE_RETRY_MS 5000
+          #define KSU_THRONE_MAX_RETRY 60
+
+          static struct delayed_work ksu_throne_retry_work;
+          static atomic_t ksu_throne_retry_count = ATOMIC_INIT(0);
+
+          """
+              insert_defs = insert_defs.lstrip()
+              m = re.search(r"(?:^#include[^\n]*\n)+", text, flags=re.M)
+              if not m:
+                  return insert_defs + text
+              return text[:m.end()] + insert_defs + text[m.end():]
+
+          def insert_retry_func(text: str) -> str:
+              if "ksu_throne_retry(" in text:
+                  return text
+              retry_func = """
+          static void ksu_throne_retry(struct work_struct *work)
+          {
+              if (ksu_is_manager_appid_valid()) {
+                  return;
+              }
+
+              track_throne(false);
+              if (ksu_is_manager_appid_valid()) {
+                  return;
+              }
+
+              if (atomic_inc_return(&ksu_throne_retry_count) < KSU_THRONE_MAX_RETRY) {
+                  schedule_delayed_work(&ksu_throne_retry_work,
+                                        msecs_to_jiffies(KSU_THRONE_RETRY_MS));
+              } else {
+                  pr_err("ksu: manager not found after %d retries\\n",
+                         KSU_THRONE_MAX_RETRY);
+              }
+          }
+
+          """
+              retry_func = retry_func.lstrip()
+              idx = text.find("ksu_throne_tracker_init")
+              if idx < 0:
+                  return text + "\n" + retry_func
+              line_start = text.rfind("\n", 0, idx) + 1
+              return text[:line_start] + retry_func + text[line_start:]
+
+          def replace_func_body(text: str, name: str, new_body: str):
+              idx = text.find(name)
+              if idx < 0:
+                  return text, False
+              brace = text.find("{", idx)
+              if brace < 0:
+                  return text, False
+              depth = 0
+              i = brace
+              end = -1
+              while i < len(text):
+                  if text[i] == "{":
+                      depth += 1
+                  elif text[i] == "}":
+                      depth -= 1
+                      if depth == 0:
+                          end = i
+                          break
+                  i += 1
+              if end < 0:
+                  return text, False
+              new_text = text[:brace+1] + "\n" + new_body + "\n" + text[end:]
+              return new_text, True
+
+          path = find_throne_tracker()
+          if not path:
+              print("throne_tracker.c not found, skip")
+              raise SystemExit(0)
+
+          text = read_text(path)
+          print("patch target:", path)
+          text = ensure_includes(text)
+          text = insert_defs(text)
+          text = insert_retry_func(text)
+
+          init_body = """
+              if (ksu_is_manager_appid_valid()) {
+                  return;
+              }
+              atomic_set(&ksu_throne_retry_count, 0);
+              INIT_DELAYED_WORK(&ksu_throne_retry_work, ksu_throne_retry);
+              schedule_delayed_work(&ksu_throne_retry_work,
+                                    msecs_to_jiffies(KSU_THRONE_RETRY_MS));
+          """.strip()
+          exit_body = "cancel_delayed_work_sync(&ksu_throne_retry_work);"
+
+          text, ok1 = replace_func_body(text, "ksu_throne_tracker_init", init_body)
+          text, ok2 = replace_func_body(text, "ksu_throne_tracker_exit", exit_body)
+          if not ok1 or not ok2:
+              print("warn: cannot patch init/exit", ok1, ok2)
+              raise SystemExit(0)
+
+          path.write_text(text)
+          print("patched:", path)
+          PY
+
+      - name: 配置 defconfig
+        id: config
+        run: |
+          set -euxo pipefail
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export PATH="$TOOLCHAIN_GCC64/bin:$TOOLCHAIN_GCC32/bin:$PATH"
+          export CROSS_COMPILE="$TOOLCHAIN_GCC64/bin/aarch64-linux-android-"
+          export CROSS_COMPILE_ARM32="$TOOLCHAIN_GCC32/bin/arm-linux-androideabi-"
+          export LOCALVERSION=
+
+          DEFCONFIG="${{ github.event_name == 'workflow_dispatch' && inputs.defconfig || 'vendor/laurus-perf_defconfig' }}"
+          DEFCONFIG_PATH="arch/arm64/configs/${DEFCONFIG}"
+          KSU_REF="${KSU_REF:-${{ github.event_name == 'workflow_dispatch' && inputs.sukisu_ref || 'main' }}}"
+          KSU_MODE="${KSU_MODE:-${{ github.event_name == 'workflow_dispatch' && inputs.sukisu_mode || 'builtin' }}}"
+          if [ "$KSU_REF" = "builtin" ]; then
+            KSU_MODE="builtin"
+          elif [ "$KSU_REF" = "main" ]; then
+            KSU_MODE="main"
+          fi
+
+          if [ ! -f "${DEFCONFIG_PATH}" ]; then
+            echo "defconfig 不存在：${DEFCONFIG_PATH}"
+            exit 1
+          fi
+
+          # 对齐 vendor 模块 vermagic（避免 Wi-Fi 模块加载失败）
+          sed -i -E 's/^SUBLEVEL = .*/SUBLEVEL = 98/' Makefile
+          sed -i -E 's/^EXTRAVERSION = .*/EXTRAVERSION =/' Makefile
+          rm -f .scmversion
+
+          if [ "$WITH_SUKISU" = "on" ]; then
+            # 根据 SukiSU 分支/模式选择配置
+            sed -i -E '/^CONFIG_KSU=/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^# CONFIG_KSU is not set/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^CONFIG_KSU_SYSCALL_HOOK/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^# CONFIG_KSU_SYSCALL_HOOK is not set/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^CONFIG_KSU_MANUAL_HOOK/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^# CONFIG_KSU_MANUAL_HOOK is not set/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^CONFIG_KSU_MANUAL_SU/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^# CONFIG_KSU_MANUAL_SU is not set/d' "${DEFCONFIG_PATH}"
+            if [ "$KSU_MODE" = "builtin" ]; then
+              printf '%s\n' \
+                'CONFIG_KSU=y' \
+                'CONFIG_KSU_SYSCALL_HOOK=y' \
+                '# CONFIG_KSU_MANUAL_HOOK is not set' \
+                '# CONFIG_KSU_MANUAL_SU is not set' \
+                'CONFIG_KPROBES=y' \
+                'CONFIG_KRETPROBES=y' \
+                'CONFIG_KPROBE_EVENTS=y' \
+                'CONFIG_HAVE_SYSCALL_TRACEPOINTS=y' \
+                'CONFIG_KALLSYMS=y' \
+                'CONFIG_KALLSYMS_ALL=y' \
+                'CONFIG_SECURITYFS=y' \
+                'CONFIG_DEVTMPFS=y' \
+                'CONFIG_DEVTMPFS_MOUNT=y' \
+                'CONFIG_OVERLAY_FS=y' \
+                >> "${DEFCONFIG_PATH}"
+            else
+              printf '%s\n' \
+                'CONFIG_KSU=y' \
+                'CONFIG_KSU_MANUAL_SU=y' \
+                >> "${DEFCONFIG_PATH}"
+            fi
+          fi
+
+          mkdir -p out
+          make O=out "$DEFCONFIG"
+
+          if [ "$WITH_SUKISU" = "on" ]; then
+            if [ "$KSU_MODE" = "builtin" ]; then
+              # builtin：syscall hook（kprobe）
+              ./scripts/config --file out/.config -e KSU || true
+              ./scripts/config --file out/.config -e KSU_SYSCALL_HOOK || true
+              ./scripts/config --file out/.config -d KSU_MANUAL_HOOK || true
+              ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
+              ./scripts/config --file out/.config -e KPROBES || true
+              ./scripts/config --file out/.config -e KRETPROBES || true
+              ./scripts/config --file out/.config -e KPROBE_EVENTS || true
+              ./scripts/config --file out/.config -e HAVE_SYSCALL_TRACEPOINTS || true
+              ./scripts/config --file out/.config -e KALLSYMS || true
+              ./scripts/config --file out/.config -e KALLSYMS_ALL || true
+              ./scripts/config --file out/.config -e SECURITYFS || true
+              ./scripts/config --file out/.config -e DEVTMPFS || true
+              ./scripts/config --file out/.config -e DEVTMPFS_MOUNT || true
+              ./scripts/config --file out/.config -e OVERLAY_FS || true
+            else
+              # main：无 syscall hook 配置，仅保证 KSU 与 manual su
+              ./scripts/config --file out/.config -e KSU || true
+              ./scripts/config --file out/.config -e KSU_MANUAL_SU || true
+            fi
+          fi
+
+          # 保持 MODULE_SIG 以对齐 struct module，但关闭强制签名校验
+          ./scripts/config --file out/.config -e MODULE_SIG || true
+          ./scripts/config --file out/.config -d MODULE_SIG_FORCE || true
+          ./scripts/config --file out/.config -d MODULE_SIG_ALL || true
+          # 保持 MODVERSIONS，与 vendor 模块一致
+          ./scripts/config --file out/.config -e MODVERSIONS || true
+
+          # 对齐版本字符串，避免 vermagic 不匹配
+          ./scripts/config --file out/.config -d LOCALVERSION_AUTO || true
+          ./scripts/config --file out/.config --set-str LOCALVERSION "-perf+-tanran" || true
+
+          FORTIFY="${{ github.event_name == 'workflow_dispatch' && inputs.fortify || 'off' }}"
+          if [ "$FORTIFY" = "on" ]; then
+            ./scripts/config --file out/.config -e FORTIFY_SOURCE || true
+          else
+            # GCC 4.9 下 include/linux/string.h 的 FORTIFY memcpy 会触发 __read_overflow2 编译期错误
+            ./scripts/config --file out/.config -d FORTIFY_SOURCE || true
+          fi
+
+          make O=out olddefconfig
+
+          if [ "$WITH_SUKISU" = "on" ]; then
+            if [ "$KSU_MODE" = "builtin" ]; then
+              # olddefconfig 后确认 syscall hook 仍保持开启
+              ./scripts/config --file out/.config -e KSU || true
+              ./scripts/config --file out/.config -e KSU_SYSCALL_HOOK || true
+              ./scripts/config --file out/.config -d KSU_MANUAL_HOOK || true
+              ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
+              ./scripts/config --file out/.config -e KPROBES || true
+              ./scripts/config --file out/.config -e KRETPROBES || true
+              ./scripts/config --file out/.config -e KPROBE_EVENTS || true
+              ./scripts/config --file out/.config -e HAVE_SYSCALL_TRACEPOINTS || true
+              ./scripts/config --file out/.config -e KALLSYMS || true
+              ./scripts/config --file out/.config -e KALLSYMS_ALL || true
+              ./scripts/config --file out/.config -e SECURITYFS || true
+              ./scripts/config --file out/.config -e DEVTMPFS || true
+              ./scripts/config --file out/.config -e DEVTMPFS_MOUNT || true
+              ./scripts/config --file out/.config -e OVERLAY_FS || true
+            else
+              ./scripts/config --file out/.config -e KSU || true
+              ./scripts/config --file out/.config -e KSU_MANUAL_SU || true
+            fi
+
+            # 再次确保模块签名/版本字符串设置生效
+            ./scripts/config --file out/.config -e MODULE_SIG || true
+            ./scripts/config --file out/.config -d MODULE_SIG_FORCE || true
+            ./scripts/config --file out/.config -d MODULE_SIG_ALL || true
+            ./scripts/config --file out/.config -e MODVERSIONS || true
+            ./scripts/config --file out/.config -d LOCALVERSION_AUTO || true
+            ./scripts/config --file out/.config --set-str LOCALVERSION "-perf+-tanran" || true
+
+            make O=out olddefconfig
+
+            if [ "$KSU_MODE" = "builtin" ]; then
+              if ! grep -q '^CONFIG_KSU_SYSCALL_HOOK=y' out/.config; then
+                echo "CONFIG_KSU_SYSCALL_HOOK 未开启，停止构建"
+                exit 1
+              fi
+            else
+              if ! grep -q '^CONFIG_KSU=y' out/.config; then
+                echo "CONFIG_KSU 未开启，停止构建"
+                exit 1
+              fi
+            fi
+          fi
+
+          # 保持默认版本字符串，避免 vendor 模块 vermagic 不匹配（例如 Wi-Fi 驱动）
+      - name: 编译
+        id: build
+        run: |
+          set -euxo pipefail
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export PATH="$TOOLCHAIN_GCC64/bin:$TOOLCHAIN_GCC32/bin:$PATH"
+          export CROSS_COMPILE="$TOOLCHAIN_GCC64/bin/aarch64-linux-android-"
+          export CROSS_COMPILE_ARM32="$TOOLCHAIN_GCC32/bin/arm-linux-androideabi-"
+          export LOCALVERSION=
+
+          BUILD_DTBO="${{ github.event_name == 'workflow_dispatch' && inputs.build_dtbo || 'off' }}"
+
+          if [ "$BUILD_DTBO" = "on" ]; then
+            # dtbo (/plugin/;) 需要 -@ 才能生成符号/修复信息
+            make -j"$(nproc)" O=out Image.gz-dtb V=1 DTC_FLAGS="-@" 2>&1 | tee build.log
+          else
+            # 先确保能编译出内核镜像；dtbo 问题后续再单独修
+            make -j"$(nproc)" O=out Image.gz V=1 2>&1 | tee build.log
+
+            mkdir -p dist
+            rm -f dist/dtb
+
+            # 编译 trinket 相关 dtb（失败跳过，后续按 size 白名单拼接）
+            for dts in $(find arch/arm64/boot/dts/qcom -maxdepth 1 -name 'trinket*.dts' ! -name '*-overlay.dts' -print | sort); do
+              dtb="$(basename "${dts%.dts}.dtb")"
+              if make -j"$(nproc)" O=out "qcom/${dtb}" V=1 2>&1 | tee -a build.log; then
+                echo "built dtb: ${dtb}" | tee -a build.log
+              else
+                echo "skip dtb build failed: ${dtb}" | tee -a build.log
+              fi
+            done
+
+            STOCK_DTB_B64="ci_assets/laurus_p_dtb.bin.gz.b64"
+            if [ -f "${STOCK_DTB_B64}" ]; then
+              base64 -d "${STOCK_DTB_B64}" | gzip -d > dist/dtb
+            else
+              # 根据 stock dtb 的 size 列表重建 dtb blob（P 版本）
+              STOCK_DTB_SIZES=("4065" "54743" "4753" "323654" "33249" "27359" "46749" "5306" "173")
+              tmp_map="$(mktemp)"
+              find out/arch/arm64/boot/dts/qcom -maxdepth 1 -name 'trinket*.dtb' -print0 | xargs -0 -I{} stat -c '%s %n' {} | sort > "${tmp_map}"
+
+              : > dist/dtb
+              for size in "${STOCK_DTB_SIZES[@]}"; do
+                match="$(awk -v s="${size}" '$1==s{print $2; exit}' "${tmp_map}")"
+                if [ -z "${match}" ]; then
+                  echo "missing dtb size: ${size}" | tee -a build.log
+                  exit 1
+                fi
+                cat "${match}" >> dist/dtb
+              done
+              rm -f "${tmp_map}"
+            fi
+
+            # 生成 CC 9e/Trinket 多 DTB Image.gz-dtb（直接用于打包/刷机）
+            cat out/arch/arm64/boot/Image.gz dist/dtb > dist/Image.gz-dtb
+          fi
+
+      - name: 打包 AnyKernel3（可直接刷）
+        id: package
+        if: steps.build.outcome == 'success'
+        run: |
+          set -euxo pipefail
+          mkdir -p dist
+
+          # build_dtbo=on 时，尝试复用 out 里生成的 Image.gz-dtb
+          if [ ! -f dist/Image.gz-dtb ] && [ -f out/arch/arm64/boot/Image.gz-dtb ]; then
+            cp -f out/arch/arm64/boot/Image.gz-dtb dist/Image.gz-dtb
+          fi
+
+          test -f dist/Image.gz-dtb
+
+          git clone --depth=1 https://github.com/osm0sis/AnyKernel3 anykernel3
+          cp -f dist/Image.gz-dtb anykernel3/Image.gz-dtb
+
+          # 仅做最小定制：限制设备代号（CC 9e=laurus；同平台 Mi A3=laurel_sprout）
+          sed -i \
+            -e 's/^do.devicecheck=.*/do.devicecheck=1/' \
+            -e 's/^device.name1=.*/device.name1=laurus/' \
+            -e 's/^device.name2=.*/device.name2=laurel_sprout/' \
+            anykernel3/anykernel.sh || true
+
+          (cd anykernel3 && zip -r9 ../dist/AnyKernel3-laurus-${{ github.run_id }}.zip . -x '.git/*')
+
+      - name: 生成 boot.img（可 fastboot 刷入）
+        id: bootimg
+        if: steps.build.outcome == 'success'
+        run: |
+          set -euxo pipefail
+          mkdir -p dist
+          test -f out/arch/arm64/boot/Image.gz
+
+          rm -rf repack
+          mkdir -p repack/out
+          cp -f out/arch/arm64/boot/Image.gz repack/out/kernel
+          : > repack/out/ramdisk
+
+          test -f dist/dtb
+          cp -f dist/dtb repack/out/dtb
+          ls -lh dist/dtb repack/out/dtb
+
+          # 使用仓库自带 mkbootimg.py 生成 boot.img
+          test -f tools/mkbootimg.py
+
+          CMDLINE="console=ttyMSM0,115200n8 androidboot.hardware=qcom androidboot.console=ttyMSM0 androidboot.memcg=1 lpm_levels.sleep_disabled=1 video=vfb:640x400,bpp=32,memsize=3072000 msm_rtb.filter=0x237 service_locator.enable=1 swiotlb=1 earlycon=msm_geni_serial,0x4a90000 loop.max_part=7 cgroup.memory=nokmem,nosocket androidboot.selinux=enforcing buildvariant=user"
+
+          (cd repack && python3 ../tools/mkbootimg.py \
+            --header_version 2 \
+            --os_version 10.0.0 \
+            --os_patch_level 2021-09 \
+            --kernel out/kernel \
+            --ramdisk out/ramdisk \
+            --dtb out/dtb \
+            --pagesize 0x00001000 \
+            --base 0x00000000 \
+            --kernel_offset 0x00008000 \
+            --ramdisk_offset 0x01000000 \
+            --second_offset 0x00f00000 \
+            --tags_offset 0x00000100 \
+            --dtb_offset 0x0000000001f00000 \
+            --board "" \
+            --cmdline "$CMDLINE" \
+            -o ../dist/boot.img)
+
+          # laurus boot 分区固定 64MB，做一次 truncate 与 stock 对齐
+          truncate -s 64M dist/boot.img
+          ls -lh dist/boot.img
+
+      - name: 写入精简日志（方便无鉴权查看）
+        if: always()
+        run: |
+          set -euxo pipefail
+          mkdir -p ci_logs
+          outfile="ci_logs/${{ github.run_id }}.txt"
+          {
+            echo "run_id=${{ github.run_id }}"
+            echo "head_sha=${{ github.sha }}"
+            echo "kernel_ref=${{ github.event_name == 'workflow_dispatch' && inputs.kernel_branch || 'laurus-p-oss-ci' }}"
+            echo "defconfig=${{ github.event_name == 'workflow_dispatch' && inputs.defconfig || 'vendor/laurus-perf_defconfig' }}"
+            echo "fortify=${{ github.event_name == 'workflow_dispatch' && inputs.fortify || 'off' }}"
+            echo "build_dtbo=${{ github.event_name == 'workflow_dispatch' && inputs.build_dtbo || 'off' }}"
+            echo "with_sukisu=${WITH_SUKISU}"
+            echo
+            echo "==== step outcomes ===="
+            echo "checkout=${{ steps.checkout.outcome }}"
+            echo "deps=${{ steps.deps.outcome }}"
+            echo "toolchain=${{ steps.toolchain.outcome }}"
+            echo "sukisu=${{ steps.sukisu.outcome }}"
+            echo "config=${{ steps.config.outcome }}"
+            echo "build=${{ steps.build.outcome }}"
+            echo "package=${{ steps.package.outcome }}"
+            echo
+            echo "==== ksu config snapshot (out/.config) ===="
+            if [ -f out/.config ]; then
+              grep -nE "KSU|KPROBES|KRETPROBES|KPROBES_ON_FTRACE|KPROBE_EVENTS|KALLSYMS|FTRACE" out/.config 2>&1 | head -n 200 || true
+            else
+              echo "out/.config not found"
+            fi
+            echo
+            echo "==== artifacts existence ===="
+            ls -l build.log 2>&1 || true
+            ls -l out/arch/arm64/boot/Image.gz-dtb out/arch/arm64/boot/Image.gz out/arch/arm64/boot/dts/qcom/trinket.dtb 2>&1 || true
+            ls -l dist/Image.gz-dtb dist/AnyKernel3-laurus-${{ github.run_id }}.zip dist/boot.img 2>&1 || true
+            echo
+            echo "==== build.log errors (tail 200) ===="
+            grep -nE "error:|fatal error:" build.log 2>&1 | tail -n 200 || true
+            echo
+            echo "==== make failures (tail 120) ===="
+            grep -nE "make(\[[0-9]+\])?: \*\*\*|make: \*\*\*|Error [0-9]+" build.log 2>&1 | tail -n 120 || true
+            echo
+            echo "==== dtc/dts errors (tail 200) ===="
+            grep -nE "FATAL ERROR|syntax error|parse error|Error:" build.log 2>&1 | tail -n 200 || true
+            echo
+            echo "==== forbidden warnings (tail 80) ===="
+            grep -n "warn, forbidden warning" build.log 2>&1 | tail -n 80 || true
+            echo
+            echo "==== bad_copy / fortify hits (head 200) ===="
+            grep -nE "__bad_copy_(to|from)|copy (source|destination) size is too small|__compiletime_error\(\"copy (source|destination) size is too small\"\)|__read_overflow2|FORTIFY|__check_object_size" build.log 2>&1 | head -n 200 || true
+            echo
+            echo "==== bad_copy context (first 3 hits, each +/-60 lines) ===="
+            hits="$(grep -nE "__bad_copy_(to|from)" build.log 2>/dev/null | head -n 3 | cut -d: -f1 | tr '\n' ' ' || true)"
+            if [ -n "${hits}" ]; then
+              for n in ${hits}; do
+                start=$((n-60)); end=$((n+60)); if [ "$start" -lt 1 ]; then start=1; fi
+                echo "--- context around build.log:$n (lines $start-$end) ---"
+                sed -n "${start},${end}p" build.log 2>&1 || true
+                echo
+              done
+            else
+              echo "(no __bad_copy_* strings found in build.log)"
+            fi
+            echo
+            echo "==== tail build.log (last 1200) ===="
+            tail -n 1200 build.log 2>&1 || true
+          } > "$outfile"
+
+          cp -f "$outfile" ci_logs/latest.txt
+          echo "Wrote $outfile"
+
+      - name: 上传产物（无论成功失败）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: laurus-${{ github.run_id }}
+          include-hidden-files: true
+          if-no-files-found: warn
+          path: |
+            build.log
+            ci_logs/latest.txt
+            out/.config
+            out/arch/arm64/boot/Image.gz-dtb
+            out/arch/arm64/boot/Image.gz
+            out/arch/arm64/boot/dts/qcom/trinket.dtb
+            dist/Image.gz-dtb
+            dist/AnyKernel3-laurus-${{ github.run_id }}.zip
+            dist/boot.img
