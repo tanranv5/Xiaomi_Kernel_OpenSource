@@ -204,12 +204,45 @@ jobs:
                       1,
                   )
                   changed = True
-              if "extern const size_t ksu_rc_len;" not in txt:
+              if "#include <linux/uaccess.h>" not in txt:
                   txt = txt.replace(
                       "#include <linux/kernel.h>\n",
-                      "#include <linux/kernel.h>\n\nextern const size_t ksu_rc_len;\n",
+                      "#include <linux/kernel.h>\n#include <linux/uaccess.h>\n",
                       1,
                   )
+                  changed = True
+              if "extern const size_t ksu_rc_len;" not in txt:
+                  txt = txt.replace(
+                      "#include <linux/uaccess.h>\n",
+                      "#include <linux/uaccess.h>\n\nextern const size_t ksu_rc_len;\n",
+                      1,
+                  )
+                  changed = True
+              if "copy_from_user_nofault" in txt and "ksu_copy_from_user_nofault" not in txt:
+                  txt = txt.replace(
+                      "extern const size_t ksu_rc_len;\n",
+                      "extern const size_t ksu_rc_len;\n\n"
+                      "#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)\n"
+                      "static inline int ksu_copy_from_user_nofault(void *to,\n"
+                      "                                            const void __user *from,\n"
+                      "                                            size_t n)\n"
+                      "{\n"
+                      "    return copy_from_user(to, from, n);\n"
+                      "}\n\n"
+                      "static inline int ksu_copy_to_user_nofault(void __user *to,\n"
+                      "                                          const void *from,\n"
+                      "                                          size_t n)\n"
+                      "{\n"
+                      "    return copy_to_user(to, from, n);\n"
+                      "}\n"
+                      "#else\n"
+                      "#define ksu_copy_from_user_nofault copy_from_user_nofault\n"
+                      "#define ksu_copy_to_user_nofault copy_to_user_nofault\n"
+                      "#endif\n",
+                      1,
+                  )
+                  txt = txt.replace("copy_from_user_nofault(", "ksu_copy_from_user_nofault(")
+                  txt = txt.replace("copy_to_user_nofault(", "ksu_copy_to_user_nofault(")
                   changed = True
               if "stop_vfs_read_work" in txt and "stop_init_rc_hook_work" in txt:
                   txt = txt.replace("stop_vfs_read_work", "stop_init_rc_hook_work")
