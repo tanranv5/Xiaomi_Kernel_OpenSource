@@ -199,10 +199,7 @@ jobs:
             cat "$dtb" >> repack/out/dtb
           done
 
-          mkdir -p .tmp
-          curl -fsSL \
-            "https://raw.githubusercontent.com/LineageOS/android_system_tools_mkbootimg/lineage-19.1/mkbootimg.py" \
-            -o .tmp/mkbootimg.py
+          test -f tools/mkbootimg.py
 
           STOCK_ENV="ci_assets/stock_bootimg.env"
           if [ ! -f "$STOCK_ENV" ]; then
@@ -218,7 +215,7 @@ jobs:
           # shellcheck disable=SC1090
           source "$STOCK_ENV"
 
-          (cd repack && python3 ../.tmp/mkbootimg.py \
+          (cd repack && python3 ../tools/mkbootimg.py \
             --header_version "$HEADER_VERSION" \
             --os_version "$OS_VERSION" \
             --os_patch_level "$OS_PATCH_LEVEL" \
