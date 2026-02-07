@@ -202,6 +202,12 @@ jobs:
 
           STOCK_ENV="ci_assets/stock_bootimg.env"
           if [ ! -f "$STOCK_ENV" ]; then
+            mkdir -p ci_assets
+            curl -fsSL \
+              "https://raw.githubusercontent.com/tanranv5/laurus/laurus-p-oss-ci-ksu-kprobe-fallback/ci_assets/stock_bootimg.env" \
+              -o "$STOCK_ENV"
+          fi
+          if [ ! -f "$STOCK_ENV" ]; then
             echo "stock boot 参数缺失：$STOCK_ENV"
             exit 1
           fi
