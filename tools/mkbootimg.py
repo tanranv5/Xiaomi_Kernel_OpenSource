@@ -189,10 +189,10 @@ def write_header(args):
     if args.header_version in {3, 4}:
         return write_header_v3_and_above(args)
 
-    ramdisk_load_address = ((args.base + args.ramdisk_offset)
-                            if filesize(args.ramdisk) > 0 else 0)
-    second_load_address = ((args.base + args.second_offset)
-                           if filesize(args.second) > 0 else 0)
+    # Qualcomm/MIUI 的 boot 头在 ramdisk/second 为空时仍保留 offset，
+    # 这里保持与 stock 一致，避免刷机卡 fastboot。
+    ramdisk_load_address = args.base + args.ramdisk_offset
+    second_load_address = args.base + args.second_offset
 
     args.output.write(pack(f'{BOOT_MAGIC_SIZE}s', BOOT_MAGIC.encode()))
     # kernel size in bytes
