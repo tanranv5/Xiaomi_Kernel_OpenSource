@@ -933,6 +933,12 @@ jobs:
               legacy = fetch_text(
                   "https://raw.githubusercontent.com/tiann/KernelSU/v0.9.5/kernel/selinux/rules.c"
               )
+              if '#include "avc_ss.h"\n' not in legacy:
+                  legacy = legacy.replace(
+                      '#include "xfrm.h"\n',
+                      '#include "xfrm.h"\n#include "avc_ss.h"\n',
+                      1,
+                  )
               wrapped = (
                   '#include <linux/version.h>\n'
                   '#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)\n'
