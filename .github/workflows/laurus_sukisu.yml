@@ -1375,10 +1375,19 @@ jobs:
             else
               printf '%s\n' \
                 'CONFIG_KSU=y' \
-                '# CONFIG_KSU_SYSCALL_HOOK is not set' \
-                'CONFIG_KSU_MANUAL_HOOK=y' \
+                'CONFIG_KSU_SYSCALL_HOOK=y' \
                 'CONFIG_KSU_MANUAL_SU=y' \
                 '# CONFIG_KSU_SUSFS is not set' \
+                'CONFIG_KPROBES=y' \
+                'CONFIG_KRETPROBES=y' \
+                'CONFIG_KPROBE_EVENTS=y' \
+                'CONFIG_HAVE_SYSCALL_TRACEPOINTS=y' \
+                'CONFIG_KALLSYMS=y' \
+                'CONFIG_KALLSYMS_ALL=y' \
+                'CONFIG_SECURITYFS=y' \
+                'CONFIG_DEVTMPFS=y' \
+                'CONFIG_DEVTMPFS_MOUNT=y' \
+                'CONFIG_OVERLAY_FS=y' \
                 >> "${DEFCONFIG_PATH}"
             fi
           fi
@@ -1405,12 +1414,21 @@ jobs:
               ./scripts/config --file out/.config -e DEVTMPFS_MOUNT || true
               ./scripts/config --file out/.config -e OVERLAY_FS || true
             else
-              # main：无 syscall hook 配置，仅保证 KSU 与 manual su
+              # main：在 4.14 上强制开启 syscall hook，保证 init.rc 注入链路生效
               ./scripts/config --file out/.config -e KSU || true
-              ./scripts/config --file out/.config -d KSU_SYSCALL_HOOK || true
-              ./scripts/config --file out/.config -e KSU_MANUAL_HOOK || true
+              ./scripts/config --file out/.config -e KSU_SYSCALL_HOOK || true
               ./scripts/config --file out/.config -e KSU_MANUAL_SU || true
               ./scripts/config --file out/.config -d KSU_SUSFS || true
+              ./scripts/config --file out/.config -e KPROBES || true
+              ./scripts/config --file out/.config -e KRETPROBES || true
+              ./scripts/config --file out/.config -e KPROBE_EVENTS || true
+              ./scripts/config --file out/.config -e HAVE_SYSCALL_TRACEPOINTS || true
+              ./scripts/config --file out/.config -e KALLSYMS || true
+              ./scripts/config --file out/.config -e KALLSYMS_ALL || true
+              ./scripts/config --file out/.config -e SECURITYFS || true
+              ./scripts/config --file out/.config -e DEVTMPFS || true
+              ./scripts/config --file out/.config -e DEVTMPFS_MOUNT || true
+              ./scripts/config --file out/.config -e OVERLAY_FS || true
             fi
           fi
 
@@ -1455,10 +1473,19 @@ jobs:
               ./scripts/config --file out/.config -e OVERLAY_FS || true
             else
               ./scripts/config --file out/.config -e KSU || true
-              ./scripts/config --file out/.config -d KSU_SYSCALL_HOOK || true
-              ./scripts/config --file out/.config -e KSU_MANUAL_HOOK || true
+              ./scripts/config --file out/.config -e KSU_SYSCALL_HOOK || true
               ./scripts/config --file out/.config -e KSU_MANUAL_SU || true
               ./scripts/config --file out/.config -d KSU_SUSFS || true
+              ./scripts/config --file out/.config -e KPROBES || true
+              ./scripts/config --file out/.config -e KRETPROBES || true
+              ./scripts/config --file out/.config -e KPROBE_EVENTS || true
+              ./scripts/config --file out/.config -e HAVE_SYSCALL_TRACEPOINTS || true
+              ./scripts/config --file out/.config -e KALLSYMS || true
+              ./scripts/config --file out/.config -e KALLSYMS_ALL || true
+              ./scripts/config --file out/.config -e SECURITYFS || true
+              ./scripts/config --file out/.config -e DEVTMPFS || true
+              ./scripts/config --file out/.config -e DEVTMPFS_MOUNT || true
+              ./scripts/config --file out/.config -e OVERLAY_FS || true
             fi
 
             # 再次确保模块签名/版本字符串设置生效
@@ -1479,6 +1506,10 @@ jobs:
             else
               if ! grep -q '^CONFIG_KSU=y' out/.config; then
                 echo "CONFIG_KSU 未开启，停止构建"
+                exit 1
+              fi
+              if ! grep -q '^CONFIG_KSU_SYSCALL_HOOK=y' out/.config; then
+                echo "CONFIG_KSU_SYSCALL_HOOK 未开启，停止构建"
                 exit 1
               fi
             fi
