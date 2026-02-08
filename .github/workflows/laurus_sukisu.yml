@@ -620,6 +620,55 @@ jobs:
                   path.write_text(txt)
               return True
 
+          def patch_ksud_main(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              changed = False
+              if "#define KSU_KSUD_NOFAULT_COMPAT" not in txt:
+                  anchor = "#include <linux/version.h>\n"
+                  if anchor in txt:
+                      txt = txt.replace(
+                          anchor,
+                          anchor +
+                          "\n#ifndef TWA_RESUME\n#define TWA_RESUME 0\n#endif\n"
+                          "#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)\n"
+                          "#define KSU_KSUD_NOFAULT_COMPAT 1\n"
+                          "static inline long ksu_strncpy_from_user_nofault(\n"
+                          "    char *dst, const void __user *src, long count)\n"
+                          "{\n"
+                          "    return strncpy_from_user(dst, src, count);\n"
+                          "}\n"
+                          "static inline int ksu_copy_from_user_nofault(\n"
+                          "    void *to, const void __user *from, unsigned long n)\n"
+                          "{\n"
+                          "    return copy_from_user(to, from, n);\n"
+                          "}\n"
+                          "static inline int ksu_copy_to_user_nofault(\n"
+                          "    void __user *to, const void *from, unsigned long n)\n"
+                          "{\n"
+                          "    return copy_to_user(to, from, n);\n"
+                          "}\n"
+                          "#define strncpy_from_user_nofault ksu_strncpy_from_user_nofault\n"
+                          "#define copy_from_user_nofault ksu_copy_from_user_nofault\n"
+                          "#define copy_to_user_nofault ksu_copy_to_user_nofault\n"
+                          "#endif\n",
+                          1,
+                      )
+                      changed = True
+              old_execve_call = "    return ksu_handle_execveat_ksud(AT_FDCWD, &filename_p, &argv, NULL, NULL);\n"
+              if old_execve_call in txt:
+                  txt = txt.replace(
+                      old_execve_call,
+                      "    int fd = AT_FDCWD;\n"
+                      "    return ksu_handle_execveat_ksud(&fd, &filename_p, &argv, NULL, NULL);\n",
+                      1,
+                  )
+                  changed = True
+              if changed:
+                  path.write_text(txt)
+              return True
+
           targets = [
               Path("drivers/kernelsu"),
               Path("KernelSU/kernel"),
@@ -639,7 +688,8 @@ jobs:
               kernel_umount_c = base / "kernel_umount.c"
               supercalls_c = base / "supercalls.c"
               su_mount_ns_c = base / "su_mount_ns.c"
-              if not arch_h.exists() and not kp_hook.exists() and not kp_util.exists() and not ksu_main_c.exists() and not allowlist_c.exists() and not app_profile_c.exists() and not sucompat_c.exists() and not syscall_mgr_c.exists() and not pkg_observer_c.exists() and not setuid_hook_c.exists() and not kernel_umount_c.exists() and not supercalls_c.exists() and not su_mount_ns_c.exists():
+              ksud_c = base / "ksud.c"
+              if not arch_h.exists() and not kp_hook.exists() and not kp_util.exists() and not ksu_main_c.exists() and not allowlist_c.exists() and not app_profile_c.exists() and not sucompat_c.exists() and not syscall_mgr_c.exists() and not pkg_observer_c.exists() and not setuid_hook_c.exists() and not kernel_umount_c.exists() and not supercalls_c.exists() and not su_mount_ns_c.exists() and not ksud_c.exists():
                   continue
               if mode == "builtin":
                   patch_arch_h(arch_h)
@@ -656,6 +706,7 @@ jobs:
                   patch_kernel_umount_main(kernel_umount_c)
                   patch_supercalls_main(supercalls_c)
                   patch_su_mount_ns_main(su_mount_ns_c)
+                  patch_ksud_main(ksud_c)
               done = True
           if not done:
               raise SystemExit("未找到可修补的 KernelSU 目录")
