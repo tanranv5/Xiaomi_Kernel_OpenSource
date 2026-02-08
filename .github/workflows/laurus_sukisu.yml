@@ -693,6 +693,26 @@ jobs:
               path.write_text(stub + txt + "\n#endif\n")
               return True
 
+          def patch_util_main(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              if "#include <asm/pgtable.h>" in txt:
+                  return True
+              old = "#include <linux/pgtable.h>\n"
+              new = (
+                  "#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0)\n"
+                  "#include <linux/pgtable.h>\n"
+                  "#else\n"
+                  "#include <asm/pgtable.h>\n"
+                  "#endif\n"
+              )
+              if old not in txt:
+                  return True
+              txt = txt.replace(old, new, 1)
+              path.write_text(txt)
+              return True
+
           targets = [
               Path("drivers/kernelsu"),
               Path("KernelSU/kernel"),
@@ -714,7 +734,8 @@ jobs:
               su_mount_ns_c = base / "su_mount_ns.c"
               ksud_c = base / "ksud.c"
               file_wrapper_c = base / "file_wrapper.c"
-              if not arch_h.exists() and not kp_hook.exists() and not kp_util.exists() and not ksu_main_c.exists() and not allowlist_c.exists() and not app_profile_c.exists() and not sucompat_c.exists() and not syscall_mgr_c.exists() and not pkg_observer_c.exists() and not setuid_hook_c.exists() and not kernel_umount_c.exists() and not supercalls_c.exists() and not su_mount_ns_c.exists() and not ksud_c.exists() and not file_wrapper_c.exists():
+              util_c = base / "util.c"
+              if not arch_h.exists() and not kp_hook.exists() and not kp_util.exists() and not ksu_main_c.exists() and not allowlist_c.exists() and not app_profile_c.exists() and not sucompat_c.exists() and not syscall_mgr_c.exists() and not pkg_observer_c.exists() and not setuid_hook_c.exists() and not kernel_umount_c.exists() and not supercalls_c.exists() and not su_mount_ns_c.exists() and not ksud_c.exists() and not file_wrapper_c.exists() and not util_c.exists():
                   continue
               if mode == "builtin":
                   patch_arch_h(arch_h)
@@ -733,6 +754,7 @@ jobs:
                   patch_su_mount_ns_main(su_mount_ns_c)
                   patch_ksud_main(ksud_c)
                   patch_file_wrapper_main(file_wrapper_c)
+                  patch_util_main(util_c)
               done = True
           if not done:
               raise SystemExit("未找到可修补的 KernelSU 目录")
