@@ -669,6 +669,30 @@ jobs:
                   path.write_text(txt)
               return True
 
+          def patch_file_wrapper_main(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              if "KSU_FILE_WRAPPER_COMPAT_STUB_414" in txt:
+                  return True
+              stub = (
+                  '#include <linux/errno.h>\n'
+                  '#include <linux/version.h>\n'
+                  '#include "file_wrapper.h"\n\n'
+                  '#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0)\n'
+                  '#define KSU_FILE_WRAPPER_COMPAT_STUB_414 1\n'
+                  'int ksu_install_file_wrapper(int fd)\n'
+                  '{\n'
+                  '    return -EOPNOTSUPP;\n'
+                  '}\n\n'
+                  'void ksu_file_wrapper_init(void)\n'
+                  '{\n'
+                  '}\n'
+                  '#else\n'
+              )
+              path.write_text(stub + txt + "\n#endif\n")
+              return True
+
           targets = [
               Path("drivers/kernelsu"),
               Path("KernelSU/kernel"),
@@ -689,7 +713,8 @@ jobs:
               supercalls_c = base / "supercalls.c"
               su_mount_ns_c = base / "su_mount_ns.c"
               ksud_c = base / "ksud.c"
-              if not arch_h.exists() and not kp_hook.exists() and not kp_util.exists() and not ksu_main_c.exists() and not allowlist_c.exists() and not app_profile_c.exists() and not sucompat_c.exists() and not syscall_mgr_c.exists() and not pkg_observer_c.exists() and not setuid_hook_c.exists() and not kernel_umount_c.exists() and not supercalls_c.exists() and not su_mount_ns_c.exists() and not ksud_c.exists():
+              file_wrapper_c = base / "file_wrapper.c"
+              if not arch_h.exists() and not kp_hook.exists() and not kp_util.exists() and not ksu_main_c.exists() and not allowlist_c.exists() and not app_profile_c.exists() and not sucompat_c.exists() and not syscall_mgr_c.exists() and not pkg_observer_c.exists() and not setuid_hook_c.exists() and not kernel_umount_c.exists() and not supercalls_c.exists() and not su_mount_ns_c.exists() and not ksud_c.exists() and not file_wrapper_c.exists():
                   continue
               if mode == "builtin":
                   patch_arch_h(arch_h)
@@ -707,6 +732,7 @@ jobs:
                   patch_supercalls_main(supercalls_c)
                   patch_su_mount_ns_main(su_mount_ns_c)
                   patch_ksud_main(ksud_c)
+                  patch_file_wrapper_main(file_wrapper_c)
               done = True
           if not done:
               raise SystemExit("未找到可修补的 KernelSU 目录")
