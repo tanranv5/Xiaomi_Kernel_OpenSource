@@ -626,7 +626,7 @@ jobs:
               txt = path.read_text()
               changed = False
               if "#define KSU_KSUD_NOFAULT_COMPAT" not in txt:
-                  anchor = "#include <linux/version.h>\n"
+                  anchor = "#include <linux/uaccess.h>\n"
                   if anchor in txt:
                       txt = txt.replace(
                           anchor,
