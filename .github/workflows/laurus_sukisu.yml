@@ -482,6 +482,43 @@ jobs:
               path.write_text(txt)
               return True
 
+          def patch_setuid_hook_main(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              changed = False
+              if "#ifndef TWA_RESUME" not in txt:
+                  anchor = '#include "kernel_umount.h"\n'
+                  if anchor in txt:
+                      txt = txt.replace(
+                          anchor,
+                          anchor +
+                          "\n#ifndef TWA_RESUME\n#define TWA_RESUME 0\n#endif\n",
+                          1,
+                      )
+                      changed = True
+              if "#define KSU_SECCOMP_ALLOW_CACHE" not in txt:
+                  anchor = '#include "kernel_umount.h"\n'
+                  if anchor in txt:
+                      txt = txt.replace(
+                          anchor,
+                          anchor +
+                          "\n#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 2)\n"
+                          "#define KSU_SECCOMP_ALLOW_CACHE(filter, nr) \\\n"
+                          "    ksu_seccomp_allow_cache((filter), (nr))\n"
+                          "#else\n"
+                          "#define KSU_SECCOMP_ALLOW_CACHE(filter, nr) do { } while (0)\n"
+                          "#endif\n",
+                          1,
+                      )
+                      changed = True
+              if "ksu_seccomp_allow_cache(" in txt:
+                  txt = txt.replace("ksu_seccomp_allow_cache(", "KSU_SECCOMP_ALLOW_CACHE(")
+                  changed = True
+              if changed:
+                  path.write_text(txt)
+              return True
+
           targets = [
               Path("drivers/kernelsu"),
               Path("KernelSU/kernel"),
@@ -497,7 +534,8 @@ jobs:
               sucompat_c = base / "sucompat.c"
               syscall_mgr_c = base / "syscall_hook_manager.c"
               pkg_observer_c = base / "pkg_observer.c"
-              if not arch_h.exists() and not kp_hook.exists() and not kp_util.exists() and not ksu_main_c.exists() and not allowlist_c.exists() and not app_profile_c.exists() and not sucompat_c.exists() and not syscall_mgr_c.exists() and not pkg_observer_c.exists():
+              setuid_hook_c = base / "setuid_hook.c"
+              if not arch_h.exists() and not kp_hook.exists() and not kp_util.exists() and not ksu_main_c.exists() and not allowlist_c.exists() and not app_profile_c.exists() and not sucompat_c.exists() and not syscall_mgr_c.exists() and not pkg_observer_c.exists() and not setuid_hook_c.exists():
                   continue
               if mode == "builtin":
                   patch_arch_h(arch_h)
@@ -510,6 +548,7 @@ jobs:
                   patch_sucompat_main(sucompat_c)
                   patch_syscall_hook_manager_main(syscall_mgr_c)
                   patch_pkg_observer_main(pkg_observer_c)
+                  patch_setuid_hook_main(setuid_hook_c)
               done = True
           if not done:
               raise SystemExit("未找到可修补的 KernelSU 目录")
