@@ -305,6 +305,20 @@ jobs:
                       1,
                   )
                   changed = True
+              if "#include <linux/sched/task.h>" not in txt:
+                  if "#include <linux/sched.h>\n" in txt:
+                      txt = txt.replace(
+                          "#include <linux/sched.h>\n",
+                          "#include <linux/sched.h>\n#include <linux/sched/task.h>\n",
+                          1,
+                      )
+                  else:
+                      txt = txt.replace(
+                          "#include <linux/version.h>\n",
+                          "#include <linux/version.h>\n#include <linux/sched/task.h>\n",
+                          1,
+                      )
+                  changed = True
               if "#ifndef TWA_RESUME" not in txt:
                   txt = txt.replace(
                       "void persistent_allow_list(void);\n",
