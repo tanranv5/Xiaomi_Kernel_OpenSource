@@ -369,6 +369,26 @@ jobs:
                   path.write_text(txt)
               return True
 
+          def patch_sucompat_main(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              if "#include <asm/pgtable.h>" in txt:
+                  return True
+              old = "#include <linux/pgtable.h>\n"
+              new = (
+                  "#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0)\n"
+                  "#include <linux/pgtable.h>\n"
+                  "#else\n"
+                  "#include <asm/pgtable.h>\n"
+                  "#endif\n"
+              )
+              if old not in txt:
+                  return True
+              txt = txt.replace(old, new, 1)
+              path.write_text(txt)
+              return True
+
           targets = [
               Path("drivers/kernelsu"),
               Path("KernelSU/kernel"),
@@ -381,7 +401,8 @@ jobs:
               ksu_main_c = base / "ksu.c"
               allowlist_c = base / "allowlist.c"
               app_profile_c = base / "app_profile.c"
-              if not arch_h.exists() and not kp_hook.exists() and not kp_util.exists() and not ksu_main_c.exists() and not allowlist_c.exists() and not app_profile_c.exists():
+              sucompat_c = base / "sucompat.c"
+              if not arch_h.exists() and not kp_hook.exists() and not kp_util.exists() and not ksu_main_c.exists() and not allowlist_c.exists() and not app_profile_c.exists() and not sucompat_c.exists():
                   continue
               if mode == "builtin":
                   patch_arch_h(arch_h)
@@ -391,6 +412,7 @@ jobs:
                   patch_ksu_main(ksu_main_c)
                   patch_allowlist_main(allowlist_c)
                   patch_app_profile_main(app_profile_c)
+                  patch_sucompat_main(sucompat_c)
               done = True
           if not done:
               raise SystemExit("未找到可修补的 KernelSU 目录")
