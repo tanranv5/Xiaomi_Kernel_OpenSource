@@ -160,8 +160,13 @@ jobs:
           from pathlib import Path
           import os
           import re
+          import urllib.request
 
           mode = os.getenv("KSU_MODE", "builtin")
+
+          def fetch_text(url: str) -> str:
+              with urllib.request.urlopen(url, timeout=30) as resp:
+                  return resp.read().decode("utf-8")
 
           def patch_arch_h(path: Path) -> bool:
               if not path.exists():
@@ -785,27 +790,180 @@ jobs:
               if not path.exists():
                   return False
               txt = path.read_text()
-              if "KSU_SELINUX_COMPAT_STUB_414" in txt:
+              if "KSU_SELINUX_COMPAT_REAL_414" in txt:
                   return True
-              stub = (
-                  '#include <linux/version.h>\n'
-                  '#include <linux/types.h>\n'
-                  '#include <linux/cred.h>\n\n'
+              compat = (
+                  '#include "selinux.h"\n'
+                  '#include "objsec.h"\n'
+                  '#include "linux/version.h"\n'
+                  '#include "linux/security.h"\n'
+                  '#include "linux/string.h"\n'
+                  '#include "avc.h"\n'
+                  '#include "../klog.h"\n'
+                  '#include "../ksu.h"\n\n'
                   '#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)\n'
-                  '#define KSU_SELINUX_COMPAT_STUB_414 1\n'
-                  'u32 ksu_file_sid = 0;\n\n'
-                  'void setup_selinux(const char *domain, struct cred *cred) { }\n'
-                  'void setup_ksu_cred(void) { }\n'
-                  'void setenforce(bool enforce) { }\n'
-                  'bool getenforce(void) { return true; }\n'
-                  'void cache_sid(void) { }\n'
-                  'bool is_task_ksu_domain(const struct cred *cred) { return false; }\n'
-                  'bool is_ksu_domain(void) { return false; }\n'
-                  'bool is_zygote(const struct cred *cred) { return false; }\n'
-                  'bool is_init(const struct cred *cred) { return false; }\n'
+                  '#define KSU_SELINUX_COMPAT_REAL_414 1\n\n'
+                  'static u32 cached_su_sid __read_mostly = 0;\n'
+                  'static u32 cached_zygote_sid __read_mostly = 0;\n'
+                  'static u32 cached_init_sid __read_mostly = 0;\n'
+                  'u32 ksu_file_sid __read_mostly = 0;\n\n'
+                  'static inline struct task_security_struct *ksu_get_tsec(const struct cred *cred)\n'
+                  '{\n'
+                  '    if (!cred)\n'
+                  '        return NULL;\n'
+                  '    return (struct task_security_struct *)cred->security;\n'
+                  '}\n\n'
+                  'static int transive_to_domain(const char *domain, struct cred *cred)\n'
+                  '{\n'
+                  '    struct task_security_struct *tsec;\n'
+                  '    u32 sid = 0;\n'
+                  '    int error;\n\n'
+                  '    tsec = ksu_get_tsec(cred);\n'
+                  '    if (!tsec) {\n'
+                  '        pr_err("tsec == NULL!\\n");\n'
+                  '        return -1;\n'
+                  '    }\n\n'
+                  '    error = security_secctx_to_secid(domain, strlen(domain), &sid);\n'
+                  '    if (error) {\n'
+                  '        pr_info("security_secctx_to_secid %s -> sid: %u, error: %d\\n",\n'
+                  '                domain, sid, error);\n'
+                  '    }\n'
+                  '    if (!error) {\n'
+                  '        tsec->sid = sid;\n'
+                  '        tsec->create_sid = 0;\n'
+                  '        tsec->keycreate_sid = 0;\n'
+                  '        tsec->sockcreate_sid = 0;\n'
+                  '    }\n'
+                  '    return error;\n'
+                  '}\n\n'
+                  'void setup_selinux(const char *domain, struct cred *cred)\n'
+                  '{\n'
+                  '    if (!cred)\n'
+                  '        cred = (struct cred *)current_cred();\n'
+                  '    if (transive_to_domain(domain, cred)) {\n'
+                  '        pr_err("transive domain failed.\\n");\n'
+                  '    }\n'
+                  '}\n\n'
+                  'void setup_ksu_cred(void)\n'
+                  '{\n'
+                  '    if (ksu_cred && transive_to_domain(KERNEL_SU_CONTEXT, ksu_cred)) {\n'
+                  '        pr_err("setup ksu cred failed.\\n");\n'
+                  '    }\n'
+                  '}\n\n'
+                  'void setenforce(bool enforce)\n'
+                  '{\n'
+                  '#ifdef CONFIG_SECURITY_SELINUX_DEVELOP\n'
+                  '    selinux_enforcing = enforce ? 1 : 0;\n'
+                  '#endif\n'
+                  '}\n\n'
+                  'bool getenforce(void)\n'
+                  '{\n'
+                  '#ifdef CONFIG_SECURITY_SELINUX_DEVELOP\n'
+                  '    return !!selinux_enforcing;\n'
+                  '#else\n'
+                  '    return true;\n'
+                  '#endif\n'
+                  '}\n\n'
+                  'static bool sid_matches_context(u32 sid, const char *context)\n'
+                  '{\n'
+                  '    char *domain = NULL;\n'
+                  '    u32 seclen = 0;\n'
+                  '    bool result;\n'
+                  '    int err;\n\n'
+                  '    err = security_secid_to_secctx(sid, &domain, &seclen);\n'
+                  '    if (err)\n'
+                  '        return false;\n'
+                  '    result = strncmp(context, domain, seclen) == 0;\n'
+                  '    security_release_secctx(domain, seclen);\n'
+                  '    return result;\n'
+                  '}\n\n'
+                  'void cache_sid(void)\n'
+                  '{\n'
+                  '    if (security_secctx_to_secid(KERNEL_SU_CONTEXT, strlen(KERNEL_SU_CONTEXT), &cached_su_sid))\n'
+                  '        cached_su_sid = 0;\n'
+                  '    if (security_secctx_to_secid(ZYGOTE_CONTEXT, strlen(ZYGOTE_CONTEXT), &cached_zygote_sid))\n'
+                  '        cached_zygote_sid = 0;\n'
+                  '    if (security_secctx_to_secid(INIT_CONTEXT, strlen(INIT_CONTEXT), &cached_init_sid))\n'
+                  '        cached_init_sid = 0;\n'
+                  '    if (security_secctx_to_secid(KSU_FILE_CONTEXT, strlen(KSU_FILE_CONTEXT), &ksu_file_sid))\n'
+                  '        ksu_file_sid = 0;\n'
+                  '}\n\n'
+                  'bool is_task_ksu_domain(const struct cred *cred)\n'
+                  '{\n'
+                  '    const struct task_security_struct *tsec = ksu_get_tsec(cred);\n'
+                  '    if (!tsec)\n'
+                  '        return false;\n'
+                  '    if (cached_su_sid)\n'
+                  '        return tsec->sid == cached_su_sid;\n'
+                  '    return sid_matches_context(tsec->sid, KERNEL_SU_CONTEXT);\n'
+                  '}\n\n'
+                  'bool is_ksu_domain(void)\n'
+                  '{\n'
+                  '    return is_task_ksu_domain(current_cred());\n'
+                  '}\n\n'
+                  'bool is_zygote(const struct cred *cred)\n'
+                  '{\n'
+                  '    const struct task_security_struct *tsec = ksu_get_tsec(cred);\n'
+                  '    if (!tsec)\n'
+                  '        return false;\n'
+                  '    if (cached_zygote_sid)\n'
+                  '        return tsec->sid == cached_zygote_sid;\n'
+                  '    return sid_matches_context(tsec->sid, ZYGOTE_CONTEXT);\n'
+                  '}\n\n'
+                  'bool is_init(const struct cred *cred)\n'
+                  '{\n'
+                  '    const struct task_security_struct *tsec = ksu_get_tsec(cred);\n'
+                  '    if (!tsec)\n'
+                  '        return false;\n'
+                  '    if (cached_init_sid)\n'
+                  '        return tsec->sid == cached_init_sid;\n'
+                  '    return sid_matches_context(tsec->sid, INIT_CONTEXT);\n'
+                  '}\n'
                   '#else\n'
               )
-              path.write_text(stub + txt + "\n#endif\n")
+              path.write_text(compat + txt + "\n#endif\n")
+              return True
+
+          def patch_rules_main(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              if "KSU_RULES_COMPAT_V095" in txt:
+                  return True
+              legacy = fetch_text(
+                  "https://raw.githubusercontent.com/tiann/KernelSU/v0.9.5/kernel/selinux/rules.c"
+              )
+              wrapped = (
+                  '#include <linux/version.h>\n'
+                  '#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)\n'
+                  '#define KSU_RULES_COMPAT_V095 1\n'
+                  + legacy +
+                  '\n#else\n'
+                  + txt +
+                  '\n#endif\n'
+              )
+              path.write_text(wrapped)
+              return True
+
+          def patch_sepolicy_main(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              if "KSU_SEPOLICY_COMPAT_V095" in txt:
+                  return True
+              legacy = fetch_text(
+                  "https://raw.githubusercontent.com/tiann/KernelSU/v0.9.5/kernel/selinux/sepolicy.c"
+              )
+              wrapped = (
+                  '#include <linux/version.h>\n'
+                  '#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)\n'
+                  '#define KSU_SEPOLICY_COMPAT_V095 1\n'
+                  + legacy +
+                  '\n#else\n'
+                  + txt +
+                  '\n#endif\n'
+              )
+              path.write_text(wrapped)
               return True
 
           targets = [
@@ -832,7 +990,9 @@ jobs:
               util_c = base / "util.c"
               manual_su_c = base / "manual_su.c"
               selinux_c = base / "selinux/selinux.c"
-              if not arch_h.exists() and not kp_hook.exists() and not kp_util.exists() and not ksu_main_c.exists() and not allowlist_c.exists() and not app_profile_c.exists() and not sucompat_c.exists() and not syscall_mgr_c.exists() and not pkg_observer_c.exists() and not setuid_hook_c.exists() and not kernel_umount_c.exists() and not supercalls_c.exists() and not su_mount_ns_c.exists() and not ksud_c.exists() and not file_wrapper_c.exists() and not util_c.exists() and not manual_su_c.exists() and not selinux_c.exists():
+              rules_c = base / "selinux/rules.c"
+              sepolicy_c = base / "selinux/sepolicy.c"
+              if not arch_h.exists() and not kp_hook.exists() and not kp_util.exists() and not ksu_main_c.exists() and not allowlist_c.exists() and not app_profile_c.exists() and not sucompat_c.exists() and not syscall_mgr_c.exists() and not pkg_observer_c.exists() and not setuid_hook_c.exists() and not kernel_umount_c.exists() and not supercalls_c.exists() and not su_mount_ns_c.exists() and not ksud_c.exists() and not file_wrapper_c.exists() and not util_c.exists() and not manual_su_c.exists() and not selinux_c.exists() and not rules_c.exists() and not sepolicy_c.exists():
                   continue
               if mode == "builtin":
                   patch_arch_h(arch_h)
@@ -854,6 +1014,8 @@ jobs:
                   patch_util_main(util_c)
                   patch_manual_su_main(manual_su_c)
                   patch_selinux_main(selinux_c)
+                  patch_rules_main(rules_c)
+                  patch_sepolicy_main(sepolicy_c)
               done = True
           if not done:
               raise SystemExit("未找到可修补的 KernelSU 目录")
