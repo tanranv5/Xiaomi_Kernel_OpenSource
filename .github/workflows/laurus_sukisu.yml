@@ -373,20 +373,40 @@ jobs:
               if not path.exists():
                   return False
               txt = path.read_text()
-              if "#include <asm/pgtable.h>" in txt:
-                  return True
+              changed = False
+              if "#define KSU_STRNCPY_NOFAULT" not in txt:
+                  anchor = "#include <linux/version.h>\n"
+                  if anchor in txt:
+                      txt = txt.replace(
+                          anchor,
+                          anchor +
+                          "\n"
+                          "#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)\n"
+                          "#define KSU_STRNCPY_NOFAULT 1\n"
+                          "static inline long ksu_strncpy_from_user_nofault(\n"
+                          "    char *dst, const void __user *src, long count)\n"
+                          "{\n"
+                          "    return strncpy_from_user(dst, src, count);\n"
+                          "}\n"
+                          "#define strncpy_from_user_nofault ksu_strncpy_from_user_nofault\n"
+                          "#endif\n",
+                          1,
+                      )
+                      changed = True
               old = "#include <linux/pgtable.h>\n"
               new = (
+                  "#include <linux/version.h>\n"
                   "#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0)\n"
                   "#include <linux/pgtable.h>\n"
                   "#else\n"
                   "#include <asm/pgtable.h>\n"
                   "#endif\n"
               )
-              if old not in txt:
-                  return True
-              txt = txt.replace(old, new, 1)
-              path.write_text(txt)
+              if old in txt and "#include <asm/pgtable.h>" not in txt:
+                  txt = txt.replace(old, new, 1)
+                  changed = True
+              if changed:
+                  path.write_text(txt)
               return True
 
           targets = [
