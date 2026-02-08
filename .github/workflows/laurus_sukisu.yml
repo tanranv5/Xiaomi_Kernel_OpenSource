@@ -697,20 +697,20 @@ jobs:
               if not path.exists():
                   return False
               txt = path.read_text()
-              if "#include <asm/pgtable.h>" in txt:
+              if "KSU_UTIL_COMPAT_STUB_414" in txt:
                   return True
-              old = "#include <linux/pgtable.h>\n"
-              new = (
-                  "#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0)\n"
-                  "#include <linux/pgtable.h>\n"
-                  "#else\n"
-                  "#include <asm/pgtable.h>\n"
-                  "#endif\n"
+              stub = (
+                  '#include <linux/version.h>\n'
+                  '#include "util.h"\n\n'
+                  '#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)\n'
+                  '#define KSU_UTIL_COMPAT_STUB_414 1\n'
+                  'bool try_set_access_flag(unsigned long addr)\n'
+                  '{\n'
+                  '    return false;\n'
+                  '}\n'
+                  '#else\n'
               )
-              if old not in txt:
-                  return True
-              txt = txt.replace(old, new, 1)
-              path.write_text(txt)
+              path.write_text(stub + txt + "\n#endif\n")
               return True
 
           targets = [
