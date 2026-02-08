@@ -454,6 +454,34 @@ jobs:
                   path.write_text(txt)
               return True
 
+          def patch_pkg_observer_main(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              if "KSU_PKG_OBSERVER_COMPAT_414" in txt:
+                  return True
+              anchor = "#define MASK_SYSTEM (FS_CREATE | FS_MOVE | FS_EVENT_ON_CHILD)\n"
+              if anchor not in txt:
+                  return True
+              txt = txt.replace(
+                  anchor,
+                  "#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)\n"
+                  "#define KSU_PKG_OBSERVER_COMPAT_414 1\n"
+                  "int ksu_observer_init(void)\n"
+                  "{\n"
+                  "    return 0;\n"
+                  "}\n\n"
+                  "void ksu_observer_exit(void)\n"
+                  "{\n"
+                  "}\n"
+                  "#else\n\n"
+                  + anchor,
+                  1,
+              )
+              txt = txt.rstrip() + "\n\n#endif\n"
+              path.write_text(txt)
+              return True
+
           targets = [
               Path("drivers/kernelsu"),
               Path("KernelSU/kernel"),
@@ -468,7 +496,8 @@ jobs:
               app_profile_c = base / "app_profile.c"
               sucompat_c = base / "sucompat.c"
               syscall_mgr_c = base / "syscall_hook_manager.c"
-              if not arch_h.exists() and not kp_hook.exists() and not kp_util.exists() and not ksu_main_c.exists() and not allowlist_c.exists() and not app_profile_c.exists() and not sucompat_c.exists() and not syscall_mgr_c.exists():
+              pkg_observer_c = base / "pkg_observer.c"
+              if not arch_h.exists() and not kp_hook.exists() and not kp_util.exists() and not ksu_main_c.exists() and not allowlist_c.exists() and not app_profile_c.exists() and not sucompat_c.exists() and not syscall_mgr_c.exists() and not pkg_observer_c.exists():
                   continue
               if mode == "builtin":
                   patch_arch_h(arch_h)
@@ -480,6 +509,7 @@ jobs:
                   patch_app_profile_main(app_profile_c)
                   patch_sucompat_main(sucompat_c)
                   patch_syscall_hook_manager_main(syscall_mgr_c)
+                  patch_pkg_observer_main(pkg_observer_c)
               done = True
           if not done:
               raise SystemExit("未找到可修补的 KernelSU 目录")
