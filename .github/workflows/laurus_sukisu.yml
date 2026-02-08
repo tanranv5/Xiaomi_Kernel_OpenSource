@@ -331,6 +331,44 @@ jobs:
                   path.write_text(txt)
               return True
 
+          def patch_app_profile_main(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              changed = False
+              if "#define KSU_SECCOMP_SET_FILTER_COUNT" not in txt:
+                  anchor = "#include <linux/version.h>\n"
+                  if anchor not in txt:
+                      raise SystemExit(f"app_profile.c patch anchor not found: {path}")
+                  txt = txt.replace(
+                      anchor,
+                      anchor +
+                      "\n"
+                      "#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)\n"
+                      "#define KSU_SECCOMP_SET_FILTER_COUNT(task) \\\n"
+                      "    atomic_set(&(task)->seccomp.filter_count, 0)\n"
+                      "#else\n"
+                      "#define KSU_SECCOMP_SET_FILTER_COUNT(task) do { } while (0)\n"
+                      "#endif\n",
+                      1,
+                  )
+                  changed = True
+              if "atomic_set(&current->seccomp.filter_count, 0);" in txt:
+                  txt = txt.replace(
+                      "atomic_set(&current->seccomp.filter_count, 0);",
+                      "KSU_SECCOMP_SET_FILTER_COUNT(current);",
+                  )
+                  changed = True
+              if "atomic_set(&tsk->seccomp.filter_count, 0);" in txt:
+                  txt = txt.replace(
+                      "atomic_set(&tsk->seccomp.filter_count, 0);",
+                      "KSU_SECCOMP_SET_FILTER_COUNT(tsk);",
+                  )
+                  changed = True
+              if changed:
+                  path.write_text(txt)
+              return True
+
           targets = [
               Path("drivers/kernelsu"),
               Path("KernelSU/kernel"),
@@ -342,7 +380,8 @@ jobs:
               kp_util = base / "kp_util.c"
               ksu_main_c = base / "ksu.c"
               allowlist_c = base / "allowlist.c"
-              if not arch_h.exists() and not kp_hook.exists() and not kp_util.exists() and not ksu_main_c.exists() and not allowlist_c.exists():
+              app_profile_c = base / "app_profile.c"
+              if not arch_h.exists() and not kp_hook.exists() and not kp_util.exists() and not ksu_main_c.exists() and not allowlist_c.exists() and not app_profile_c.exists():
                   continue
               if mode == "builtin":
                   patch_arch_h(arch_h)
@@ -351,6 +390,7 @@ jobs:
               else:
                   patch_ksu_main(ksu_main_c)
                   patch_allowlist_main(allowlist_c)
+                  patch_app_profile_main(app_profile_c)
               done = True
           if not done:
               raise SystemExit("未找到可修补的 KernelSU 目录")
