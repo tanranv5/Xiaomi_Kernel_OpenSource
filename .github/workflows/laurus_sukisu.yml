@@ -789,11 +789,12 @@ jobs:
                   return True
               stub = (
                   '#include <linux/version.h>\n'
-                  '#include "selinux.h"\n\n'
+                  '#include <linux/types.h>\n'
+                  '#include <linux/cred.h>\n\n'
                   '#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)\n'
                   '#define KSU_SELINUX_COMPAT_STUB_414 1\n'
-                  'u32 ksu_file_sid __read_mostly = 0;\n\n'
-                  'void setup_selinux(const char *domain) { }\n'
+                  'u32 ksu_file_sid = 0;\n\n'
+                  'void setup_selinux(const char *domain, struct cred *cred) { }\n'
                   'void setup_ksu_cred(void) { }\n'
                   'void setenforce(bool enforce) { }\n'
                   'bool getenforce(void) { return true; }\n'
