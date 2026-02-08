@@ -409,6 +409,51 @@ jobs:
                   path.write_text(txt)
               return True
 
+          def patch_syscall_hook_manager_main(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              changed = False
+              if "#include <linux/version.h>" not in txt:
+                  anchor = "#include <linux/namei.h>\n"
+                  if anchor in txt:
+                      txt = txt.replace(
+                          anchor,
+                          anchor + "#include <linux/version.h>\n#include <linux/uaccess.h>\n",
+                          1,
+                      )
+                      changed = True
+              if "#ifndef __NR_clone3" not in txt:
+                  anchor = '#include "ksud.h"\n'
+                  if anchor in txt:
+                      txt = txt.replace(
+                          anchor,
+                          anchor + "\n#ifndef __NR_clone3\n#define __NR_clone3 (-1)\n#endif\n",
+                          1,
+                      )
+                      changed = True
+              if "#define KSU_STRNCPY_NOFAULT_HOOK_MGR" not in txt:
+                  anchor = "#ifndef __NR_clone3\n#define __NR_clone3 (-1)\n#endif\n"
+                  if anchor in txt:
+                      txt = txt.replace(
+                          anchor,
+                          anchor +
+                          "\n#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)\n"
+                          "#define KSU_STRNCPY_NOFAULT_HOOK_MGR 1\n"
+                          "static inline long ksu_strncpy_from_user_nofault(\n"
+                          "    char *dst, const void __user *src, long count)\n"
+                          "{\n"
+                          "    return strncpy_from_user(dst, src, count);\n"
+                          "}\n"
+                          "#define strncpy_from_user_nofault ksu_strncpy_from_user_nofault\n"
+                          "#endif\n",
+                          1,
+                      )
+                      changed = True
+              if changed:
+                  path.write_text(txt)
+              return True
+
           targets = [
               Path("drivers/kernelsu"),
               Path("KernelSU/kernel"),
@@ -422,7 +467,8 @@ jobs:
               allowlist_c = base / "allowlist.c"
               app_profile_c = base / "app_profile.c"
               sucompat_c = base / "sucompat.c"
-              if not arch_h.exists() and not kp_hook.exists() and not kp_util.exists() and not ksu_main_c.exists() and not allowlist_c.exists() and not app_profile_c.exists() and not sucompat_c.exists():
+              syscall_mgr_c = base / "syscall_hook_manager.c"
+              if not arch_h.exists() and not kp_hook.exists() and not kp_util.exists() and not ksu_main_c.exists() and not allowlist_c.exists() and not app_profile_c.exists() and not sucompat_c.exists() and not syscall_mgr_c.exists():
                   continue
               if mode == "builtin":
                   patch_arch_h(arch_h)
@@ -433,6 +479,7 @@ jobs:
                   patch_allowlist_main(allowlist_c)
                   patch_app_profile_main(app_profile_c)
                   patch_sucompat_main(sucompat_c)
+                  patch_syscall_hook_manager_main(syscall_mgr_c)
               done = True
           if not done:
               raise SystemExit("未找到可修补的 KernelSU 目录")
