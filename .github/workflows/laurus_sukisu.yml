@@ -356,8 +356,25 @@ jobs:
                       "#define KSU_SECCOMP_SET_FILTER_COUNT(task) do { } while (0)\n"
                       "#endif\n",
                       1,
-                  )
+                      )
                   changed = True
+              if "#define KSU_SECCOMP_FILTER_RELEASE" not in txt:
+                  marker = (
+                      "#define KSU_SECCOMP_SET_FILTER_COUNT(task) do { } while (0)\n"
+                      "#endif\n"
+                  )
+                  inject = (
+                      marker +
+                      "\n"
+                      "#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)\n"
+                      "#define KSU_SECCOMP_FILTER_RELEASE(task) seccomp_filter_release(task)\n"
+                      "#else\n"
+                      "#define KSU_SECCOMP_FILTER_RELEASE(task) do { } while (0)\n"
+                      "#endif\n"
+                  )
+                  if marker in txt:
+                      txt = txt.replace(marker, inject, 1)
+                      changed = True
               if "atomic_set(&current->seccomp.filter_count, 0);" in txt:
                   txt = txt.replace(
                       "atomic_set(&current->seccomp.filter_count, 0);",
@@ -368,6 +385,12 @@ jobs:
                   txt = txt.replace(
                       "atomic_set(&tsk->seccomp.filter_count, 0);",
                       "KSU_SECCOMP_SET_FILTER_COUNT(tsk);",
+                  )
+                  changed = True
+              if "seccomp_filter_release(fake);" in txt:
+                  txt = txt.replace(
+                      "seccomp_filter_release(fake);",
+                      "KSU_SECCOMP_FILTER_RELEASE(fake);",
                   )
                   changed = True
               if changed:
@@ -528,17 +551,33 @@ jobs:
               if not path.exists():
                   return False
               txt = path.read_text()
-              if "#ifndef TWA_RESUME" in txt:
-                  return True
+              changed = False
               anchor = '#include "ksu.h"\n'
-              if anchor not in txt:
-                  return True
-              txt = txt.replace(
-                  anchor,
-                  anchor + "\n#ifndef TWA_RESUME\n#define TWA_RESUME 0\n#endif\n",
-                  1,
-              )
-              path.write_text(txt)
+              if "#ifndef TWA_RESUME" not in txt and anchor in txt:
+                  txt = txt.replace(
+                      anchor,
+                      anchor + "\n#ifndef TWA_RESUME\n#define TWA_RESUME 0\n#endif\n",
+                      1,
+                  )
+                  changed = True
+              old_path_umount = "extern int path_umount(struct path *path, int flags);\n"
+              if "KSU_PATH_UMOUNT_FALLBACK_414" not in txt and old_path_umount in txt:
+                  txt = txt.replace(
+                      old_path_umount,
+                      "#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 9, 0)\n"
+                      "#define KSU_PATH_UMOUNT_FALLBACK_414 1\n"
+                      "static int path_umount(struct path *path, int flags)\n"
+                      "{\n"
+                      "    return -1;\n"
+                      "}\n"
+                      "#else\n"
+                      "extern int path_umount(struct path *path, int flags);\n"
+                      "#endif\n",
+                      1,
+                  )
+                  changed = True
+              if changed:
+                  path.write_text(txt)
               return True
 
           def patch_supercalls_main(path: Path) -> bool:
@@ -586,6 +625,53 @@ jobs:
               if old_mount_inc in txt:
                   txt = txt.replace(old_mount_inc, "#include <linux/mount.h>\n", 1)
                   changed = True
+              old_path_mount_decl = (
+                  "extern int path_mount(const char *dev_name, struct path *path,\n"
+                  "                      const char *type_page, unsigned long flags,\n"
+                  "                      void *data_page);\n"
+              )
+              if "KSU_PATH_MOUNT_FALLBACK_414" not in txt and old_path_mount_decl in txt:
+                  txt = txt.replace(
+                      old_path_mount_decl,
+                      "#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 9, 0)\n"
+                      "#define KSU_PATH_MOUNT_FALLBACK_414 1\n"
+                      "static int path_mount(const char *dev_name, struct path *path,\n"
+                      "                      const char *type_page, unsigned long flags,\n"
+                      "                      void *data_page)\n"
+                      "{\n"
+                      "    return 0;\n"
+                      "}\n"
+                      "#else\n"
+                      "extern int path_mount(const char *dev_name, struct path *path,\n"
+                      "                      const char *type_page, unsigned long flags,\n"
+                      "                      void *data_page);\n"
+                      "#endif\n",
+                      1,
+                  )
+                  changed = True
+              old_setns_decl = (
+                  "#if defined(__aarch64__)\n"
+                  "extern long __arm64_sys_setns(const struct pt_regs *regs);\n"
+                  "#elif defined(__x86_64__)\n"
+                  "extern long __x64_sys_setns(const struct pt_regs *regs);\n"
+                  "#endif\n"
+              )
+              if "KSU_SETNS_SYM_COMPAT_414" not in txt and old_setns_decl in txt:
+                  txt = txt.replace(
+                      old_setns_decl,
+                      "#if defined(__aarch64__)\n"
+                      "#define KSU_SETNS_SYM_COMPAT_414 1\n"
+                      "#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)\n"
+                      "extern asmlinkage long sys_setns(int fd, int nstype);\n"
+                      "#else\n"
+                      "extern long __arm64_sys_setns(const struct pt_regs *regs);\n"
+                      "#endif\n"
+                      "#elif defined(__x86_64__)\n"
+                      "extern long __x64_sys_setns(const struct pt_regs *regs);\n"
+                      "#endif\n",
+                      1,
+                  )
+                  changed = True
               if "#define KSU_NS_CLOSE_FD" not in txt:
                   anchor = '#include "su_mount_ns.h"\n'
                   if anchor in txt:
@@ -620,6 +706,32 @@ jobs:
                   changed = True
               if "ksys_unshare(CLONE_NEWNS)" in txt:
                   txt = txt.replace("ksys_unshare(CLONE_NEWNS)", "KSU_NS_UNSHARE(CLONE_NEWNS)")
+                  changed = True
+              old_setns_call = (
+                  "#if defined(__aarch64__)\n"
+                  "    return __arm64_sys_setns(&regs);\n"
+                  "#elif defined(__x86_64__)\n"
+                  "    return __x64_sys_setns(&regs);\n"
+                  "#else\n"
+                  "#error \"Unsupported arch\"\n"
+                  "#endif\n"
+              )
+              if old_setns_call in txt:
+                  txt = txt.replace(
+                      old_setns_call,
+                      "#if defined(__aarch64__)\n"
+                      "#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)\n"
+                      "    return sys_setns(fd, flags);\n"
+                      "#else\n"
+                      "    return __arm64_sys_setns(&regs);\n"
+                      "#endif\n"
+                      "#elif defined(__x86_64__)\n"
+                      "    return __x64_sys_setns(&regs);\n"
+                      "#else\n"
+                      "#error \"Unsupported arch\"\n"
+                      "#endif\n",
+                      1,
+                  )
                   changed = True
               if changed:
                   path.write_text(txt)
