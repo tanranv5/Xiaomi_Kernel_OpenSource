@@ -955,7 +955,7 @@ jobs:
                   "https://raw.githubusercontent.com/tiann/KernelSU/v0.9.5/kernel/selinux/sepolicy.c"
               )
               legacy = re.sub(
-                  r'^#include\\s+"\\.\\./kernel_compat\\.h".*\\n',
+                  r'^#include\s+"\.\./kernel_compat\.h".*\n',
                   '',
                   legacy,
                   flags=re.M,
