@@ -152,13 +152,16 @@ jobs:
           fix_dir "drivers"
           fix_dir "common/drivers"
 
-      - name: 应用 KSU kprobe 兼容补丁（4.14）
-        if: env.WITH_SUKISU == 'on' && env.KSU_MODE == 'builtin'
+      - name: 应用 KSU 内核兼容补丁
+        if: env.WITH_SUKISU == 'on'
         run: |
           set -euxo pipefail
           python3 - <<'PY'
           from pathlib import Path
+          import os
           import re
+
+          mode = os.getenv("KSU_MODE", "builtin")
 
           def patch_arch_h(path: Path) -> bool:
               if not path.exists():
@@ -272,6 +275,24 @@ jobs:
               path.write_text(txt)
               return True
 
+          def patch_ksu_main(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              if "#ifndef MODULE_IMPORT_NS" in txt:
+                  return True
+              anchor = '#include <linux/workqueue.h>\n'
+              if anchor not in txt:
+                  raise SystemExit(f"ksu.c patch anchor not found: {path}")
+              txt = txt.replace(
+                  anchor,
+                  anchor +
+                  "\n#ifndef MODULE_IMPORT_NS\n#define MODULE_IMPORT_NS(ns)\n#endif\n",
+                  1,
+              )
+              path.write_text(txt)
+              return True
+
           targets = [
               Path("drivers/kernelsu"),
               Path("KernelSU/kernel"),
@@ -281,15 +302,19 @@ jobs:
               arch_h = base / "arch.h"
               kp_hook = base / "kp_hook.c"
               kp_util = base / "kp_util.c"
-              if not arch_h.exists() and not kp_hook.exists() and not kp_util.exists():
+              ksu_main_c = base / "ksu.c"
+              if not arch_h.exists() and not kp_hook.exists() and not kp_util.exists() and not ksu_main_c.exists():
                   continue
-              patch_arch_h(arch_h)
-              patch_kp_hook(kp_hook)
-              patch_kp_util(kp_util)
+              if mode == "builtin":
+                  patch_arch_h(arch_h)
+                  patch_kp_hook(kp_hook)
+                  patch_kp_util(kp_util)
+              else:
+                  patch_ksu_main(ksu_main_c)
               done = True
           if not done:
               raise SystemExit("未找到可修补的 KernelSU 目录")
-          print("patched kprobe compatibility files")
+          print(f"patched KSU compatibility files mode={mode}")
           PY
 
       - name: 修补 manager 探测时序（无 ksud 也能识别 Manager）
