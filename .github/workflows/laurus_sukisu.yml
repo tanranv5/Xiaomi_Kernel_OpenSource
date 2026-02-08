@@ -954,6 +954,12 @@ jobs:
               legacy = fetch_text(
                   "https://raw.githubusercontent.com/tiann/KernelSU/v0.9.5/kernel/selinux/sepolicy.c"
               )
+              legacy = re.sub(
+                  r'^#include\\s+"\\.\\./kernel_compat\\.h".*\\n',
+                  '',
+                  legacy,
+                  flags=re.M,
+              )
               wrapped = (
                   '#include <linux/version.h>\n'
                   '#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)\n'
