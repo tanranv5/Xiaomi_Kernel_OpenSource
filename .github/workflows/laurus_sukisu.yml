@@ -293,6 +293,30 @@ jobs:
               path.write_text(txt)
               return True
 
+          def patch_allowlist_main(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              changed = False
+              if "#include <linux/sched.h>" not in txt:
+                  txt = txt.replace(
+                      "#include <linux/version.h>\n",
+                      "#include <linux/version.h>\n#include <linux/sched.h>\n",
+                      1,
+                  )
+                  changed = True
+              if "#ifndef TWA_RESUME" not in txt:
+                  txt = txt.replace(
+                      "void persistent_allow_list(void);\n",
+                      "void persistent_allow_list(void);\n\n"
+                      "#ifndef TWA_RESUME\n#define TWA_RESUME 0\n#endif\n",
+                      1,
+                  )
+                  changed = True
+              if changed:
+                  path.write_text(txt)
+              return True
+
           targets = [
               Path("drivers/kernelsu"),
               Path("KernelSU/kernel"),
@@ -303,7 +327,8 @@ jobs:
               kp_hook = base / "kp_hook.c"
               kp_util = base / "kp_util.c"
               ksu_main_c = base / "ksu.c"
-              if not arch_h.exists() and not kp_hook.exists() and not kp_util.exists() and not ksu_main_c.exists():
+              allowlist_c = base / "allowlist.c"
+              if not arch_h.exists() and not kp_hook.exists() and not kp_util.exists() and not ksu_main_c.exists() and not allowlist_c.exists():
                   continue
               if mode == "builtin":
                   patch_arch_h(arch_h)
@@ -311,6 +336,7 @@ jobs:
                   patch_kp_util(kp_util)
               else:
                   patch_ksu_main(ksu_main_c)
+                  patch_allowlist_main(allowlist_c)
               done = True
           if not done:
               raise SystemExit("未找到可修补的 KernelSU 目录")
