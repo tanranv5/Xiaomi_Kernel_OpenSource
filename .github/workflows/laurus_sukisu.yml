@@ -782,6 +782,18 @@ jobs:
                       1,
                   )
                   changed = True
+              # manual hook 模式没有注册 sys_read_kp，直接 unregister 会触发异常
+              if "stop_init_rc_hook();" in txt and "KSU_MANUAL_HOOK_NO_UNREGISTER" not in txt:
+                  txt = txt.replace(
+                      "        stop_init_rc_hook();\n",
+                      "#if !defined(CONFIG_KSU_MANUAL_HOOK)\n"
+                      "        stop_init_rc_hook();\n"
+                      "#else\n"
+                      "        /* KSU_MANUAL_HOOK_NO_UNREGISTER */\n"
+                      "#endif\n",
+                      1,
+                  )
+                  changed = True
               if changed:
                   path.write_text(txt)
               return True
@@ -1363,6 +1375,8 @@ jobs:
             else
               printf '%s\n' \
                 'CONFIG_KSU=y' \
+                '# CONFIG_KSU_SYSCALL_HOOK is not set' \
+                'CONFIG_KSU_MANUAL_HOOK=y' \
                 'CONFIG_KSU_MANUAL_SU=y' \
                 '# CONFIG_KSU_SUSFS is not set' \
                 >> "${DEFCONFIG_PATH}"
@@ -1393,6 +1407,8 @@ jobs:
             else
               # main：无 syscall hook 配置，仅保证 KSU 与 manual su
               ./scripts/config --file out/.config -e KSU || true
+              ./scripts/config --file out/.config -d KSU_SYSCALL_HOOK || true
+              ./scripts/config --file out/.config -e KSU_MANUAL_HOOK || true
               ./scripts/config --file out/.config -e KSU_MANUAL_SU || true
               ./scripts/config --file out/.config -d KSU_SUSFS || true
             fi
@@ -1439,6 +1455,8 @@ jobs:
               ./scripts/config --file out/.config -e OVERLAY_FS || true
             else
               ./scripts/config --file out/.config -e KSU || true
+              ./scripts/config --file out/.config -d KSU_SYSCALL_HOOK || true
+              ./scripts/config --file out/.config -e KSU_MANUAL_HOOK || true
               ./scripts/config --file out/.config -e KSU_MANUAL_SU || true
               ./scripts/config --file out/.config -d KSU_SUSFS || true
             fi
