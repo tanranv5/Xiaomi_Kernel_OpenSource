@@ -6,7 +6,7 @@ name: build-laurus-sukisu
       kernel_branch:
         description: "要编译的内核分支"
         required: true
-        default: "laurus-q-oss-ci"
+        default: "laurus-p-oss-ci"
       defconfig:
         description: "defconfig（相对 arch/arm64/configs/）"
         required: true
@@ -14,7 +14,7 @@ name: build-laurus-sukisu
       sukisu_ref:
         description: "SukiSU Ultra 引用（分支/标签/commit）"
         required: true
-        default: "main"
+        default: "builtin"
       sukisu_mode:
         description: "SukiSU 集成模式：builtin 更适合非 GKI/老内核"
         required: true
@@ -55,11 +55,6 @@ name: build-laurus-sukisu
         description: "ARM GCC 4.9 工具链分支"
         required: true
         default: "lineage-19.1"
-  push:
-    branches:
-      - laurus-q-oss-ci
-    paths:
-      - ".github/workflows/laurus_sukisu.yml"
 
 permissions:
   contents: write
@@ -70,18 +65,6 @@ jobs:
     timeout-minutes: 90
     env:
       WITH_SUKISU: "on"
-      KERNEL_BRANCH: ${{ github.event_name == 'workflow_dispatch' && inputs.kernel_branch || 'laurus-q-oss-ci' }}
-      DEFCONFIG_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.defconfig || 'vendor/laurus-perf_defconfig' }}
-      SUKISU_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.sukisu_ref || 'main' }}
-      SUKISU_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.sukisu_mode || 'builtin' }}
-      FORTIFY_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.fortify || 'off' }}
-      BUILD_DTBO: ${{ github.event_name == 'workflow_dispatch' && inputs.build_dtbo || 'off' }}
-      GCC64_REPO_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.gcc64_repo || 'LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9' }}
-      GCC64_REF_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.gcc64_ref || 'lineage-19.1' }}
-      GCC32_REPO_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.gcc32_repo || 'LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9' }}
-      GCC32_REF_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.gcc32_ref || 'lineage-19.1' }}
-      RUN_ID: ${{ github.run_id }}
-      HEAD_SHA: ${{ github.sha }}
 
     steps:
       - name: 检出内核源码
@@ -89,7 +72,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          ref: ${{ env.KERNEL_BRANCH }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.kernel_branch || 'laurus-p-oss-ci' }}
 
       - name: 安装依赖
         id: deps
@@ -106,10 +89,10 @@ jobs:
         id: toolchain
         run: |
           set -euxo pipefail
-          GCC64_REPO="${GCC64_REPO_INPUT}"
-          GCC64_REF="${GCC64_REF_INPUT}"
-          GCC32_REPO="${GCC32_REPO_INPUT}"
-          GCC32_REF="${GCC32_REF_INPUT}"
+          GCC64_REPO="${{ github.event_name == 'workflow_dispatch' && inputs.gcc64_repo || 'LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9' }}"
+          GCC64_REF="${{ github.event_name == 'workflow_dispatch' && inputs.gcc64_ref || 'lineage-19.1' }}"
+          GCC32_REPO="${{ github.event_name == 'workflow_dispatch' && inputs.gcc32_repo || 'LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9' }}"
+          GCC32_REF="${{ github.event_name == 'workflow_dispatch' && inputs.gcc32_ref || 'lineage-19.1' }}"
 
           git clone --depth=1 -b "$GCC64_REF" "https://github.com/${GCC64_REPO}.git" toolchain-gcc64
           git clone --depth=1 -b "$GCC32_REF" "https://github.com/${GCC32_REPO}.git" toolchain-gcc32
@@ -126,630 +109,1352 @@ jobs:
             exit 0
           fi
 
-          ref="${SUKISU_REF}"
-          mode="${SUKISU_MODE}"
+          ref="${{ github.event_name == 'workflow_dispatch' && inputs.sukisu_ref || 'main' }}"
+          mode="${{ github.event_name == 'workflow_dispatch' && inputs.sukisu_mode || 'builtin' }}"
+          if [ "$ref" = "builtin" ]; then
+            mode="builtin"
+          elif [ "$ref" = "main" ]; then
+            mode="main"
+          fi
+          echo "KSU_REF=$ref" >> "$GITHUB_ENV"
+          echo "KSU_MODE=$mode" >> "$GITHUB_ENV"
 
           # SukiSU 官方脚本
-          curl -fsSL "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/${ref}/kernel/setup.sh" | bash -s "$mode"
+          rm -rf KernelSU
+          curl -fsSL "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/${ref}/kernel/setup.sh" | bash -s "$ref"
 
-          # 应用 manual hook 补丁（4.14）
-          patch_url="https://raw.githubusercontent.com/rksuorg/kernel_patches/master/manual_hook/kernel-4.14.patch"
-          curl -fsSL "$patch_url" -o /tmp/ksu_manual_hook.patch
-          if git apply --reverse --check /tmp/ksu_manual_hook.patch 2>/dev/null; then
-            echo "manual hook patch already applied"
-          elif git apply /tmp/ksu_manual_hook.patch 2>/dev/null; then
-            echo "manual hook patch applied successfully"
-          else
-            echo "git patch failed, applying manual hooks via Python"
-            python3 - <<'PATCH_VFS_READ'
-          import re
-          from pathlib import Path
+          # 方案 B：纯 kprobe（syscall hook），无需 manual hook 补丁/适配层
 
-          # Patch fs/read_write.c
-          rw_path = Path("fs/read_write.c")
-          rw_text = rw_path.read_text()
-          if "ksu_handle_vfs_read" not in rw_text:
-              decl = (
-                  "#ifdef CONFIG_KSU\n"
-                  "extern bool ksu_vfs_read_hook __read_mostly;\n"
-                  "extern int ksu_handle_vfs_read(struct file **file_ptr, char __user **buf_ptr,\n"
-                  "                             size_t *count_ptr, loff_t **pos);\n"
-                  "#endif\n"
-              )
-              hook = (
-                  "\n#ifdef CONFIG_KSU\n"
-                  "\tif (unlikely(ksu_vfs_read_hook))\n"
-                  "\t\tksu_handle_vfs_read(&file, &buf, &count, &pos);\n"
-                  "#endif\n"
-              )
-              # Insert declaration before vfs_read
-              rw_text = re.sub(
-                  r"(ssize_t vfs_read\(struct file \*file, char __user \*buf, size_t count, loff_t \*pos\)\n\{)",
-                  decl + r"\1",
-                  rw_text
-              )
-              # Insert hook after ssize_t ret;
-              rw_text = re.sub(
-                  r"(ssize_t vfs_read\(struct file \*file, char __user \*buf, size_t count, loff_t \*pos\)\n\{\n\tssize_t ret;)",
-                  r"\1" + hook,
-                  rw_text
-              )
-              rw_path.write_text(rw_text)
-              print("Patched fs/read_write.c with vfs_read hook")
-
-          # Patch fs/exec.c
-          exec_path = Path("fs/exec.c")
-          exec_text = exec_path.read_text()
-          if "ksu_handle_execveat" not in exec_text:
-              decl = (
-                  "#ifdef CONFIG_KSU\n"
-                  "extern bool ksu_execveat_hook __read_mostly;\n"
-                  "extern int ksu_handle_execveat(int *fd, struct filename **filename_ptr, void *argv,\n"
-                  "\t\t\tvoid *envp, int *flags);\n"
-                  "extern int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,\n"
-                  "\t\t\t\t void *argv, void *envp, int *flags);\n"
-                  "#endif\n"
-              )
-              hook = (
-                  "\n#ifdef CONFIG_KSU\n"
-                  "\tif (unlikely(ksu_execveat_hook))\n"
-                  "\t\tksu_handle_execveat(&fd, &filename, &argv, &envp, &flags);\n"
-                  "\telse\n"
-                  "\t\tksu_handle_execveat_sucompat(&fd, &filename, &argv, &envp, &flags);\n"
-                  "#endif\n"
-              )
-              # Insert declaration before do_execveat_common
-              exec_text = re.sub(
-                  r"(static int do_execveat_common\(int fd, struct filename \*filename,)",
-                  decl + r"\1",
-                  exec_text
-              )
-              # Insert hook after int retval;
-              exec_text = re.sub(
-                  r"(static int do_execveat_common\(int fd, struct filename \*filename,.*?int retval;)",
-                  r"\1" + hook,
-                  exec_text,
-                  count=1,
-                  flags=re.S
-              )
-              exec_path.write_text(exec_text)
-              print("Patched fs/exec.c with execveat hook")
-
-          # Patch drivers/input/input.c
-          input_path = Path("drivers/input/input.c")
-          if input_path.exists():
-              input_text = input_path.read_text()
-              if "ksu_handle_input" not in input_text:
-                  decl = (
-                      "#ifdef CONFIG_KSU\n"
-                      "extern bool ksu_input_hook __read_mostly;\n"
-                      "extern int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *value);\n"
-                      "#endif\n"
-                  )
-                  hook = (
-                      "\n#ifdef CONFIG_KSU\n"
-                      "\tif (unlikely(ksu_input_hook))\n"
-                      "\t\tksu_handle_input_handle_event(&type, &code, &value);\n"
-                      "#endif\n"
-                  )
-                  input_text = re.sub(
-                      r"(static void input_handle_event\(struct input_dev \*dev,)",
-                      decl + r"\1",
-                      input_text
-                  )
-                  input_text = re.sub(
-                      r"(int disposition = input_get_disposition\(dev, type, code, &value\);)",
-                      r"\1" + hook,
-                      input_text
-                  )
-                  input_path.write_text(input_text)
-                  print("Patched drivers/input/input.c with input hook")
-
-          print("Manual hook patches complete")
-          PATCH_VFS_READ
+      - name: 强制重建 kernelsu 软链接（覆盖历史目录）
+        id: sukisu-link
+        run: |
+          set -euxo pipefail
+          if [ "${WITH_SUKISU}" != "on" ]; then
+            echo "WITH_SUKISU=${WITH_SUKISU}, skip link fix."
+            exit 0
           fi
 
-          # 补齐 manual hook 适配符号，避免链接错误
-          if [ -d "common/drivers" ]; then
-            ksu_dir="common/drivers/kernelsu"
-          else
-            ksu_dir="drivers/kernelsu"
-          fi
+          fix_dir() {
+            local d="$1"
+            if [ ! -d "$d" ]; then
+              return
+            fi
+            if [ -e "$d/kernelsu" ] && [ ! -L "$d/kernelsu" ]; then
+              echo "[fix] remove legacy $d/kernelsu"
+              rm -rf "$d/kernelsu"
+            fi
+            if [ ! -L "$d/kernelsu" ]; then
+              ln -sf "$(realpath --relative-to="$d" KernelSU/kernel)" "$d/kernelsu"
+            fi
+            ls -la "$d/kernelsu"
+          }
 
-          # 修正 4.14 syscall 符号名（laurus 使用 sys_*，避免 kprobe 失效）
-          python3 - <<PY
-          from pathlib import Path
+          fix_dir "drivers"
+          fix_dir "common/drivers"
 
-          path = Path("${ksu_dir}") / "arch.h"
-          text = path.read_text()
-          text = text.replace('#define SYS_READ_SYMBOL "__arm64_sys_read"', '#define SYS_READ_SYMBOL "sys_read"')
-          text = text.replace('#define SYS_EXECVE_SYMBOL "__arm64_sys_execve"', '#define SYS_EXECVE_SYMBOL "sys_execve"')
-          text = text.replace('#define SYS_FSTAT_SYMBOL "__arm64_sys_newfstat"', '#define SYS_FSTAT_SYMBOL "sys_newfstat"')
-          path.write_text(text)
-          PY
-
-          # 补齐 manual hook 需要的钩子实现，避免空函数导致 init.rc 注入失败
-          export KSU_DIR="$ksu_dir"
+      - name: 应用 KSU 内核兼容补丁
+        if: env.WITH_SUKISU == 'on'
+        run: |
+          set -euxo pipefail
           python3 - <<'PY'
           from pathlib import Path
           import os
           import re
+          import urllib.request
 
-          ksu_dir = Path(os.environ["KSU_DIR"])
-          sucompat_path = ksu_dir / "sucompat.c"
-          su_text = sucompat_path.read_text()
-          if "ksu_handle_execveat_sucompat" not in su_text:
-              insert = (
-                  "\nint ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,\n"
-                  "                               void *argv, void *envp, int *flags)\n"
+          mode = os.getenv("KSU_MODE", "builtin")
+
+          def fetch_text(url: str) -> str:
+              with urllib.request.urlopen(url, timeout=30) as resp:
+                  return resp.read().decode("utf-8")
+
+          def patch_arch_h(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              if "KERNEL_VERSION(4, 17, 0)" in txt:
+                  return True
+              old = (
+                  '#define REBOOT_SYMBOL "__arm64_sys_reboot"\n'
+                  '#define SYS_READ_SYMBOL "__arm64_sys_read"\n'
+                  '#define SYS_EXECVE_SYMBOL "__arm64_sys_execve"\n'
+                  '// https://cs.android.com/android/kernel/superproject/+/common-android-mainline:common/scripts/syscalltbl.sh;l=57;drc=9142be9e6443fd641ca37f820efe00d9cd890eb1\n'
+                  '// https://cs.android.com/android/kernel/superproject/+/common-android-mainline:common/scripts/syscall.tbl;l=104;drc=b36d4b6aa88ef039647228b98c59a875e92f8c8e\n'
+                  '#define SYS_FSTAT_SYMBOL "__arm64_sys_newfstat"\n'
+              )
+              new = (
+                  '#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 17, 0)\n'
+                  '#define REBOOT_SYMBOL "__arm64_sys_reboot"\n'
+                  '#define SYS_READ_SYMBOL "__arm64_sys_read"\n'
+                  '#define SYS_EXECVE_SYMBOL "__arm64_sys_execve"\n'
+                  '#define SYS_FSTAT_SYMBOL "__arm64_sys_newfstat"\n'
+                  '#else\n'
+                  '#define REBOOT_SYMBOL "sys_reboot"\n'
+                  '#define SYS_READ_SYMBOL "sys_read"\n'
+                  '#define SYS_EXECVE_SYMBOL "sys_execve"\n'
+                  '#define SYS_FSTAT_SYMBOL "sys_newfstat"\n'
+                  '#endif\n'
+              )
+              if old in txt:
+                  txt = txt.replace(old, new, 1)
+                  path.write_text(txt)
+                  return True
+              raise SystemExit(f"arch.h patch anchor not found: {path}")
+
+          def patch_kp_hook(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              changed = False
+              if "#include <linux/kernel.h>" not in txt:
+                  txt = txt.replace(
+                      "#include <linux/workqueue.h>\n",
+                      "#include <linux/workqueue.h>\n#include <linux/kernel.h>\n",
+                      1,
+                  )
+                  changed = True
+              if "#include <linux/uaccess.h>" not in txt:
+                  txt = txt.replace(
+                      "#include <linux/kernel.h>\n",
+                      "#include <linux/kernel.h>\n#include <linux/uaccess.h>\n",
+                      1,
+                  )
+                  changed = True
+              if "extern const size_t ksu_rc_len;" not in txt:
+                  txt = txt.replace(
+                      "#include <linux/uaccess.h>\n",
+                      "#include <linux/uaccess.h>\n\nextern const size_t ksu_rc_len;\n",
+                      1,
+                  )
+                  changed = True
+              if "copy_from_user_nofault" in txt and "ksu_copy_from_user_nofault" not in txt:
+                  txt = txt.replace(
+                      "extern const size_t ksu_rc_len;\n",
+                      "extern const size_t ksu_rc_len;\n\n"
+                      "#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)\n"
+                      "static inline int ksu_copy_from_user_nofault(void *to,\n"
+                      "                                            const void __user *from,\n"
+                      "                                            size_t n)\n"
+                      "{\n"
+                      "    return copy_from_user(to, from, n);\n"
+                      "}\n\n"
+                      "static inline int ksu_copy_to_user_nofault(void __user *to,\n"
+                      "                                          const void *from,\n"
+                      "                                          size_t n)\n"
+                      "{\n"
+                      "    return copy_to_user(to, from, n);\n"
+                      "}\n"
+                      "#else\n"
+                      "#define ksu_copy_from_user_nofault copy_from_user_nofault\n"
+                      "#define ksu_copy_to_user_nofault copy_to_user_nofault\n"
+                      "#endif\n",
+                      1,
+                  )
+                  txt = re.sub(r"(?<!ksu_)copy_from_user_nofault\(", "ksu_copy_from_user_nofault(", txt)
+                  txt = re.sub(r"(?<!ksu_)copy_to_user_nofault\(", "ksu_copy_to_user_nofault(", txt)
+                  changed = True
+              if "stop_vfs_read_work" in txt and "stop_init_rc_hook_work" in txt:
+                  txt = txt.replace("stop_vfs_read_work", "stop_init_rc_hook_work")
+                  changed = True
+              if changed:
+                  path.write_text(txt)
+              return True
+
+          def patch_kp_util(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              if "#include <asm/pgtable.h>" in txt:
+                  return True
+              old = "#include <linux/pgtable.h>\n"
+              new = (
+                  "#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0)\n"
+                  "#include <linux/pgtable.h>\n"
+                  "#else\n"
+                  "#include <asm/pgtable.h>\n"
+                  "#endif\n"
+              )
+              if old not in txt:
+                  raise SystemExit(f"kp_util patch anchor not found: {path}")
+              txt = txt.replace(old, new, 1)
+              path.write_text(txt)
+              return True
+
+          def patch_ksu_main(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              if "#ifndef MODULE_IMPORT_NS" in txt:
+                  return True
+              anchor = '#include <linux/workqueue.h>\n'
+              if anchor not in txt:
+                  raise SystemExit(f"ksu.c patch anchor not found: {path}")
+              txt = txt.replace(
+                  anchor,
+                  anchor +
+                  "\n#ifndef MODULE_IMPORT_NS\n#define MODULE_IMPORT_NS(ns)\n#endif\n",
+                  1,
+              )
+              path.write_text(txt)
+              return True
+
+          def patch_allowlist_main(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              changed = False
+              if "#include <linux/sched.h>" not in txt:
+                  txt = txt.replace(
+                      "#include <linux/version.h>\n",
+                      "#include <linux/version.h>\n#include <linux/sched.h>\n",
+                      1,
+                  )
+                  changed = True
+              if "#include <linux/sched/task.h>" not in txt:
+                  if "#include <linux/sched.h>\n" in txt:
+                      txt = txt.replace(
+                          "#include <linux/sched.h>\n",
+                          "#include <linux/sched.h>\n#include <linux/sched/task.h>\n",
+                          1,
+                      )
+                  else:
+                      txt = txt.replace(
+                          "#include <linux/version.h>\n",
+                          "#include <linux/version.h>\n#include <linux/sched/task.h>\n",
+                          1,
+                      )
+                  changed = True
+              if "#ifndef TWA_RESUME" not in txt:
+                  txt = txt.replace(
+                      "void persistent_allow_list(void);\n",
+                      "void persistent_allow_list(void);\n\n"
+                      "#ifndef TWA_RESUME\n#define TWA_RESUME 0\n#endif\n",
+                      1,
+                  )
+                  changed = True
+              if changed:
+                  path.write_text(txt)
+              return True
+
+          def patch_app_profile_main(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              changed = False
+              if "#define KSU_SECCOMP_SET_FILTER_COUNT" not in txt:
+                  anchor = "#include <linux/version.h>\n"
+                  if anchor not in txt:
+                      raise SystemExit(f"app_profile.c patch anchor not found: {path}")
+                  txt = txt.replace(
+                      anchor,
+                      anchor +
+                      "\n"
+                      "#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)\n"
+                      "#define KSU_SECCOMP_SET_FILTER_COUNT(task) \\\n"
+                      "    atomic_set(&(task)->seccomp.filter_count, 0)\n"
+                      "#else\n"
+                      "#define KSU_SECCOMP_SET_FILTER_COUNT(task) do { } while (0)\n"
+                      "#endif\n",
+                      1,
+                      )
+                  changed = True
+              if "#define KSU_SECCOMP_FILTER_RELEASE" not in txt:
+                  marker = (
+                      "#define KSU_SECCOMP_SET_FILTER_COUNT(task) do { } while (0)\n"
+                      "#endif\n"
+                  )
+                  inject = (
+                      marker +
+                      "\n"
+                      "#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)\n"
+                      "#define KSU_SECCOMP_FILTER_RELEASE(task) seccomp_filter_release(task)\n"
+                      "#else\n"
+                      "#define KSU_SECCOMP_FILTER_RELEASE(task) do { } while (0)\n"
+                      "#endif\n"
+                  )
+                  if marker in txt:
+                      txt = txt.replace(marker, inject, 1)
+                      changed = True
+              if "atomic_set(&current->seccomp.filter_count, 0);" in txt:
+                  txt = txt.replace(
+                      "atomic_set(&current->seccomp.filter_count, 0);",
+                      "KSU_SECCOMP_SET_FILTER_COUNT(current);",
+                  )
+                  changed = True
+              if "atomic_set(&tsk->seccomp.filter_count, 0);" in txt:
+                  txt = txt.replace(
+                      "atomic_set(&tsk->seccomp.filter_count, 0);",
+                      "KSU_SECCOMP_SET_FILTER_COUNT(tsk);",
+                  )
+                  changed = True
+              if "seccomp_filter_release(fake);" in txt:
+                  txt = txt.replace(
+                      "seccomp_filter_release(fake);",
+                      "KSU_SECCOMP_FILTER_RELEASE(fake);",
+                  )
+                  changed = True
+              if changed:
+                  path.write_text(txt)
+              return True
+
+          def patch_sucompat_main(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              changed = False
+              if "#define KSU_STRNCPY_NOFAULT" not in txt:
+                  anchor = "#include <linux/version.h>\n"
+                  if anchor in txt:
+                      txt = txt.replace(
+                          anchor,
+                          anchor +
+                          "\n"
+                          "#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)\n"
+                          "#define KSU_STRNCPY_NOFAULT 1\n"
+                          "static inline long ksu_strncpy_from_user_nofault(\n"
+                          "    char *dst, const void __user *src, long count)\n"
+                          "{\n"
+                          "    return strncpy_from_user(dst, src, count);\n"
+                          "}\n"
+                          "#define strncpy_from_user_nofault ksu_strncpy_from_user_nofault\n"
+                          "#endif\n",
+                          1,
+                      )
+                      changed = True
+              old = "#include <linux/pgtable.h>\n"
+              new = (
+                  "#include <linux/version.h>\n"
+                  "#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0)\n"
+                  "#include <linux/pgtable.h>\n"
+                  "#else\n"
+                  "#include <asm/pgtable.h>\n"
+                  "#endif\n"
+              )
+              if old in txt and "#include <asm/pgtable.h>" not in txt:
+                  txt = txt.replace(old, new, 1)
+                  changed = True
+              if changed:
+                  path.write_text(txt)
+              return True
+
+          def patch_syscall_hook_manager_main(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              changed = False
+              if "#include <linux/version.h>" not in txt:
+                  anchor = "#include <linux/namei.h>\n"
+                  if anchor in txt:
+                      txt = txt.replace(
+                          anchor,
+                          anchor + "#include <linux/version.h>\n#include <linux/uaccess.h>\n",
+                          1,
+                      )
+                      changed = True
+              if "#ifndef __NR_clone3" not in txt:
+                  anchor = '#include "ksud.h"\n'
+                  if anchor in txt:
+                      txt = txt.replace(
+                          anchor,
+                          anchor + "\n#ifndef __NR_clone3\n#define __NR_clone3 (-1)\n#endif\n",
+                          1,
+                      )
+                      changed = True
+              if "#define KSU_STRNCPY_NOFAULT_HOOK_MGR" not in txt:
+                  anchor = "#ifndef __NR_clone3\n#define __NR_clone3 (-1)\n#endif\n"
+                  if anchor in txt:
+                      txt = txt.replace(
+                          anchor,
+                          anchor +
+                          "\n#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)\n"
+                          "#define KSU_STRNCPY_NOFAULT_HOOK_MGR 1\n"
+                          "static inline long ksu_strncpy_from_user_nofault(\n"
+                          "    char *dst, const void __user *src, long count)\n"
+                          "{\n"
+                          "    return strncpy_from_user(dst, src, count);\n"
+                          "}\n"
+                          "#define strncpy_from_user_nofault ksu_strncpy_from_user_nofault\n"
+                          "#endif\n",
+                          1,
+                      )
+                      changed = True
+              if changed:
+                  path.write_text(txt)
+              return True
+
+          def patch_pkg_observer_main(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              if "KSU_PKG_OBSERVER_COMPAT_414" in txt:
+                  return True
+              anchor = "#define MASK_SYSTEM (FS_CREATE | FS_MOVE | FS_EVENT_ON_CHILD)\n"
+              if anchor not in txt:
+                  return True
+              txt = txt.replace(
+                  anchor,
+                  "#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)\n"
+                  "#define KSU_PKG_OBSERVER_COMPAT_414 1\n"
+                  "int ksu_observer_init(void)\n"
                   "{\n"
-                  "    struct filename *filename;\n"
-                  "\n"
-                  "    if (!filename_ptr)\n"
-                  "        return 0;\n"
-                  "\n"
-                  "    filename = *filename_ptr;\n"
-                  "    if (IS_ERR(filename))\n"
-                  "        return 0;\n"
-                  "\n"
-                  "    if (strcmp(filename->name, SU_PATH))\n"
-                  "        return 0;\n"
-                  "\n"
-                  "    struct filename *newf = getname_kernel(KSUD_PATH);\n"
-                  "    if (!IS_ERR(newf)) {\n"
-                  "        putname(filename);\n"
-                  "        *filename_ptr = newf;\n"
-                  "        escape_with_root_profile();\n"
-                  "    }\n"
-                  "\n"
                   "    return 0;\n"
+                  "}\n\n"
+                  "void ksu_observer_exit(void)\n"
+                  "{\n"
+                  "}\n"
+                  "#else\n\n"
+                  + anchor,
+                  1,
+              )
+              txt = txt.rstrip() + "\n\n#endif\n"
+              path.write_text(txt)
+              return True
+
+          def patch_setuid_hook_main(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              changed = False
+              if "#ifndef TWA_RESUME" not in txt:
+                  anchor = '#include "kernel_umount.h"\n'
+                  if anchor in txt:
+                      txt = txt.replace(
+                          anchor,
+                          anchor +
+                          "\n#ifndef TWA_RESUME\n#define TWA_RESUME 0\n#endif\n",
+                          1,
+                      )
+                      changed = True
+              if "#define KSU_SECCOMP_ALLOW_CACHE" not in txt:
+                  anchor = '#include "kernel_umount.h"\n'
+                  if anchor in txt:
+                      txt = txt.replace(
+                          anchor,
+                          anchor +
+                          "\n#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 2)\n"
+                          "#define KSU_SECCOMP_ALLOW_CACHE(filter, nr) \\\n"
+                          "    ksu_seccomp_allow_cache((filter), (nr))\n"
+                          "#else\n"
+                          "#define KSU_SECCOMP_ALLOW_CACHE(filter, nr) do { } while (0)\n"
+                          "#endif\n",
+                          1,
+                      )
+                      changed = True
+              if "ksu_seccomp_allow_cache(" in txt:
+                  txt = txt.replace("ksu_seccomp_allow_cache(", "KSU_SECCOMP_ALLOW_CACHE(")
+                  changed = True
+              if changed:
+                  path.write_text(txt)
+              return True
+
+          def patch_kernel_umount_main(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              changed = False
+              anchor = '#include "ksu.h"\n'
+              if "#ifndef TWA_RESUME" not in txt and anchor in txt:
+                  txt = txt.replace(
+                      anchor,
+                      anchor + "\n#ifndef TWA_RESUME\n#define TWA_RESUME 0\n#endif\n",
+                      1,
+                  )
+                  changed = True
+              old_path_umount = "extern int path_umount(struct path *path, int flags);\n"
+              if "KSU_PATH_UMOUNT_FALLBACK_414" not in txt and old_path_umount in txt:
+                  txt = txt.replace(
+                      old_path_umount,
+                      "#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 9, 0)\n"
+                      "#define KSU_PATH_UMOUNT_FALLBACK_414 1\n"
+                      "static int path_umount(struct path *path, int flags)\n"
+                      "{\n"
+                      "    return -1;\n"
+                      "}\n"
+                      "#else\n"
+                      "extern int path_umount(struct path *path, int flags);\n"
+                      "#endif\n",
+                      1,
+                  )
+                  changed = True
+              if changed:
+                  path.write_text(txt)
+              return True
+
+          def patch_supercalls_main(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              changed = False
+              if "#define KSU_CLOSE_FD" not in txt:
+                  anchor = '#include "syscall_hook_manager.h"\n'
+                  if anchor in txt:
+                      txt = txt.replace(
+                          anchor,
+                          anchor +
+                          "\n#ifndef TWA_RESUME\n#define TWA_RESUME 0\n#endif\n"
+                          "#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0)\n"
+                          "#define KSU_CLOSE_FD(fd) close_fd(fd)\n"
+                          "#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 17, 0)\n"
+                          "#define KSU_CLOSE_FD(fd) ksys_close(fd)\n"
+                          "#else\n"
+                          "#define KSU_CLOSE_FD(fd) sys_close(fd)\n"
+                          "#endif\n",
+                          1,
+                      )
+                      changed = True
+              old_close = (
+                  "#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0)\n"
+                  "        close_fd(fd);\n"
+                  "#else\n"
+                  "        ksys_close(fd);\n"
+                  "#endif\n"
+              )
+              if old_close in txt:
+                  txt = txt.replace(old_close, "        KSU_CLOSE_FD(fd);\n", 1)
+                  changed = True
+              if changed:
+                  path.write_text(txt)
+              return True
+
+          def patch_su_mount_ns_main(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              changed = False
+              old_mount_inc = "#include <uapi/linux/mount.h>\n"
+              if old_mount_inc in txt:
+                  txt = txt.replace(old_mount_inc, "#include <linux/mount.h>\n", 1)
+                  changed = True
+              old_path_mount_decl = (
+                  "extern int path_mount(const char *dev_name, struct path *path,\n"
+                  "                      const char *type_page, unsigned long flags,\n"
+                  "                      void *data_page);\n"
+              )
+              if "KSU_PATH_MOUNT_FALLBACK_414" not in txt and old_path_mount_decl in txt:
+                  txt = txt.replace(
+                      old_path_mount_decl,
+                      "#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 9, 0)\n"
+                      "#define KSU_PATH_MOUNT_FALLBACK_414 1\n"
+                      "static int path_mount(const char *dev_name, struct path *path,\n"
+                      "                      const char *type_page, unsigned long flags,\n"
+                      "                      void *data_page)\n"
+                      "{\n"
+                      "    return 0;\n"
+                      "}\n"
+                      "#else\n"
+                      "extern int path_mount(const char *dev_name, struct path *path,\n"
+                      "                      const char *type_page, unsigned long flags,\n"
+                      "                      void *data_page);\n"
+                      "#endif\n",
+                      1,
+                  )
+                  changed = True
+              old_setns_decl = (
+                  "#if defined(__aarch64__)\n"
+                  "extern long __arm64_sys_setns(const struct pt_regs *regs);\n"
+                  "#elif defined(__x86_64__)\n"
+                  "extern long __x64_sys_setns(const struct pt_regs *regs);\n"
+                  "#endif\n"
+              )
+              if "KSU_SETNS_SYM_COMPAT_414" not in txt and old_setns_decl in txt:
+                  txt = txt.replace(
+                      old_setns_decl,
+                      "#if defined(__aarch64__)\n"
+                      "#define KSU_SETNS_SYM_COMPAT_414 1\n"
+                      "#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)\n"
+                      "extern asmlinkage long sys_setns(int fd, int nstype);\n"
+                      "#else\n"
+                      "extern long __arm64_sys_setns(const struct pt_regs *regs);\n"
+                      "#endif\n"
+                      "#elif defined(__x86_64__)\n"
+                      "extern long __x64_sys_setns(const struct pt_regs *regs);\n"
+                      "#endif\n",
+                      1,
+                  )
+                  changed = True
+              if "#define KSU_NS_CLOSE_FD" not in txt:
+                  anchor = '#include "su_mount_ns.h"\n'
+                  if anchor in txt:
+                      txt = txt.replace(
+                          anchor,
+                          anchor +
+                          "\n#ifndef TWA_RESUME\n#define TWA_RESUME 0\n#endif\n"
+                          "#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0)\n"
+                          "#define KSU_NS_CLOSE_FD(fd) close_fd(fd)\n"
+                          "#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 17, 0)\n"
+                          "#define KSU_NS_CLOSE_FD(fd) ksys_close(fd)\n"
+                          "#else\n"
+                          "#define KSU_NS_CLOSE_FD(fd) sys_close(fd)\n"
+                          "#endif\n"
+                          "#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 17, 0)\n"
+                          "#define KSU_NS_UNSHARE(flags) ksys_unshare(flags)\n"
+                          "#else\n"
+                          "#define KSU_NS_UNSHARE(flags) sys_unshare(flags)\n"
+                          "#endif\n",
+                          1,
+                      )
+                      changed = True
+              old_close = (
+                  "#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 11, 0)\n"
+                  "    ksys_close(fd);\n"
+                  "#else\n"
+                  "    close_fd(fd);\n"
+                  "#endif\n"
+              )
+              if old_close in txt:
+                  txt = txt.replace(old_close, "    KSU_NS_CLOSE_FD(fd);\n", 1)
+                  changed = True
+              if "ksys_unshare(CLONE_NEWNS)" in txt:
+                  txt = txt.replace("ksys_unshare(CLONE_NEWNS)", "KSU_NS_UNSHARE(CLONE_NEWNS)")
+                  changed = True
+              old_setns_call = (
+                  "#if defined(__aarch64__)\n"
+                  "    return __arm64_sys_setns(&regs);\n"
+                  "#elif defined(__x86_64__)\n"
+                  "    return __x64_sys_setns(&regs);\n"
+                  "#else\n"
+                  "#error \"Unsupported arch\"\n"
+                  "#endif\n"
+              )
+              if old_setns_call in txt:
+                  txt = txt.replace(
+                      old_setns_call,
+                      "#if defined(__aarch64__)\n"
+                      "#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)\n"
+                      "    return sys_setns(fd, flags);\n"
+                      "#else\n"
+                      "    return __arm64_sys_setns(&regs);\n"
+                      "#endif\n"
+                      "#elif defined(__x86_64__)\n"
+                      "    return __x64_sys_setns(&regs);\n"
+                      "#else\n"
+                      "#error \"Unsupported arch\"\n"
+                      "#endif\n",
+                      1,
+                  )
+                  changed = True
+              if changed:
+                  path.write_text(txt)
+              return True
+
+          def patch_ksud_main(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              changed = False
+              if "#define KSU_KSUD_NOFAULT_COMPAT" not in txt:
+                  anchor = "#include <linux/uaccess.h>\n"
+                  if anchor in txt:
+                      txt = txt.replace(
+                          anchor,
+                          anchor +
+                          "\n#ifndef TWA_RESUME\n#define TWA_RESUME 0\n#endif\n"
+                          "#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)\n"
+                          "#define KSU_KSUD_NOFAULT_COMPAT 1\n"
+                          "static inline long ksu_strncpy_from_user_nofault(\n"
+                          "    char *dst, const void __user *src, long count)\n"
+                          "{\n"
+                          "    return strncpy_from_user(dst, src, count);\n"
+                          "}\n"
+                          "static inline int ksu_copy_from_user_nofault(\n"
+                          "    void *to, const void __user *from, unsigned long n)\n"
+                          "{\n"
+                          "    return copy_from_user(to, from, n);\n"
+                          "}\n"
+                          "static inline int ksu_copy_to_user_nofault(\n"
+                          "    void __user *to, const void *from, unsigned long n)\n"
+                          "{\n"
+                          "    return copy_to_user(to, from, n);\n"
+                          "}\n"
+                          "#define strncpy_from_user_nofault ksu_strncpy_from_user_nofault\n"
+                          "#define copy_from_user_nofault ksu_copy_from_user_nofault\n"
+                          "#define copy_to_user_nofault ksu_copy_to_user_nofault\n"
+                          "#endif\n",
+                          1,
+                      )
+                      changed = True
+              old_execve_call = "    return ksu_handle_execveat_ksud(AT_FDCWD, &filename_p, &argv, NULL, NULL);\n"
+              if old_execve_call in txt:
+                  txt = txt.replace(
+                      old_execve_call,
+                      "    int fd = AT_FDCWD;\n"
+                      "    return ksu_handle_execveat_ksud(&fd, &filename_p, &argv, NULL, NULL);\n",
+                      1,
+                  )
+                  changed = True
+              # manual hook 模式没有注册 sys_read_kp，直接 unregister 会触发异常
+              if "stop_init_rc_hook();" in txt and "KSU_MANUAL_HOOK_NO_UNREGISTER" not in txt:
+                  txt = txt.replace(
+                      "        stop_init_rc_hook();\n",
+                      "#if !defined(CONFIG_KSU_MANUAL_HOOK)\n"
+                      "        stop_init_rc_hook();\n"
+                      "#else\n"
+                      "        /* KSU_MANUAL_HOOK_NO_UNREGISTER */\n"
+                      "#endif\n",
+                      1,
+                  )
+                  changed = True
+              abi_detect_block = (
+                  "/* Runtime ABI detection: wrapper (__arm64_sys_*) vs direct (SyS_*/sys_*) */\n"
+                  "static bool ksu_execve_is_wrapper = true;\n"
+                  "static bool ksu_sys_read_is_wrapper = true;\n"
+                  "static bool ksu_sys_fstat_is_wrapper = true;\n\n"
+                  "static bool is_syscall_wrapper(const char *sym)\n"
+                  "{\n"
+                  "    return strncmp(sym, \"__arm64_sys_\", 12) == 0 ||\n"
+                  "           strncmp(sym, \"__x64_sys_\", 10) == 0;\n"
                   "}\n"
               )
-              sucompat_path.write_text(su_text + insert)
+              if "ksu_execve_is_wrapper" not in txt:
+                  anchor = "static struct kprobe input_event_kp = {\n"
+                  idx = txt.find(anchor)
+                  if idx >= 0:
+                      tail = txt[idx:]
+                      end = tail.find("};")
+                      if end >= 0:
+                          insert_pos = idx + end + 2
+                          txt = txt[:insert_pos] + "\n\n" + abi_detect_block + txt[insert_pos:]
+                          changed = True
 
-          ksud_path = ksu_dir / "ksud.c"
-          ksud_text = ksud_path.read_text()
-          vfs_body = (
-              "\nextern bool ksu_execveat_hook __read_mostly;\n"
-              "extern bool ksu_vfs_read_hook __read_mostly;\n"
-              "extern bool ksu_input_hook __read_mostly;\n"
-              "\nbool vfs_read_hook_ready __read_mostly = true;\n"
-              "bool vfs_read_hook_locked __read_mostly = false;\n"
-              "\nstatic bool ksu_match_init_rc_path(struct file *file)\n"
-              "{\n"
-              "    char path[256];\n"
-              "    char *dpath;\n"
-              "\n"
-              "    if (!file)\n"
-              "        return false;\n"
-              "\n"
-              "    dpath = d_path(&file->f_path, path, sizeof(path));\n"
-              "    if (IS_ERR(dpath))\n"
-              "        return false;\n"
-              "\n"
-              "    if (!strcmp(dpath, \"/system/etc/init/hw/init.rc\"))\n"
-              "        return true;\n"
-              "    if (!strcmp(dpath, \"/system/etc/init/init.rc\"))\n"
-              "        return true;\n"
-              "    if (!strcmp(dpath, \"/init.rc\"))\n"
-              "        return true;\n"
-              "\n"
-              "    return false;\n"
-              "}\n"
-              "\nint ksu_handle_vfs_read(struct file **file_ptr, char __user **buf_ptr,\n"
-              "                        size_t *count_ptr, loff_t **pos)\n"
-              "{\n"
-              "    struct file *file;\n"
-              "    const char *name;\n"
-              "\n"
-              "    if (!vfs_read_hook_ready || vfs_read_hook_locked)\n"
-              "        return 0;\n"
-              "\n"
-              "    if (!file_ptr)\n"
-              "        return 0;\n"
-              "\n"
-              "    file = *file_ptr;\n"
-              "    if (!file)\n"
-              "        return 0;\n"
-              "\n"
-              "    if (current->pid != 1)\n"
-              "        return 0;\n"
-              "    if (strcmp(current->comm, \"init\"))\n"
-              "        return 0;\n"
-              "    if (!file->f_inode || !S_ISREG(file->f_inode->i_mode))\n"
-              "        return 0;\n"
-              "\n"
-              "    name = file->f_path.dentry->d_name.name;\n"
-              "    if (!name || strcmp(name, \"init.rc\"))\n"
-              "        return 0;\n"
-              "    if (!ksu_match_init_rc_path(file))\n"
-              "        return 0;\n"
-              "\n"
-              "    vfs_read_hook_locked = true;\n"
-              "    pr_info(\"read init.rc(vfs_read), comm: %s, rc_count: %zu\\n\", current->comm, ksu_rc_len);\n"
-              "\n"
-              "    memcpy(&fops_proxy, file->f_op, sizeof(struct file_operations));\n"
-              "    orig_read = file->f_op->read;\n"
-              "    if (orig_read) {\n"
-              "        fops_proxy.read = read_proxy;\n"
-              "    }\n"
-              "    orig_read_iter = file->f_op->read_iter;\n"
-              "    if (orig_read_iter) {\n"
-              "        fops_proxy.read_iter = read_iter_proxy;\n"
-              "    }\n"
-              "    file->f_op = &fops_proxy;\n"
-              "    ksu_vfs_read_hook = false;\n"
-              "\n"
-              "    return 0;\n"
-              "}\n"
-          )
-          pattern = r'\n(?:static\\s+)?(?:__weak\\s+)?int\\s+ksu_handle_vfs_read\\s*\\([^)]*\\)\\s*\\{.*?\\n\\}'
-          if re.search(pattern, ksud_text, flags=re.S):
-              ksud_text = re.sub(pattern, vfs_body, ksud_text, flags=re.S)
-              ksud_path.write_text(ksud_text)
-          else:
-              marker = "static void ksu_handle_sys_read"
-              if marker in ksud_text:
-                  ksud_text = ksud_text.replace(marker, vfs_body + "\\n" + marker, 1)
-                  ksud_path.write_text(ksud_text)
+              txt2, n = re.subn(
+                  r"(static int sys_execve_handler_pre\([^)]*\)\s*\{\s*)struct pt_regs \*real_regs = PT_REAL_REGS\(regs\);",
+                  r"\1struct pt_regs *real_regs = ksu_execve_is_wrapper ? PT_REAL_REGS(regs) : regs;",
+                  txt,
+                  count=1,
+              )
+              if n:
+                  txt = txt2
+                  changed = True
+
+              txt2, n = re.subn(
+                  r"(static int sys_read_handler_pre\([^)]*\)\s*\{\s*)struct pt_regs \*real_regs = PT_REAL_REGS\(regs\);",
+                  r"\1struct pt_regs *real_regs = ksu_sys_read_is_wrapper ? PT_REAL_REGS(regs) : regs;",
+                  txt,
+                  count=1,
+              )
+              if n:
+                  txt = txt2
+                  changed = True
+
+              txt2, n = re.subn(
+                  r"(static int sys_fstat_handler_pre\([^)]*\)\s*\{\s*)struct pt_regs \*real_regs = PT_REAL_REGS\(regs\);",
+                  r"\1struct pt_regs *real_regs = ksu_sys_fstat_is_wrapper ? PT_REAL_REGS(regs) : regs;",
+                  txt,
+                  count=1,
+              )
+              if n:
+                  txt = txt2
+                  changed = True
+
+              txt2, n = re.subn(
+                  r"(ret\s*=\s*register_kprobe_fallback\(\s*&execve_kp[\s\S]*?\);\n)(\s*pr_info\(\s*\"ksud:\s*execve_kp:\s*%d\\n\"\s*,\s*ret\s*\)\s*;)",
+                  r"\1    if (!ret) ksu_execve_is_wrapper = is_syscall_wrapper(execve_kp.symbol_name);\n\2",
+                  txt,
+                  count=1,
+              )
+              if not n:
+                  txt2, n = re.subn(
+                      r"(ret\s*=\s*register_kprobe\(\s*&execve_kp\s*\)\s*;\n)(\s*pr_info\(\s*\"ksud:\s*execve_kp:\s*%d\\n\"\s*,\s*ret\s*\)\s*;)",
+                      r"\1    if (!ret) ksu_execve_is_wrapper = is_syscall_wrapper(execve_kp.symbol_name);\n\2",
+                      txt,
+                      count=1,
+                  )
+              if n:
+                  txt = txt2
+                  changed = True
+
+              txt2, n = re.subn(
+                  r"(ret\s*=\s*register_kprobe_fallback\(\s*&sys_read_kp[\s\S]*?\);\n)(\s*pr_info\(\s*\"ksud:\s*sys_read_kp:\s*%d\\n\"\s*,\s*ret\s*\)\s*;)",
+                  r"\1    if (!ret) ksu_sys_read_is_wrapper = is_syscall_wrapper(sys_read_kp.symbol_name);\n\2",
+                  txt,
+                  count=1,
+              )
+              if not n:
+                  txt2, n = re.subn(
+                      r"(ret\s*=\s*register_kprobe\(\s*&sys_read_kp\s*\)\s*;\n)(\s*pr_info\(\s*\"ksud:\s*sys_read_kp:\s*%d\\n\"\s*,\s*ret\s*\)\s*;)",
+                      r"\1    if (!ret) ksu_sys_read_is_wrapper = is_syscall_wrapper(sys_read_kp.symbol_name);\n\2",
+                      txt,
+                      count=1,
+                  )
+              if n:
+                  txt = txt2
+                  changed = True
+
+              txt2, n = re.subn(
+                  r"(ret\s*=\s*register_kretprobe_fallback\(\s*&sys_fstat_kp[\s\S]*?\);\n)(\s*pr_info\(\s*\"ksud:\s*sys_fstat_kp:\s*%d\\n\"\s*,\s*ret\s*\)\s*;)",
+                  r"\1    if (!ret) ksu_sys_fstat_is_wrapper = is_syscall_wrapper(sys_fstat_kp.kp.symbol_name);\n\2",
+                  txt,
+                  count=1,
+              )
+              if not n:
+                  txt2, n = re.subn(
+                      r"(ret\s*=\s*register_kretprobe\(\s*&sys_fstat_kp\s*\)\s*;\n)(\s*pr_info\(\s*\"ksud:\s*sys_fstat_kp:\s*%d\\n\"\s*,\s*ret\s*\)\s*;)",
+                      r"\1    if (!ret) ksu_sys_fstat_is_wrapper = is_syscall_wrapper(sys_fstat_kp.kp.symbol_name);\n\2",
+                      txt,
+                      count=1,
+                  )
+              if n:
+                  txt = txt2
+                  changed = True
+              if changed:
+                  path.write_text(txt)
+              return True
+
+          def patch_exec_manual_hook(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              changed = False
+              marker = "KSU_LAURUS_EXECVEAT_MANUAL_HOOK"
+
+              if marker not in txt:
+                  anchor = (
+                      "/*\n"
+                      " * sys_execve() executes a new program.\n"
+                      " */\n"
+                  )
+                  decl = (
+                      "#ifdef CONFIG_KSU_MANUAL_HOOK\n"
+                      "/* KSU_LAURUS_EXECVEAT_MANUAL_HOOK */\n"
+                      "extern bool ksu_execveat_hook __read_mostly;\n"
+                      "extern int ksu_handle_execveat_ksud(int *fd, struct filename **filename_ptr,\n"
+                      "\t\t\t\t     struct user_arg_ptr *argv,\n"
+                      "\t\t\t\t     struct user_arg_ptr *envp, int *flags);\n"
+                      "#endif\n"
+                  )
+                  if anchor in txt:
+                      txt = txt.replace(anchor, anchor + decl, 1)
+                      changed = True
+
+              hook_anchor = "\tint retval;\n\n\tif (IS_ERR(filename))\n"
+              if hook_anchor in txt and marker in txt:
+                  hook = (
+                      "\tint retval;\n\n"
+                      "#ifdef CONFIG_KSU_MANUAL_HOOK\n"
+                      "\t/* KSU_LAURUS_EXECVEAT_MANUAL_HOOK */\n"
+                      "\tif (unlikely(ksu_execveat_hook))\n"
+                      "\t\tksu_handle_execveat_ksud(&fd, &filename, &argv, &envp, &flags);\n"
+                      "#endif\n\n"
+                      "\tif (IS_ERR(filename))\n"
+                  )
+                  txt = txt.replace(hook_anchor, hook, 1)
+                  changed = True
+
+              if changed:
+                  path.write_text(txt)
+              return True
+
+          def patch_file_wrapper_main(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              if "KSU_FILE_WRAPPER_COMPAT_STUB_414" in txt:
+                  return True
+              stub = (
+                  '#include <linux/errno.h>\n'
+                  '#include <linux/version.h>\n'
+                  '#include "file_wrapper.h"\n\n'
+                  '#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0)\n'
+                  '#define KSU_FILE_WRAPPER_COMPAT_STUB_414 1\n'
+                  'int ksu_install_file_wrapper(int fd)\n'
+                  '{\n'
+                  '    return -EOPNOTSUPP;\n'
+                  '}\n\n'
+                  'void ksu_file_wrapper_init(void)\n'
+                  '{\n'
+                  '}\n'
+                  '#else\n'
+              )
+              path.write_text(stub + txt + "\n#endif\n")
+              return True
+
+          def patch_util_main(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              if "KSU_UTIL_COMPAT_STUB_414" in txt:
+                  return True
+              stub = (
+                  '#include <linux/version.h>\n'
+                  '#include "util.h"\n\n'
+                  '#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)\n'
+                  '#define KSU_UTIL_COMPAT_STUB_414 1\n'
+                  'bool try_set_access_flag(unsigned long addr)\n'
+                  '{\n'
+                  '    return false;\n'
+                  '}\n'
+                  '#else\n'
+              )
+              path.write_text(stub + txt + "\n#endif\n")
+              return True
+
+          def patch_manual_su_main(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              changed = False
+              if "#include <linux/random.h>" not in txt:
+                  anchor = "#include <linux/binfmts.h>\n"
+                  if anchor in txt:
+                      txt = txt.replace(
+                          anchor,
+                          anchor + "#include <linux/random.h>\n",
+                          1,
+                      )
+                      changed = True
+              old1 = (
+                  "bool is_pending_root(uid_t uid)\n"
+                  "{\n"
+                  "    for (int i = 0; i < pending_cnt; i++) {\n"
+              )
+              new1 = (
+                  "bool is_pending_root(uid_t uid)\n"
+                  "{\n"
+                  "    int i;\n"
+                  "    for (i = 0; i < pending_cnt; i++) {\n"
+              )
+              if old1 in txt:
+                  txt = txt.replace(old1, new1, 1)
+                  changed = True
+              old2 = (
+                  "void remove_pending_root(uid_t uid)\n"
+                  "{\n"
+                  "    for (int i = 0; i < pending_cnt; i++) {\n"
+              )
+              new2 = (
+                  "void remove_pending_root(uid_t uid)\n"
+                  "{\n"
+                  "    int i;\n"
+                  "    for (i = 0; i < pending_cnt; i++) {\n"
+              )
+              if old2 in txt:
+                  txt = txt.replace(old2, new2, 1)
+                  changed = True
+              old3 = (
+                  "static void add_pending_root(uid_t uid)\n"
+                  "{\n"
+                  "    if (pending_cnt >= MAX_PENDING) {\n"
+                  "        pr_warn(\"pending_root: cache full\\n\");\n"
+                  "        return;\n"
+                  "    }\n"
+                  "    for (int i = 0; i < pending_cnt; i++) {\n"
+              )
+              new3 = (
+                  "static void add_pending_root(uid_t uid)\n"
+                  "{\n"
+                  "    int i;\n"
+                  "    if (pending_cnt >= MAX_PENDING) {\n"
+                  "        pr_warn(\"pending_root: cache full\\n\");\n"
+                  "        return;\n"
+                  "    }\n"
+                  "    for (i = 0; i < pending_cnt; i++) {\n"
+              )
+              if old3 in txt:
+                  txt = txt.replace(old3, new3, 1)
+                  changed = True
+              if changed:
+                  path.write_text(txt)
+              return True
+
+          def patch_selinux_main(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              if "KSU_SELINUX_COMPAT_REAL_414" in txt:
+                  return True
+              compat = (
+                  '#include "selinux.h"\n'
+                  '#include "objsec.h"\n'
+                  '#include "linux/version.h"\n'
+                  '#include "linux/security.h"\n'
+                  '#include "linux/string.h"\n'
+                  '#include "avc.h"\n'
+                  '#include "../klog.h"\n'
+                  '#include "../ksu.h"\n\n'
+                  '#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)\n'
+                  '#define KSU_SELINUX_COMPAT_REAL_414 1\n\n'
+                  'static u32 cached_su_sid __read_mostly = 0;\n'
+                  'static u32 cached_zygote_sid __read_mostly = 0;\n'
+                  'static u32 cached_init_sid __read_mostly = 0;\n'
+                  'u32 ksu_file_sid __read_mostly = 0;\n\n'
+                  'static inline struct task_security_struct *ksu_get_tsec(const struct cred *cred)\n'
+                  '{\n'
+                  '    if (!cred)\n'
+                  '        return NULL;\n'
+                  '    return (struct task_security_struct *)cred->security;\n'
+                  '}\n\n'
+                  'static int transive_to_domain(const char *domain, struct cred *cred)\n'
+                  '{\n'
+                  '    struct task_security_struct *tsec;\n'
+                  '    u32 sid = 0;\n'
+                  '    int error;\n\n'
+                  '    tsec = ksu_get_tsec(cred);\n'
+                  '    if (!tsec) {\n'
+                  '        pr_err("tsec == NULL!\\n");\n'
+                  '        return -1;\n'
+                  '    }\n\n'
+                  '    error = security_secctx_to_secid(domain, strlen(domain), &sid);\n'
+                  '    if (error) {\n'
+                  '        pr_info("security_secctx_to_secid %s -> sid: %u, error: %d\\n",\n'
+                  '                domain, sid, error);\n'
+                  '    }\n'
+                  '    if (!error) {\n'
+                  '        tsec->sid = sid;\n'
+                  '        tsec->create_sid = 0;\n'
+                  '        tsec->keycreate_sid = 0;\n'
+                  '        tsec->sockcreate_sid = 0;\n'
+                  '    }\n'
+                  '    return error;\n'
+                  '}\n\n'
+                  'void setup_selinux(const char *domain, struct cred *cred)\n'
+                  '{\n'
+                  '    if (!cred)\n'
+                  '        cred = (struct cred *)current_cred();\n'
+                  '    if (transive_to_domain(domain, cred)) {\n'
+                  '        pr_err("transive domain failed.\\n");\n'
+                  '    }\n'
+                  '}\n\n'
+                  'void setup_ksu_cred(void)\n'
+                  '{\n'
+                  '    if (ksu_cred && transive_to_domain(KERNEL_SU_CONTEXT, ksu_cred)) {\n'
+                  '        pr_err("setup ksu cred failed.\\n");\n'
+                  '    }\n'
+                  '}\n\n'
+                  'void setenforce(bool enforce)\n'
+                  '{\n'
+                  '#ifdef CONFIG_SECURITY_SELINUX_DEVELOP\n'
+                  '    selinux_enforcing = enforce ? 1 : 0;\n'
+                  '#endif\n'
+                  '}\n\n'
+                  'bool getenforce(void)\n'
+                  '{\n'
+                  '#ifdef CONFIG_SECURITY_SELINUX_DEVELOP\n'
+                  '    return !!selinux_enforcing;\n'
+                  '#else\n'
+                  '    return true;\n'
+                  '#endif\n'
+                  '}\n\n'
+                  'static bool sid_matches_context(u32 sid, const char *context)\n'
+                  '{\n'
+                  '    char *domain = NULL;\n'
+                  '    u32 seclen = 0;\n'
+                  '    bool result;\n'
+                  '    int err;\n\n'
+                  '    err = security_secid_to_secctx(sid, &domain, &seclen);\n'
+                  '    if (err)\n'
+                  '        return false;\n'
+                  '    result = strncmp(context, domain, seclen) == 0;\n'
+                  '    security_release_secctx(domain, seclen);\n'
+                  '    return result;\n'
+                  '}\n\n'
+                  'void cache_sid(void)\n'
+                  '{\n'
+                  '    if (security_secctx_to_secid(KERNEL_SU_CONTEXT, strlen(KERNEL_SU_CONTEXT), &cached_su_sid))\n'
+                  '        cached_su_sid = 0;\n'
+                  '    if (security_secctx_to_secid(ZYGOTE_CONTEXT, strlen(ZYGOTE_CONTEXT), &cached_zygote_sid))\n'
+                  '        cached_zygote_sid = 0;\n'
+                  '    if (security_secctx_to_secid(INIT_CONTEXT, strlen(INIT_CONTEXT), &cached_init_sid))\n'
+                  '        cached_init_sid = 0;\n'
+                  '    if (security_secctx_to_secid(KSU_FILE_CONTEXT, strlen(KSU_FILE_CONTEXT), &ksu_file_sid))\n'
+                  '        ksu_file_sid = 0;\n'
+                  '}\n\n'
+                  'bool is_task_ksu_domain(const struct cred *cred)\n'
+                  '{\n'
+                  '    const struct task_security_struct *tsec = ksu_get_tsec(cred);\n'
+                  '    if (!tsec)\n'
+                  '        return false;\n'
+                  '    if (cached_su_sid)\n'
+                  '        return tsec->sid == cached_su_sid;\n'
+                  '    return sid_matches_context(tsec->sid, KERNEL_SU_CONTEXT);\n'
+                  '}\n\n'
+                  'bool is_ksu_domain(void)\n'
+                  '{\n'
+                  '    return is_task_ksu_domain(current_cred());\n'
+                  '}\n\n'
+                  'bool is_zygote(const struct cred *cred)\n'
+                  '{\n'
+                  '    const struct task_security_struct *tsec = ksu_get_tsec(cred);\n'
+                  '    if (!tsec)\n'
+                  '        return false;\n'
+                  '    if (cached_zygote_sid)\n'
+                  '        return tsec->sid == cached_zygote_sid;\n'
+                  '    return sid_matches_context(tsec->sid, ZYGOTE_CONTEXT);\n'
+                  '}\n\n'
+                  'bool is_init(const struct cred *cred)\n'
+                  '{\n'
+                  '    const struct task_security_struct *tsec = ksu_get_tsec(cred);\n'
+                  '    if (!tsec)\n'
+                  '        return false;\n'
+                  '    if (cached_init_sid)\n'
+                  '        return tsec->sid == cached_init_sid;\n'
+                  '    return sid_matches_context(tsec->sid, INIT_CONTEXT);\n'
+                  '}\n'
+                  '#else\n'
+              )
+              path.write_text(compat + txt + "\n#endif\n")
+              return True
+
+          def patch_rules_main(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              if "KSU_RULES_COMPAT_V095" in txt:
+                  return True
+              legacy = fetch_text(
+                  "https://raw.githubusercontent.com/tiann/KernelSU/v0.9.5/kernel/selinux/rules.c"
+              )
+              if '#include "avc_ss.h"\n' not in legacy:
+                  legacy = legacy.replace(
+                      '#include "xfrm.h"\n',
+                      '#include "xfrm.h"\n#include "avc_ss.h"\n',
+                      1,
+                  )
+              wrapped = (
+                  '#include <linux/version.h>\n'
+                  '#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)\n'
+                  '#define KSU_RULES_COMPAT_V095 1\n'
+                  + legacy +
+                  '\n#else\n'
+                  + txt +
+                  '\n#endif\n'
+              )
+              path.write_text(wrapped)
+              return True
+
+          def patch_sepolicy_main(path: Path) -> bool:
+              if not path.exists():
+                  return False
+              txt = path.read_text()
+              if "KSU_SEPOLICY_COMPAT_V095" in txt:
+                  return True
+              legacy = fetch_text(
+                  "https://raw.githubusercontent.com/tiann/KernelSU/v0.9.5/kernel/selinux/sepolicy.c"
+              )
+              legacy = re.sub(
+                  r'^#include\s+"\.\./kernel_compat\.h".*\n',
+                  '',
+                  legacy,
+                  flags=re.M,
+              )
+              wrapped = (
+                  '#include <linux/version.h>\n'
+                  '#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)\n'
+                  '#define KSU_SEPOLICY_COMPAT_V095 1\n'
+                  + legacy +
+                  '\n#else\n'
+                  + txt +
+                  '\n#endif\n'
+              )
+              path.write_text(wrapped)
+              return True
+
+          targets = [
+              Path("drivers/kernelsu"),
+              Path("KernelSU/kernel"),
+          ]
+          done = False
+          for base in targets:
+              arch_h = base / "arch.h"
+              kp_hook = base / "kp_hook.c"
+              kp_util = base / "kp_util.c"
+              ksu_main_c = base / "ksu.c"
+              allowlist_c = base / "allowlist.c"
+              app_profile_c = base / "app_profile.c"
+              sucompat_c = base / "sucompat.c"
+              syscall_mgr_c = base / "syscall_hook_manager.c"
+              pkg_observer_c = base / "pkg_observer.c"
+              setuid_hook_c = base / "setuid_hook.c"
+              kernel_umount_c = base / "kernel_umount.c"
+              supercalls_c = base / "supercalls.c"
+              su_mount_ns_c = base / "su_mount_ns.c"
+              ksud_c = base / "ksud.c"
+              file_wrapper_c = base / "file_wrapper.c"
+              util_c = base / "util.c"
+              manual_su_c = base / "manual_su.c"
+              selinux_c = base / "selinux/selinux.c"
+              rules_c = base / "selinux/rules.c"
+              sepolicy_c = base / "selinux/sepolicy.c"
+              if not arch_h.exists() and not kp_hook.exists() and not kp_util.exists() and not ksu_main_c.exists() and not allowlist_c.exists() and not app_profile_c.exists() and not sucompat_c.exists() and not syscall_mgr_c.exists() and not pkg_observer_c.exists() and not setuid_hook_c.exists() and not kernel_umount_c.exists() and not supercalls_c.exists() and not su_mount_ns_c.exists() and not ksud_c.exists() and not file_wrapper_c.exists() and not util_c.exists() and not manual_su_c.exists() and not selinux_c.exists() and not rules_c.exists() and not sepolicy_c.exists():
+                  continue
+              if mode == "builtin":
+                  patch_arch_h(arch_h)
+                  patch_kp_hook(kp_hook)
+                  patch_kp_util(kp_util)
+                  patch_ksud_main(ksud_c)
+                  patch_exec_manual_hook(Path("fs/exec.c"))
               else:
-                  marker = "static bool is_init_rc(struct file *fp)"
-                  idx = ksud_text.find(marker)
-                  if idx == -1:
-                      raise SystemExit("ksud.c missing is_init_rc marker")
-                  brace_start = ksud_text.find("{", idx)
-                  if brace_start == -1:
-                      raise SystemExit("ksud.c missing is_init_rc brace")
-                  depth = 0
-                  end = None
-                  for i in range(brace_start, len(ksud_text)):
-                      if ksud_text[i] == "{":
-                          depth += 1
-                      elif ksud_text[i] == "}":
-                          depth -= 1
-                          if depth == 0:
-                              end = i + 1
-                              break
-              if end is None:
-                  raise SystemExit("ksud.c missing is_init_rc end")
-              ksud_text = ksud_text[:end] + vfs_body + ksud_text[end:]
-              ksud_path.write_text(ksud_text)
-
-          ksud_text = ksud_path.read_text()
-          anchor = '#include "ksud.h"\\n'
-          if anchor in ksud_text:
-              insert = ""
-              if "ksu_execveat_hook" not in ksud_text:
-                  insert += (
-                      "extern bool ksu_execveat_hook __read_mostly;\\n"
-                      "extern bool ksu_vfs_read_hook __read_mostly;\\n"
-                      "extern bool ksu_input_hook __read_mostly;\\n"
-                  )
-              if "extern bool vfs_read_hook_ready" not in ksud_text:
-                  insert += (
-                      "extern bool vfs_read_hook_ready __read_mostly;\\n"
-                      "extern bool vfs_read_hook_locked __read_mostly;\\n"
-                  )
-              if insert:
-                  ksud_text = ksud_text.replace(anchor, anchor + "\\n" + insert, 1)
-          if "vfs_read_hook_ready" in ksud_text:
-              marker = "            pr_info(\"/system/bin/init second_stage executed\\n\");\\n"
-              if marker in ksud_text and "vfs_read_hook_ready = true;" not in ksud_text:
-                  ksud_text = ksud_text.replace(
-                      marker,
-                      marker + "            vfs_read_hook_ready = true;\\n",
-                      1,
-                  )
-          if "ksu_vfs_read_hook" in ksud_text:
-              if "skip sys_read/sys_fstat kprobe" not in ksud_text:
-                  ksud_text = ksud_text.replace(
-                      "    ret = register_kprobe(&sys_read_kp);\\n"
-                      "    pr_info(\\\"ksud: sys_read_kp: %d\\\\n\\\", ret);\\n\\n"
-                      "    ret = register_kretprobe(&sys_fstat_kp);\\n"
-                      "    pr_info(\\\"ksud: sys_fstat_kp: %d\\\\n\\\", ret);\\n",
-                      "    if (!ksu_vfs_read_hook) {\\n"
-                      "        ret = register_kprobe(&sys_read_kp);\\n"
-                      "        pr_info(\\\"ksud: sys_read_kp: %d\\\\n\\\", ret);\\n\\n"
-                      "        ret = register_kretprobe(&sys_fstat_kp);\\n"
-                      "        pr_info(\\\"ksud: sys_fstat_kp: %d\\\\n\\\", ret);\\n"
-                      "    } else {\\n"
-                      "        pr_info(\\\"ksud: skip sys_read/sys_fstat kprobe (vfs_read hook enabled)\\\\n\\\");\\n"
-                      "    }\\n",
-                      1,
-                  )
-              if "if (ksu_vfs_read_hook)" not in ksud_text:
-                  ksud_text = ksud_text.replace(
-                      "static void stop_init_rc_hook()\\n{\\n",
-                      "static void stop_init_rc_hook()\\n{\\n"
-                      "    if (ksu_vfs_read_hook) {\\n"
-                      "        return;\\n"
-                      "    }\\n",
-                      1,
-                  )
-          ksud_path.write_text(ksud_text)
+                  patch_ksu_main(ksu_main_c)
+                  patch_allowlist_main(allowlist_c)
+                  patch_app_profile_main(app_profile_c)
+                  patch_sucompat_main(sucompat_c)
+                  patch_syscall_hook_manager_main(syscall_mgr_c)
+                  patch_pkg_observer_main(pkg_observer_c)
+                  patch_setuid_hook_main(setuid_hook_c)
+                  patch_kernel_umount_main(kernel_umount_c)
+                  patch_supercalls_main(supercalls_c)
+                  patch_su_mount_ns_main(su_mount_ns_c)
+                  patch_ksud_main(ksud_c)
+                  patch_file_wrapper_main(file_wrapper_c)
+                  patch_util_main(util_c)
+                  patch_manual_su_main(manual_su_c)
+                  patch_selinux_main(selinux_c)
+                  patch_rules_main(rules_c)
+                  patch_sepolicy_main(sepolicy_c)
+              done = True
+          if not done:
+              raise SystemExit("未找到可修补的 KernelSU 目录")
+          print(f"patched KSU compatibility files mode={mode}")
           PY
 
-          cat > "${ksu_dir}/manual_hook_adapters.c" <<'EOF'
-          #include <linux/compiler.h>
-          #include <linux/cred.h>
-          #include <linux/err.h>
-          #include <linux/fs.h>
-          #include <linux/namei.h>
-          #include <linux/printk.h>
-          #include <linux/string.h>
-          #include <linux/version.h>
-
-          #include "allowlist.h"
-          #include "app_profile.h"
-          #include "ksud.h"
-
-          struct user_arg_ptr;
-          int ksu_handle_execveat_ksud(int *fd, struct filename **filename_ptr,
-                                       struct user_arg_ptr *argv,
-                                       struct user_arg_ptr *envp, int *flags);
-
-          int __weak ksu_handle_setresuid(uid_t ruid, uid_t euid, uid_t suid)
-          {
-              return 0;
-          }
-
-          // 弱符号：若 ksud.c 已定义强符号则避免重复定义
-          bool ksu_execveat_hook __read_mostly __weak = true;
-          bool ksu_vfs_read_hook __read_mostly __weak = true;
-          bool ksu_input_hook __read_mostly __weak = true;
-
-          EXPORT_SYMBOL(ksu_execveat_hook);
-          EXPORT_SYMBOL(ksu_vfs_read_hook);
-          EXPORT_SYMBOL(ksu_input_hook);
-
-          int __weak ksu_handle_execveat(int *fd, struct filename **filename_ptr,
-                                         void *argv, void *envp, int *flags)
-          {
-              struct user_arg_ptr *argv_ptr = (struct user_arg_ptr *)argv;
-              struct user_arg_ptr *envp_ptr = (struct user_arg_ptr *)envp;
-
-              ksu_handle_execveat_ksud(fd, filename_ptr, argv_ptr, envp_ptr, flags);
-
-              if (!ksu_is_allow_uid_for_current(current_uid().val)) {
-                  return 0;
-              }
-              if (!filename_ptr || !*filename_ptr || IS_ERR(*filename_ptr)) {
-                  return 0;
-              }
-
-              if (!strcmp((*filename_ptr)->name, "/system/bin/su")) {
-                  struct filename *newf = getname_kernel(KSUD_PATH);
-                  if (!IS_ERR(newf)) {
-                      putname(*filename_ptr);
-                      *filename_ptr = newf;
-                      escape_with_root_profile();
-                  }
-              }
-
-              return 0;
-          }
-
-          int __weak ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,
-                                                  void *argv, void *envp, int *flags)
-          {
-              return 0;
-          }
-
-          EOF
-
-          if [ -f "${ksu_dir}/Kbuild" ]; then
-            if ! grep -q "manual_hook_adapters.o" "${ksu_dir}/Kbuild"; then
-              echo "kernelsu-objs += manual_hook_adapters.o" >> "${ksu_dir}/Kbuild"
-            fi
-          fi
-          if [ -f "${ksu_dir}/Makefile" ]; then
-            if ! grep -q "manual_hook_adapters.o" "${ksu_dir}/Makefile"; then
-              echo "kernelsu-objs += manual_hook_adapters.o" >> "${ksu_dir}/Makefile"
-            fi
-          fi
-
-          # 兼容 setuid/setreuid，确保 manager fd 能注入
-          python3 - <<PY
-          from pathlib import Path
-
-          ksu_dir = Path("${ksu_dir}")
-          hook_manager = ksu_dir / "syscall_hook_manager.c"
-          syscall_handler = ksu_dir / "syscall_handler.c"
-
-          def patch_syscall_hook_manager(path: Path) -> None:
-              text = path.read_text()
-              if "__NR_setuid" not in text:
-                  text = text.replace(
-                      "    case __NR_setresuid:\n",
-                      "    case __NR_setresuid:\n"
-                      "#ifdef __NR_setuid\n"
-                      "    case __NR_setuid:\n"
-                      "#endif\n"
-                      "#ifdef __NR_setreuid\n"
-                      "    case __NR_setreuid:\n"
-                      "#endif\n",
-                  )
-
-              marker = (
-                  "        // Handle setresuid\n"
-                  "        if (id == __NR_setresuid) {\n"
-                  "            uid_t ruid = (uid_t)PT_REGS_PARM1(regs);\n"
-                  "            uid_t euid = (uid_t)PT_REGS_PARM2(regs);\n"
-                  "            uid_t suid = (uid_t)PT_REGS_PARM3(regs);\n"
-                  "            ksu_handle_setresuid(ruid, euid, suid);\n"
-                  "            return;\n"
-                  "        }\n"
-              )
-              if marker in text and "Handle setuid" not in text:
-                  insert = (
-                      "#ifdef __NR_setuid\n"
-                      "        // Handle setuid\n"
-                      "        if (id == __NR_setuid) {\n"
-                      "            uid_t uid = (uid_t)PT_REGS_PARM1(regs);\n"
-                      "            ksu_handle_setresuid(uid, uid, uid);\n"
-                      "            return;\n"
-                      "        }\n"
-                      "#endif\n"
-                      "#ifdef __NR_setreuid\n"
-                      "        // Handle setreuid\n"
-                      "        if (id == __NR_setreuid) {\n"
-                      "            uid_t ruid = (uid_t)PT_REGS_PARM1(regs);\n"
-                      "            uid_t euid = (uid_t)PT_REGS_PARM2(regs);\n"
-                      "            uid_t new_uid = (uid_t)-1;\n"
-                      "            if (ruid != (uid_t)-1) {\n"
-                      "                new_uid = ruid;\n"
-                      "            } else if (euid != (uid_t)-1) {\n"
-                      "                new_uid = euid;\n"
-                      "            } else {\n"
-                      "                new_uid = current_uid().val;\n"
-                      "            }\n"
-                      "            ksu_handle_setresuid(new_uid, new_uid, new_uid);\n"
-                      "            return;\n"
-                      "        }\n"
-                      "#endif\n"
-                  )
-                  text = text.replace(marker, marker + insert)
-
-              path.write_text(text)
-
-          def patch_syscall_handler(path: Path) -> None:
-              text = path.read_text()
-              if "__NR_setuid" not in text:
-                  text = text.replace(
-                      "    case __NR_setresuid:\n",
-                      "    case __NR_setresuid:\n"
-                      "#ifdef __NR_setuid\n"
-                      "    case __NR_setuid:\n"
-                      "#endif\n"
-                      "#ifdef __NR_setreuid\n"
-                      "    case __NR_setreuid:\n"
-                      "#endif\n",
-                  )
-
-              marker = (
-                  "        if (id == __NR_setresuid) {\n"
-                  "            uid_t ruid = (uid_t)PT_REGS_PARM1(regs);\n"
-                  "            uid_t euid = (uid_t)PT_REGS_PARM2(regs);\n"
-                  "            uid_t suid = (uid_t)PT_REGS_PARM3(regs);\n"
-                  "            ksu_handle_setresuid(ruid, euid, suid);\n"
-                  "            return;\n"
-                  "        }\n"
-              )
-              if marker in text and "__NR_setuid" not in text:
-                  insert = (
-                      "#ifdef __NR_setuid\n"
-                      "        if (id == __NR_setuid) {\n"
-                      "            uid_t uid = (uid_t)PT_REGS_PARM1(regs);\n"
-                      "            ksu_handle_setresuid(uid, uid, uid);\n"
-                      "            return;\n"
-                      "        }\n"
-                      "#endif\n"
-                      "#ifdef __NR_setreuid\n"
-                      "        if (id == __NR_setreuid) {\n"
-                      "            uid_t ruid = (uid_t)PT_REGS_PARM1(regs);\n"
-                      "            uid_t euid = (uid_t)PT_REGS_PARM2(regs);\n"
-                      "            uid_t new_uid = (uid_t)-1;\n"
-                      "            if (ruid != (uid_t)-1) {\n"
-                      "                new_uid = ruid;\n"
-                      "            } else if (euid != (uid_t)-1) {\n"
-                      "                new_uid = euid;\n"
-                      "            } else {\n"
-                      "                new_uid = current_uid().val;\n"
-                      "            }\n"
-                      "            ksu_handle_setresuid(new_uid, new_uid, new_uid);\n"
-                      "            return;\n"
-                      "        }\n"
-                      "#endif\n"
-                  )
-                  text = text.replace(marker, marker + insert)
-
-              path.write_text(text)
-
-          if hook_manager.exists():
-              patch_syscall_hook_manager(hook_manager)
-          elif syscall_handler.exists():
-              patch_syscall_handler(syscall_handler)
-          else:
-              print("skip setuid/setreuid patch: no syscall hook file found")
-          PY
-
-          # manual hook 下直接在 kernel/sys.c 触发 setuid/setresuid
+      - name: 修补 manager 探测时序（无 ksud 也能识别 Manager）
+        id: ksu-throne-fix
+        run: |
+          set -euxo pipefail
           python3 - <<'PY'
           from pathlib import Path
+          import re
 
-          path = Path("kernel/sys.c")
-          if not path.exists():
-              print("skip sys.c patch: kernel/sys.c not found")
-              raise SystemExit(0)
+          def read_text(p: Path) -> str:
+              try:
+                  return p.read_text()
+              except Exception:
+                  return p.read_text(errors="ignore")
 
-          text = path.read_text()
+          def looks_like_throne(text: str) -> bool:
+              return ("track_throne(" in text and
+                      ("packages.list" in text or "SYSTEM_PACKAGES_LIST_PATH" in text))
 
-          decl = (
-              "#ifdef CONFIG_KSU\n"
-              "extern int ksu_handle_setresuid(uid_t ruid, uid_t euid, uid_t suid);\n"
-              "#endif\n"
-          )
+          def find_throne_tracker():
+              direct = Path("KernelSU/kernel/throne_tracker.c")
+              if direct.exists():
+                  return direct
+              for p in Path("KernelSU").rglob("throne_tracker.c"):
+                  if looks_like_throne(read_text(p)):
+                      return p
+              for p in Path(".").rglob("throne_tracker.c"):
+                  if looks_like_throne(read_text(p)):
+                      return p
+              for p in Path(".").rglob("*.c"):
+                  if looks_like_throne(read_text(p)):
+                      return p
+              return None
 
-          if "extern int ksu_handle_setresuid" not in text:
-              marker = "#include <linux/cred.h>\n"
-              if marker in text:
-                  text = text.replace(marker, marker + "\n" + decl + "\n", 1)
-              else:
-                  text = decl + "\n" + text
+          def ensure_includes(text: str) -> str:
+              if "#include <linux/atomic.h>" not in text:
+                  text = text.replace("#include <linux/err.h>\n",
+                                      "#include <linux/atomic.h>\n#include <linux/err.h>\n")
+              if "#include <linux/workqueue.h>" not in text:
+                  if "#include <linux/version.h>\n" in text:
+                      text = text.replace("#include <linux/version.h>\n",
+                                          "#include <linux/version.h>\n#include <linux/workqueue.h>\n")
+                  else:
+                      text = text.replace("#include <linux/types.h>\n",
+                                          "#include <linux/types.h>\n#include <linux/workqueue.h>\n")
+              return text
 
-          def patch_func(text: str, signature: str, args: str) -> str:
-              start = text.find(signature)
-              if start == -1:
+          def insert_defs(text: str) -> str:
+              if "KSU_THRONE_RETRY_MS" in text:
                   return text
-              brace_start = text.find("{", start)
-              if brace_start == -1:
-                  return text
+              insert_defs = """
+          #define KSU_THRONE_RETRY_MS 5000
+          #define KSU_THRONE_MAX_RETRY 60
 
+          static struct delayed_work ksu_throne_retry_work;
+          static atomic_t ksu_throne_retry_count = ATOMIC_INIT(0);
+
+          """
+              insert_defs = insert_defs.lstrip()
+              m = re.search(r"(?:^#include[^\n]*\n)+", text, flags=re.M)
+              if not m:
+                  return insert_defs + text
+              return text[:m.end()] + insert_defs + text[m.end():]
+
+          def insert_retry_func(text: str) -> str:
+              if "ksu_throne_retry(" in text:
+                  return text
+              retry_func = """
+          static void ksu_throne_retry(struct work_struct *work)
+          {
+              if (ksu_is_manager_appid_valid()) {
+                  return;
+              }
+
+              track_throne(false);
+              if (ksu_is_manager_appid_valid()) {
+                  return;
+              }
+
+              if (atomic_inc_return(&ksu_throne_retry_count) < KSU_THRONE_MAX_RETRY) {
+                  schedule_delayed_work(&ksu_throne_retry_work,
+                                        msecs_to_jiffies(KSU_THRONE_RETRY_MS));
+              } else {
+                  pr_err("ksu: manager not found after %d retries\\n",
+                         KSU_THRONE_MAX_RETRY);
+              }
+          }
+
+          """
+              retry_func = retry_func.lstrip()
+              idx = text.find("ksu_throne_tracker_init")
+              if idx < 0:
+                  return text + "\n" + retry_func
+              line_start = text.rfind("\n", 0, idx) + 1
+              return text[:line_start] + retry_func + text[line_start:]
+
+          def replace_func_body(text: str, name: str, new_body: str):
+              idx = text.find(name)
+              if idx < 0:
+                  return text, False
+              brace = text.find("{", idx)
+              if brace < 0:
+                  return text, False
               depth = 0
-              end = None
-              for i in range(brace_start, len(text)):
+              i = brace
+              end = -1
+              while i < len(text):
                   if text[i] == "{":
                       depth += 1
                   elif text[i] == "}":
                       depth -= 1
                       if depth == 0:
-                          end = i + 1
+                          end = i
                           break
+                  i += 1
+              if end < 0:
+                  return text, False
+              new_text = text[:brace+1] + "\n" + new_body + "\n" + text[end:]
+              return new_text, True
 
-              if end is None:
-                  return text
+          path = find_throne_tracker()
+          if not path:
+              print("throne_tracker.c not found, skip")
+              raise SystemExit(0)
 
-              block = text[start:end]
-              if "ksu_handle_setresuid" in block:
-                  return text
+          text = read_text(path)
+          print("patch target:", path)
+          text = ensure_includes(text)
+          text = insert_defs(text)
+          text = insert_retry_func(text)
 
-              target = "return commit_creds(new);"
-              idx = block.rfind(target)
-              if idx == -1:
-                  return text
+          init_body = """
+              if (ksu_is_manager_appid_valid()) {
+                  return;
+              }
+              atomic_set(&ksu_throne_retry_count, 0);
+              INIT_DELAYED_WORK(&ksu_throne_retry_work, ksu_throne_retry);
+              schedule_delayed_work(&ksu_throne_retry_work,
+                                    msecs_to_jiffies(KSU_THRONE_RETRY_MS));
+          """.strip()
+          exit_body = "cancel_delayed_work_sync(&ksu_throne_retry_work);"
 
-              line_start = block.rfind("\n", 0, idx) + 1
-              indent = block[line_start:idx]
-              insert = (
-                  f"{indent}#ifdef CONFIG_KSU\n"
-                  f"{indent}ksu_handle_setresuid({args});\n"
-                  f"{indent}#endif\n"
-              )
-              block = block[:idx] + insert + block[idx:]
-              return text[:start] + block + text[end:]
-
-          text = patch_func(
-              text,
-              "SYSCALL_DEFINE1(setuid, uid_t, uid)",
-              "uid, uid, uid",
-          )
-          text = patch_func(
-              text,
-              "SYSCALL_DEFINE3(setresuid, uid_t, ruid, uid_t, euid, uid_t, suid)",
-              "ruid, euid, suid",
-          )
+          text, ok1 = replace_func_body(text, "ksu_throne_tracker_init", init_body)
+          text, ok2 = replace_func_body(text, "ksu_throne_tracker_exit", exit_body)
+          if not ok1 or not ok2:
+              print("warn: cannot patch init/exit", ok1, ok2)
+              raise SystemExit(0)
 
           path.write_text(text)
+          print("patched:", path)
           PY
 
       - name: 配置 defconfig
@@ -763,8 +1468,15 @@ jobs:
           export CROSS_COMPILE_ARM32="$TOOLCHAIN_GCC32/bin/arm-linux-androideabi-"
           export LOCALVERSION=
 
-          DEFCONFIG="${DEFCONFIG_INPUT}"
+          DEFCONFIG="${{ github.event_name == 'workflow_dispatch' && inputs.defconfig || 'vendor/laurus-perf_defconfig' }}"
           DEFCONFIG_PATH="arch/arm64/configs/${DEFCONFIG}"
+          KSU_REF="${KSU_REF:-${{ github.event_name == 'workflow_dispatch' && inputs.sukisu_ref || 'main' }}}"
+          KSU_MODE="${KSU_MODE:-${{ github.event_name == 'workflow_dispatch' && inputs.sukisu_mode || 'builtin' }}}"
+          if [ "$KSU_REF" = "builtin" ]; then
+            KSU_MODE="builtin"
+          elif [ "$KSU_REF" = "main" ]; then
+            KSU_MODE="main"
+          fi
 
           if [ ! -f "${DEFCONFIG_PATH}" ]; then
             echo "defconfig 不存在：${DEFCONFIG_PATH}"
@@ -772,51 +1484,100 @@ jobs:
           fi
 
           # 对齐 vendor 模块 vermagic（避免 Wi-Fi 模块加载失败）
-          sed -i -E 's/^SUBLEVEL = .*/SUBLEVEL = 117/' Makefile
+          sed -i -E 's/^SUBLEVEL = .*/SUBLEVEL = 98/' Makefile
           sed -i -E 's/^EXTRAVERSION = .*/EXTRAVERSION =/' Makefile
           rm -f .scmversion
 
           if [ "$WITH_SUKISU" = "on" ]; then
-            # non-GKI 使用 manual hook
+            # 根据 SukiSU 分支/模式选择配置
             sed -i -E '/^CONFIG_KSU=/d' "${DEFCONFIG_PATH}"
             sed -i -E '/^# CONFIG_KSU is not set/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^CONFIG_KSU_SYSCALL_HOOK/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^# CONFIG_KSU_SYSCALL_HOOK is not set/d' "${DEFCONFIG_PATH}"
             sed -i -E '/^CONFIG_KSU_MANUAL_HOOK/d' "${DEFCONFIG_PATH}"
             sed -i -E '/^# CONFIG_KSU_MANUAL_HOOK is not set/d' "${DEFCONFIG_PATH}"
             sed -i -E '/^CONFIG_KSU_MANUAL_SU/d' "${DEFCONFIG_PATH}"
             sed -i -E '/^# CONFIG_KSU_MANUAL_SU is not set/d' "${DEFCONFIG_PATH}"
-            printf '%s\n' \
-              'CONFIG_KSU=y' \
-              'CONFIG_KSU_MANUAL_HOOK=y' \
-              '# CONFIG_KSU_MANUAL_SU is not set' \
-              'CONFIG_KPROBES=y' \
-              'CONFIG_KRETPROBES=y' \
-              'CONFIG_KPROBE_EVENTS=y' \
-              'CONFIG_KALLSYMS=y' \
-              'CONFIG_KALLSYMS_ALL=y' \
-              'CONFIG_SECURITYFS=y' \
-              'CONFIG_DEVTMPFS=y' \
-              'CONFIG_DEVTMPFS_MOUNT=y' \
-              'CONFIG_OVERLAY_FS=y' \
-              >> "${DEFCONFIG_PATH}"
+            sed -i -E '/^CONFIG_KSU_SUSFS/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^# CONFIG_KSU_SUSFS is not set/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^CONFIG_KSU_SUSFS_/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^# CONFIG_KSU_SUSFS_.* is not set/d' "${DEFCONFIG_PATH}"
+            if [ "$KSU_MODE" = "builtin" ]; then
+              printf '%s\n' \
+                'CONFIG_KSU=y' \
+                '# CONFIG_KSU_SYSCALL_HOOK is not set' \
+                'CONFIG_KSU_MANUAL_HOOK=y' \
+                '# CONFIG_KSU_MANUAL_SU is not set' \
+                '# CONFIG_KSU_SUSFS is not set' \
+                'CONFIG_KPROBES=y' \
+                'CONFIG_KRETPROBES=y' \
+                'CONFIG_KPROBE_EVENTS=y' \
+                'CONFIG_HAVE_SYSCALL_TRACEPOINTS=y' \
+                'CONFIG_KALLSYMS=y' \
+                'CONFIG_KALLSYMS_ALL=y' \
+                'CONFIG_SECURITYFS=y' \
+                'CONFIG_DEVTMPFS=y' \
+                'CONFIG_DEVTMPFS_MOUNT=y' \
+                'CONFIG_OVERLAY_FS=y' \
+                >> "${DEFCONFIG_PATH}"
+            else
+              printf '%s\n' \
+                'CONFIG_KSU=y' \
+                'CONFIG_KSU_SYSCALL_HOOK=y' \
+                'CONFIG_KSU_MANUAL_SU=y' \
+                '# CONFIG_KSU_SUSFS is not set' \
+                'CONFIG_KPROBES=y' \
+                'CONFIG_KRETPROBES=y' \
+                'CONFIG_KPROBE_EVENTS=y' \
+                'CONFIG_HAVE_SYSCALL_TRACEPOINTS=y' \
+                'CONFIG_KALLSYMS=y' \
+                'CONFIG_KALLSYMS_ALL=y' \
+                'CONFIG_SECURITYFS=y' \
+                'CONFIG_DEVTMPFS=y' \
+                'CONFIG_DEVTMPFS_MOUNT=y' \
+                'CONFIG_OVERLAY_FS=y' \
+                >> "${DEFCONFIG_PATH}"
+            fi
           fi
 
           mkdir -p out
           make O=out "$DEFCONFIG"
 
           if [ "$WITH_SUKISU" = "on" ]; then
-            # KernelSU：manual hook 路线
-            ./scripts/config --file out/.config -e KSU || true
-            ./scripts/config --file out/.config -e KSU_MANUAL_HOOK || true
-            ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
-            ./scripts/config --file out/.config -e KPROBES || true
-            ./scripts/config --file out/.config -e KRETPROBES || true
-            ./scripts/config --file out/.config -e KPROBE_EVENTS || true
-            ./scripts/config --file out/.config -e KALLSYMS || true
-            ./scripts/config --file out/.config -e KALLSYMS_ALL || true
-            ./scripts/config --file out/.config -e SECURITYFS || true
-            ./scripts/config --file out/.config -e DEVTMPFS || true
-            ./scripts/config --file out/.config -e DEVTMPFS_MOUNT || true
-            ./scripts/config --file out/.config -e OVERLAY_FS || true
+            if [ "$KSU_MODE" = "builtin" ]; then
+              # builtin：manual hook
+              ./scripts/config --file out/.config -e KSU || true
+              ./scripts/config --file out/.config -d KSU_SYSCALL_HOOK || true
+              ./scripts/config --file out/.config -e KSU_MANUAL_HOOK || true
+              ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
+              ./scripts/config --file out/.config -d KSU_SUSFS || true
+              ./scripts/config --file out/.config -e KPROBES || true
+              ./scripts/config --file out/.config -e KRETPROBES || true
+              ./scripts/config --file out/.config -e KPROBE_EVENTS || true
+              ./scripts/config --file out/.config -e HAVE_SYSCALL_TRACEPOINTS || true
+              ./scripts/config --file out/.config -e KALLSYMS || true
+              ./scripts/config --file out/.config -e KALLSYMS_ALL || true
+              ./scripts/config --file out/.config -e SECURITYFS || true
+              ./scripts/config --file out/.config -e DEVTMPFS || true
+              ./scripts/config --file out/.config -e DEVTMPFS_MOUNT || true
+              ./scripts/config --file out/.config -e OVERLAY_FS || true
+            else
+              # main：在 4.14 上强制开启 syscall hook，保证 init.rc 注入链路生效
+              ./scripts/config --file out/.config -e KSU || true
+              ./scripts/config --file out/.config -e KSU_SYSCALL_HOOK || true
+              ./scripts/config --file out/.config -e KSU_MANUAL_SU || true
+              ./scripts/config --file out/.config -d KSU_SUSFS || true
+              ./scripts/config --file out/.config -e KPROBES || true
+              ./scripts/config --file out/.config -e KRETPROBES || true
+              ./scripts/config --file out/.config -e KPROBE_EVENTS || true
+              ./scripts/config --file out/.config -e HAVE_SYSCALL_TRACEPOINTS || true
+              ./scripts/config --file out/.config -e KALLSYMS || true
+              ./scripts/config --file out/.config -e KALLSYMS_ALL || true
+              ./scripts/config --file out/.config -e SECURITYFS || true
+              ./scripts/config --file out/.config -e DEVTMPFS || true
+              ./scripts/config --file out/.config -e DEVTMPFS_MOUNT || true
+              ./scripts/config --file out/.config -e OVERLAY_FS || true
+            fi
           fi
 
           # 保持 MODULE_SIG 以对齐 struct module，但关闭强制签名校验
@@ -828,9 +1589,9 @@ jobs:
 
           # 对齐版本字符串，避免 vermagic 不匹配
           ./scripts/config --file out/.config -d LOCALVERSION_AUTO || true
-          ./scripts/config --file out/.config --set-str LOCALVERSION "-perf-g4732215-tanran" || true
+          ./scripts/config --file out/.config --set-str LOCALVERSION "-perf+-tanran" || true
 
-          FORTIFY="${FORTIFY_MODE}"
+          FORTIFY="${{ github.event_name == 'workflow_dispatch' && inputs.fortify || 'off' }}"
           if [ "$FORTIFY" = "on" ]; then
             ./scripts/config --file out/.config -e FORTIFY_SOURCE || true
           else
@@ -838,26 +1599,42 @@ jobs:
             ./scripts/config --file out/.config -d FORTIFY_SOURCE || true
           fi
 
-          # 避免 Image.gz 触发 dtb 全量编译（dtc 错误会导致构建失败）
-          ./scripts/config --file out/.config -d BUILD_ARM64_DTBS || true
-          ./scripts/config --file out/.config -d BUILD_ARM64_APPENDED_DTB_IMAGE || true
-
           make O=out olddefconfig
 
           if [ "$WITH_SUKISU" = "on" ]; then
-            # olddefconfig 后确认 manual hook 仍保持开启
-            ./scripts/config --file out/.config -e KSU || true
-            ./scripts/config --file out/.config -e KSU_MANUAL_HOOK || true
-            ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
-            ./scripts/config --file out/.config -e KPROBES || true
-            ./scripts/config --file out/.config -e KRETPROBES || true
-            ./scripts/config --file out/.config -e KPROBE_EVENTS || true
-            ./scripts/config --file out/.config -e KALLSYMS || true
-            ./scripts/config --file out/.config -e KALLSYMS_ALL || true
-            ./scripts/config --file out/.config -e SECURITYFS || true
-            ./scripts/config --file out/.config -e DEVTMPFS || true
-            ./scripts/config --file out/.config -e DEVTMPFS_MOUNT || true
-            ./scripts/config --file out/.config -e OVERLAY_FS || true
+            if [ "$KSU_MODE" = "builtin" ]; then
+              # olddefconfig 后确认 manual hook 仍保持开启
+              ./scripts/config --file out/.config -e KSU || true
+              ./scripts/config --file out/.config -d KSU_SYSCALL_HOOK || true
+              ./scripts/config --file out/.config -e KSU_MANUAL_HOOK || true
+              ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
+              ./scripts/config --file out/.config -d KSU_SUSFS || true
+              ./scripts/config --file out/.config -e KPROBES || true
+              ./scripts/config --file out/.config -e KRETPROBES || true
+              ./scripts/config --file out/.config -e KPROBE_EVENTS || true
+              ./scripts/config --file out/.config -e HAVE_SYSCALL_TRACEPOINTS || true
+              ./scripts/config --file out/.config -e KALLSYMS || true
+              ./scripts/config --file out/.config -e KALLSYMS_ALL || true
+              ./scripts/config --file out/.config -e SECURITYFS || true
+              ./scripts/config --file out/.config -e DEVTMPFS || true
+              ./scripts/config --file out/.config -e DEVTMPFS_MOUNT || true
+              ./scripts/config --file out/.config -e OVERLAY_FS || true
+            else
+              ./scripts/config --file out/.config -e KSU || true
+              ./scripts/config --file out/.config -e KSU_SYSCALL_HOOK || true
+              ./scripts/config --file out/.config -e KSU_MANUAL_SU || true
+              ./scripts/config --file out/.config -d KSU_SUSFS || true
+              ./scripts/config --file out/.config -e KPROBES || true
+              ./scripts/config --file out/.config -e KRETPROBES || true
+              ./scripts/config --file out/.config -e KPROBE_EVENTS || true
+              ./scripts/config --file out/.config -e HAVE_SYSCALL_TRACEPOINTS || true
+              ./scripts/config --file out/.config -e KALLSYMS || true
+              ./scripts/config --file out/.config -e KALLSYMS_ALL || true
+              ./scripts/config --file out/.config -e SECURITYFS || true
+              ./scripts/config --file out/.config -e DEVTMPFS || true
+              ./scripts/config --file out/.config -e DEVTMPFS_MOUNT || true
+              ./scripts/config --file out/.config -e OVERLAY_FS || true
+            fi
 
             # 再次确保模块签名/版本字符串设置生效
             ./scripts/config --file out/.config -e MODULE_SIG || true
@@ -865,13 +1642,24 @@ jobs:
             ./scripts/config --file out/.config -d MODULE_SIG_ALL || true
             ./scripts/config --file out/.config -e MODVERSIONS || true
             ./scripts/config --file out/.config -d LOCALVERSION_AUTO || true
-            ./scripts/config --file out/.config --set-str LOCALVERSION "-perf-g4732215-tanran" || true
+            ./scripts/config --file out/.config --set-str LOCALVERSION "-perf+-tanran" || true
 
             make O=out olddefconfig
 
-            if ! grep -q '^CONFIG_KSU_MANUAL_HOOK=y' out/.config; then
-              echo "CONFIG_KSU_MANUAL_HOOK 未开启，停止构建"
-              exit 1
+            if [ "$KSU_MODE" = "builtin" ]; then
+              if ! grep -q '^CONFIG_KSU_MANUAL_HOOK=y' out/.config; then
+                echo "CONFIG_KSU_MANUAL_HOOK 未开启，停止构建"
+                exit 1
+              fi
+            else
+              if ! grep -q '^CONFIG_KSU=y' out/.config; then
+                echo "CONFIG_KSU 未开启，停止构建"
+                exit 1
+              fi
+              if ! grep -q '^CONFIG_KSU_SYSCALL_HOOK=y' out/.config; then
+                echo "CONFIG_KSU_SYSCALL_HOOK 未开启，停止构建"
+                exit 1
+              fi
             fi
           fi
 
@@ -887,41 +1675,34 @@ jobs:
           export CROSS_COMPILE_ARM32="$TOOLCHAIN_GCC32/bin/arm-linux-androideabi-"
           export LOCALVERSION=
 
+          BUILD_DTBO="${{ github.event_name == 'workflow_dispatch' && inputs.build_dtbo || 'off' }}"
+
           if [ "$BUILD_DTBO" = "on" ]; then
             # dtbo (/plugin/;) 需要 -@ 才能生成符号/修复信息
-            make -j"$(nproc)" O=out Image.gz-dtb V=1 DTC_FLAGS="-@" \
-              CC="${CROSS_COMPILE}gcc" 2>&1 | tee build.log
+            make -j"$(nproc)" O=out Image.gz-dtb V=1 DTC_FLAGS="-@" 2>&1 | tee build.log
           else
             # 先确保能编译出内核镜像；dtbo 问题后续再单独修
-            make -j"$(nproc)" O=out Image.gz V=1 \
-              CC="${CROSS_COMPILE}gcc" 2>&1 | tee build.log
+            make -j"$(nproc)" O=out Image.gz V=1 2>&1 | tee build.log
 
             mkdir -p dist
             rm -f dist/dtb
 
-            STOCK_DTB_B64="ci_assets/laurus_q_dtb.bin.gz.b64"
-            if [ -f "${STOCK_DTB_B64}" ]; then
-              # 优先使用 stock dtb blob，避免 trinket dtb 编译失败
-              if gzip -t "${STOCK_DTB_B64}" >/dev/null 2>&1; then
-                gzip -dc "${STOCK_DTB_B64}" > dist/dtb
+            # 编译 trinket 相关 dtb（失败跳过，后续按 size 白名单拼接）
+            for dts in $(find arch/arm64/boot/dts/qcom -maxdepth 1 -name 'trinket*.dts' ! -name '*-overlay.dts' -print | sort); do
+              dtb="$(basename "${dts%.dts}.dtb")"
+              if make -j"$(nproc)" O=out "qcom/${dtb}" V=1 2>&1 | tee -a build.log; then
+                echo "built dtb: ${dtb}" | tee -a build.log
               else
-                base64 -d "${STOCK_DTB_B64}" | gzip -d > dist/dtb
+                echo "skip dtb build failed: ${dtb}" | tee -a build.log
               fi
-            else
-              # 编译 trinket 相关 dtb（失败跳过，后续按 size 白名单拼接）
-              set +e
-              for dts in $(find arch/arm64/boot/dts/qcom -maxdepth 1 -name 'trinket*.dts' ! -name '*-overlay.dts' -print | sort); do
-                dtb="$(basename "${dts%.dts}.dtb")"
-                if make -j"$(nproc)" O=out "qcom/${dtb}" V=1 2>&1 | tee -a build.log; then
-                  echo "built dtb: ${dtb}" | tee -a build.log
-                else
-                  echo "skip dtb build failed: ${dtb}" | tee -a build.log
-                fi
-              done
-              set -e
+            done
 
-              # 根据 stock dtb 的 size 列表重建 dtb blob（Q 版本）
-              STOCK_DTB_SIZES=("54743" "33269" "4065" "46749" "5306" "4753" "27379" "327570")
+            STOCK_DTB_B64="ci_assets/laurus_p_dtb.bin.gz.b64"
+            if [ -f "${STOCK_DTB_B64}" ]; then
+              base64 -d "${STOCK_DTB_B64}" | gzip -d > dist/dtb
+            else
+              # 根据 stock dtb 的 size 列表重建 dtb blob（P 版本）
+              STOCK_DTB_SIZES=("4065" "54743" "4753" "323654" "33249" "27359" "46749" "5306" "173")
               tmp_map="$(mktemp)"
               find out/arch/arm64/boot/dts/qcom -maxdepth 1 -name 'trinket*.dtb' -print0 | xargs -0 -I{} stat -c '%s %n' {} | sort > "${tmp_map}"
 
@@ -965,7 +1746,7 @@ jobs:
             -e 's/^device.name2=.*/device.name2=laurel_sprout/' \
             anykernel3/anykernel.sh || true
 
-          (cd anykernel3 && zip -r9 ../dist/AnyKernel3-laurus-${RUN_ID}.zip . -x '.git/*')
+          (cd anykernel3 && zip -r9 ../dist/AnyKernel3-laurus-${{ github.run_id }}.zip . -x '.git/*')
 
       - name: 生成 boot.img（可 fastboot 刷入）
         id: bootimg
@@ -1013,39 +1794,31 @@ jobs:
 
       - name: 写入精简日志（方便无鉴权查看）
         if: always()
-        env:
-          STEP_CHECKOUT: ${{ steps.checkout.outcome }}
-          STEP_DEPS: ${{ steps.deps.outcome }}
-          STEP_TOOLCHAIN: ${{ steps.toolchain.outcome }}
-          STEP_SUKISU: ${{ steps.sukisu.outcome }}
-          STEP_CONFIG: ${{ steps.config.outcome }}
-          STEP_BUILD: ${{ steps.build.outcome }}
-          STEP_PACKAGE: ${{ steps.package.outcome }}
         run: |
           set -euxo pipefail
           mkdir -p ci_logs
-          outfile="ci_logs/${RUN_ID}.txt"
+          outfile="ci_logs/${{ github.run_id }}.txt"
           {
-            echo "run_id=${RUN_ID}"
-            echo "head_sha=${HEAD_SHA}"
-            echo "kernel_ref=${KERNEL_BRANCH}"
-            echo "defconfig=${DEFCONFIG_INPUT}"
-            echo "fortify=${FORTIFY_MODE}"
-            echo "build_dtbo=${BUILD_DTBO}"
+            echo "run_id=${{ github.run_id }}"
+            echo "head_sha=${{ github.sha }}"
+            echo "kernel_ref=${{ github.event_name == 'workflow_dispatch' && inputs.kernel_branch || 'laurus-p-oss-ci' }}"
+            echo "defconfig=${{ github.event_name == 'workflow_dispatch' && inputs.defconfig || 'vendor/laurus-perf_defconfig' }}"
+            echo "fortify=${{ github.event_name == 'workflow_dispatch' && inputs.fortify || 'off' }}"
+            echo "build_dtbo=${{ github.event_name == 'workflow_dispatch' && inputs.build_dtbo || 'off' }}"
             echo "with_sukisu=${WITH_SUKISU}"
             echo
             echo "==== step outcomes ===="
-            echo "checkout=${STEP_CHECKOUT}"
-            echo "deps=${STEP_DEPS}"
-            echo "toolchain=${STEP_TOOLCHAIN}"
-            echo "sukisu=${STEP_SUKISU}"
-            echo "config=${STEP_CONFIG}"
-            echo "build=${STEP_BUILD}"
-            echo "package=${STEP_PACKAGE}"
+            echo "checkout=${{ steps.checkout.outcome }}"
+            echo "deps=${{ steps.deps.outcome }}"
+            echo "toolchain=${{ steps.toolchain.outcome }}"
+            echo "sukisu=${{ steps.sukisu.outcome }}"
+            echo "config=${{ steps.config.outcome }}"
+            echo "build=${{ steps.build.outcome }}"
+            echo "package=${{ steps.package.outcome }}"
             echo
             echo "==== ksu config snapshot (out/.config) ===="
             if [ -f out/.config ]; then
-              grep -nE "KSU|KPM|SUSFS|KPROBES|KRETPROBES|KPROBES_ON_FTRACE|KPROBE_EVENTS|KALLSYMS|FTRACE" out/.config 2>&1 | head -n 200 || true
+              grep -nE "KSU|KPROBES|KRETPROBES|KPROBES_ON_FTRACE|KPROBE_EVENTS|KALLSYMS|FTRACE" out/.config 2>&1 | head -n 200 || true
             else
               echo "out/.config not found"
             fi
@@ -1053,7 +1826,7 @@ jobs:
             echo "==== artifacts existence ===="
             ls -l build.log 2>&1 || true
             ls -l out/arch/arm64/boot/Image.gz-dtb out/arch/arm64/boot/Image.gz out/arch/arm64/boot/dts/qcom/trinket.dtb 2>&1 || true
-            ls -l dist/Image.gz-dtb dist/AnyKernel3-laurus-${RUN_ID}.zip dist/boot.img 2>&1 || true
+            ls -l dist/Image.gz-dtb dist/AnyKernel3-laurus-${{ github.run_id }}.zip dist/boot.img 2>&1 || true
             echo
             echo "==== build.log errors (tail 200) ===="
             grep -nE "error:|fatal error:" build.log 2>&1 | tail -n 200 || true
@@ -1105,5 +1878,5 @@ jobs:
             out/arch/arm64/boot/Image.gz
             out/arch/arm64/boot/dts/qcom/trinket.dtb
             dist/Image.gz-dtb
-            dist/AnyKernel3-laurus-${RUN_ID}.zip
+            dist/AnyKernel3-laurus-${{ github.run_id }}.zip
             dist/boot.img
