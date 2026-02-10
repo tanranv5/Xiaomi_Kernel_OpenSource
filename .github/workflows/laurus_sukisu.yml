@@ -794,6 +794,108 @@ jobs:
                       1,
                   )
                   changed = True
+              abi_detect_block = (
+                  "/* Runtime ABI detection: wrapper (__arm64_sys_*) vs direct (SyS_*/sys_*) */\n"
+                  "static bool ksu_execve_is_wrapper = true;\n"
+                  "static bool ksu_sys_read_is_wrapper = true;\n"
+                  "static bool ksu_sys_fstat_is_wrapper = true;\n\n"
+                  "static bool is_syscall_wrapper(const char *sym)\n"
+                  "{\n"
+                  "    return strncmp(sym, \"__arm64_sys_\", 12) == 0 ||\n"
+                  "           strncmp(sym, \"__x64_sys_\", 10) == 0;\n"
+                  "}\n"
+              )
+              if "ksu_execve_is_wrapper" not in txt:
+                  anchor = "static struct kprobe input_event_kp = {\n"
+                  idx = txt.find(anchor)
+                  if idx >= 0:
+                      tail = txt[idx:]
+                      end = tail.find("};")
+                      if end >= 0:
+                          insert_pos = idx + end + 2
+                          txt = txt[:insert_pos] + "\n\n" + abi_detect_block + txt[insert_pos:]
+                          changed = True
+
+              txt2, n = re.subn(
+                  r"(static int sys_execve_handler_pre\([^)]*\)\s*\{\s*)struct pt_regs \*real_regs = PT_REAL_REGS\(regs\);",
+                  r"\1struct pt_regs *real_regs = ksu_execve_is_wrapper ? PT_REAL_REGS(regs) : regs;",
+                  txt,
+                  count=1,
+              )
+              if n:
+                  txt = txt2
+                  changed = True
+
+              txt2, n = re.subn(
+                  r"(static int sys_read_handler_pre\([^)]*\)\s*\{\s*)struct pt_regs \*real_regs = PT_REAL_REGS\(regs\);",
+                  r"\1struct pt_regs *real_regs = ksu_sys_read_is_wrapper ? PT_REAL_REGS(regs) : regs;",
+                  txt,
+                  count=1,
+              )
+              if n:
+                  txt = txt2
+                  changed = True
+
+              txt2, n = re.subn(
+                  r"(static int sys_fstat_handler_pre\([^)]*\)\s*\{\s*)struct pt_regs \*real_regs = PT_REAL_REGS\(regs\);",
+                  r"\1struct pt_regs *real_regs = ksu_sys_fstat_is_wrapper ? PT_REAL_REGS(regs) : regs;",
+                  txt,
+                  count=1,
+              )
+              if n:
+                  txt = txt2
+                  changed = True
+
+              txt2, n = re.subn(
+                  r"(ret\s*=\s*register_kprobe_fallback\(\s*&execve_kp[\s\S]*?\);\n)(\s*pr_info\(\s*\"ksud:\s*execve_kp:\s*%d\\n\"\s*,\s*ret\s*\)\s*;)",
+                  r"\1    if (!ret) ksu_execve_is_wrapper = is_syscall_wrapper(execve_kp.symbol_name);\n\2",
+                  txt,
+                  count=1,
+              )
+              if not n:
+                  txt2, n = re.subn(
+                      r"(ret\s*=\s*register_kprobe\(\s*&execve_kp\s*\)\s*;\n)(\s*pr_info\(\s*\"ksud:\s*execve_kp:\s*%d\\n\"\s*,\s*ret\s*\)\s*;)",
+                      r"\1    if (!ret) ksu_execve_is_wrapper = is_syscall_wrapper(execve_kp.symbol_name);\n\2",
+                      txt,
+                      count=1,
+                  )
+              if n:
+                  txt = txt2
+                  changed = True
+
+              txt2, n = re.subn(
+                  r"(ret\s*=\s*register_kprobe_fallback\(\s*&sys_read_kp[\s\S]*?\);\n)(\s*pr_info\(\s*\"ksud:\s*sys_read_kp:\s*%d\\n\"\s*,\s*ret\s*\)\s*;)",
+                  r"\1    if (!ret) ksu_sys_read_is_wrapper = is_syscall_wrapper(sys_read_kp.symbol_name);\n\2",
+                  txt,
+                  count=1,
+              )
+              if not n:
+                  txt2, n = re.subn(
+                      r"(ret\s*=\s*register_kprobe\(\s*&sys_read_kp\s*\)\s*;\n)(\s*pr_info\(\s*\"ksud:\s*sys_read_kp:\s*%d\\n\"\s*,\s*ret\s*\)\s*;)",
+                      r"\1    if (!ret) ksu_sys_read_is_wrapper = is_syscall_wrapper(sys_read_kp.symbol_name);\n\2",
+                      txt,
+                      count=1,
+                  )
+              if n:
+                  txt = txt2
+                  changed = True
+
+              txt2, n = re.subn(
+                  r"(ret\s*=\s*register_kretprobe_fallback\(\s*&sys_fstat_kp[\s\S]*?\);\n)(\s*pr_info\(\s*\"ksud:\s*sys_fstat_kp:\s*%d\\n\"\s*,\s*ret\s*\)\s*;)",
+                  r"\1    if (!ret) ksu_sys_fstat_is_wrapper = is_syscall_wrapper(sys_fstat_kp.kp.symbol_name);\n\2",
+                  txt,
+                  count=1,
+              )
+              if not n:
+                  txt2, n = re.subn(
+                      r"(ret\s*=\s*register_kretprobe\(\s*&sys_fstat_kp\s*\)\s*;\n)(\s*pr_info\(\s*\"ksud:\s*sys_fstat_kp:\s*%d\\n\"\s*,\s*ret\s*\)\s*;)",
+                      r"\1    if (!ret) ksu_sys_fstat_is_wrapper = is_syscall_wrapper(sys_fstat_kp.kp.symbol_name);\n\2",
+                      txt,
+                      count=1,
+                  )
+              if n:
+                  txt = txt2
+                  changed = True
               if changed:
                   path.write_text(txt)
               return True
@@ -1134,6 +1236,7 @@ jobs:
                   patch_arch_h(arch_h)
                   patch_kp_hook(kp_hook)
                   patch_kp_util(kp_util)
+                  patch_ksud_main(ksud_c)
               else:
                   patch_ksu_main(ksu_main_c)
                   patch_allowlist_main(allowlist_c)
