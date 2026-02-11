@@ -485,16 +485,10 @@ jobs:
             # non-GKI 使用 kprobe
             sed -i -E '/^CONFIG_KSU=/d' "${DEFCONFIG_PATH}"
             sed -i -E '/^# CONFIG_KSU is not set/d' "${DEFCONFIG_PATH}"
-            sed -i -E '/^CONFIG_KSU_SYSCALL_HOOK=/d' "${DEFCONFIG_PATH}"
-            sed -i -E '/^# CONFIG_KSU_SYSCALL_HOOK is not set/d' "${DEFCONFIG_PATH}"
-            sed -i -E '/^CONFIG_KSU_MANUAL_HOOK=/d' "${DEFCONFIG_PATH}"
-            sed -i -E '/^# CONFIG_KSU_MANUAL_HOOK is not set/d' "${DEFCONFIG_PATH}"
             sed -i -E '/^CONFIG_KSU_MANUAL_SU/d' "${DEFCONFIG_PATH}"
             sed -i -E '/^# CONFIG_KSU_MANUAL_SU is not set/d' "${DEFCONFIG_PATH}"
             printf '%s\n' \
               'CONFIG_KSU=y' \
-              'CONFIG_KSU_SYSCALL_HOOK=y' \
-              '# CONFIG_KSU_MANUAL_HOOK is not set' \
               '# CONFIG_KSU_MANUAL_SU is not set' \
               'CONFIG_KPROBES=y' \
               'CONFIG_KRETPROBES=y' \
@@ -514,8 +508,6 @@ jobs:
           if [ "$WITH_SUKISU" = "on" ]; then
             # KernelSU：kprobe 路线
             ./scripts/config --file out/.config -e KSU || true
-            ./scripts/config --file out/.config -e KSU_SYSCALL_HOOK || true
-            ./scripts/config --file out/.config -d KSU_MANUAL_HOOK || true
             ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
             ./scripts/config --file out/.config -e KPROBES || true
             ./scripts/config --file out/.config -e KRETPROBES || true
@@ -552,8 +544,6 @@ jobs:
           if [ "$WITH_SUKISU" = "on" ]; then
             # olddefconfig 后确认 kprobe 仍保持开启
             ./scripts/config --file out/.config -e KSU || true
-            ./scripts/config --file out/.config -e KSU_SYSCALL_HOOK || true
-            ./scripts/config --file out/.config -d KSU_MANUAL_HOOK || true
             ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
             ./scripts/config --file out/.config -e KPROBES || true
             ./scripts/config --file out/.config -e KRETPROBES || true
