@@ -612,7 +612,10 @@ jobs:
               fi
             done
 
-            STOCK_DTB_B64="ci_assets/laurus_p_dtb.bin.gz.b64"
+            STOCK_DTB_B64="ci_assets/laurus_q_dtb.bin.gz.b64"
+            if [ ! -f "${STOCK_DTB_B64}" ]; then
+              STOCK_DTB_B64="ci_assets/laurus_p_dtb.bin.gz.b64"
+            fi
             if [ -f "${STOCK_DTB_B64}" ]; then
               base64 -d "${STOCK_DTB_B64}" | gzip -d > dist/dtb
             else
