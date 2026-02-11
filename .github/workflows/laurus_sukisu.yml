@@ -160,6 +160,8 @@ jobs:
 
           base = Path(sys.argv[1])
           ksud = base / "ksud.c"
+          kp_hook = base / "kp_hook.c"
+          kp_util = base / "kp_util.c"
           supercalls = base / "supercalls.c"
           if not ksud.exists():
             print(f"skip: {ksud} not found")
@@ -403,6 +405,160 @@ jobs:
 
           ksud.write_text(ksud_text)
 
+          if kp_hook.exists():
+            kp_hook_text = kp_hook.read_text()
+            kp_hook_text = ensure_include(kp_hook_text, "#include <linux/kernel.h>")
+
+            kp_hook_text = kp_hook_text.replace(
+              "static struct work_struct stop_vfs_read_work, stop_execve_hook_work,\n\tstop_input_hook_work;",
+              "static struct work_struct stop_init_rc_hook_work, stop_execve_hook_work,\n\tstop_input_hook_work;"
+            )
+
+            kp_hook_block = """
+            static const char *const ksu_sys_read_syms[] = {
+                SYS_READ_SYMBOL,
+                "sys_read",
+                "__se_sys_read",
+                "SyS_read",
+                "ksys_read",
+            };
+
+            static const char *const ksu_sys_execve_syms[] = {
+                SYS_EXECVE_SYMBOL,
+                "sys_execve",
+                "__se_sys_execve",
+                "SyS_execve",
+            };
+
+            static const char *const ksu_sys_fstat_syms[] = {
+                SYS_FSTAT_SYMBOL,
+                "sys_newfstat",
+                "__se_sys_newfstat",
+                "SyS_newfstat",
+                "vfs_fstat",
+            };
+
+            static const char *const ksu_reboot_syms[] = {
+                REBOOT_SYMBOL,
+                "sys_reboot",
+                "__se_sys_reboot",
+                "SyS_reboot",
+            };
+
+            static bool ksu_execve_is_wrapper = true;
+            static bool ksu_sys_read_is_wrapper = true;
+            static bool ksu_sys_fstat_is_wrapper = true;
+            static bool ksu_reboot_is_wrapper = true;
+
+            extern const size_t ksu_rc_len;
+
+            static bool is_syscall_wrapper(const char *sym)
+            {
+                return strncmp(sym, "__arm64_sys_", 12) == 0 ||
+                       strncmp(sym, "__x64_sys_", 10) == 0;
+            }
+
+            static int register_kprobe_fallback(struct kprobe *kp,
+                                                const char *const *syms,
+                                                size_t count,
+                                                const char *tag)
+            {
+                size_t i;
+                int ret = -ENOENT;
+
+                for (i = 0; i < count; i++) {
+                    kp->symbol_name = syms[i];
+                    ret = register_kprobe(kp);
+                    if (!ret) {
+                        pr_info("ksu: %s kprobe -> %s\\n", tag, syms[i]);
+                        return 0;
+                    }
+                    pr_warn("ksu: %s kprobe %s failed: %d\\n", tag, syms[i], ret);
+                }
+
+                pr_err("ksu: %s kprobe all candidates failed\\n", tag);
+                return ret;
+            }
+
+            static int register_kretprobe_fallback(struct kretprobe *rp,
+                                                   const char *const *syms,
+                                                   size_t count,
+                                                   const char *tag)
+            {
+                size_t i;
+                int ret = -ENOENT;
+
+                for (i = 0; i < count; i++) {
+                    rp->kp.symbol_name = syms[i];
+                    ret = register_kretprobe(rp);
+                    if (!ret) {
+                        pr_info("ksu: %s kretprobe -> %s\\n", tag, syms[i]);
+                        return 0;
+                    }
+                    pr_warn("ksu: %s kretprobe %s failed: %d\\n", tag, syms[i], ret);
+                }
+
+                pr_err("ksu: %s kretprobe all candidates failed\\n", tag);
+                return ret;
+            }
+            """
+            kp_hook_text = insert_after_anchor(kp_hook_text, "static DECL_KP(input_event_kp, \"input_event\", input_handle_event_handler_pre);", kp_hook_block)
+
+            # ABI compatibility: wrapper (__arm64_sys_*) vs direct syscall symbols
+            kp_hook_text = replace_call(
+                kp_hook_text,
+                r"struct\s+pt_regs\s*\*\s*real_regs\s*=\s*PT_REAL_REGS\(regs\)\s*;",
+                "struct pt_regs *real_regs = ksu_execve_is_wrapper ? PT_REAL_REGS(regs) : regs;",
+            )
+            kp_hook_text = replace_call(
+                kp_hook_text,
+                r"struct\s+pt_regs\s*\*\s*real_regs\s*=\s*PT_REAL_REGS\(regs\)\s*;",
+                "struct pt_regs *real_regs = ksu_sys_read_is_wrapper ? PT_REAL_REGS(regs) : regs;",
+            )
+            kp_hook_text = replace_call(
+                kp_hook_text,
+                r"struct\s+pt_regs\s*\*\s*real_regs\s*=\s*PT_REAL_REGS\(regs\)\s*;",
+                "struct pt_regs *real_regs = ksu_sys_fstat_is_wrapper ? PT_REAL_REGS(regs) : regs;",
+            )
+            kp_hook_text = replace_call(
+                kp_hook_text,
+                r"struct\s+pt_regs\s*\*\s*real_regs\s*=\s*PT_REAL_REGS\(regs\)\s*;",
+                "struct pt_regs *real_regs = ksu_reboot_is_wrapper ? PT_REAL_REGS(regs) : regs;",
+            )
+
+            kp_hook_text = replace_call(
+                kp_hook_text,
+                r"ret\s*=\s*register_kprobe\(\s*&execve_kp\s*\)\s*;",
+                "ret = register_kprobe_fallback(&execve_kp, ksu_sys_execve_syms, ARRAY_SIZE(ksu_sys_execve_syms), \"execve\");\n\tif (!ret) ksu_execve_is_wrapper = is_syscall_wrapper(execve_kp.symbol_name);",
+            )
+            kp_hook_text = replace_call(
+                kp_hook_text,
+                r"ret\s*=\s*register_kprobe\(\s*&sys_read_kp\s*\)\s*;",
+                "ret = register_kprobe_fallback(&sys_read_kp, ksu_sys_read_syms, ARRAY_SIZE(ksu_sys_read_syms), \"sys_read\");\n\tif (!ret) ksu_sys_read_is_wrapper = is_syscall_wrapper(sys_read_kp.symbol_name);",
+            )
+            kp_hook_text = replace_call(
+                kp_hook_text,
+                r"ret\s*=\s*register_kretprobe\(\s*&sys_fstat_kp\s*\)\s*;",
+                "ret = register_kretprobe_fallback(&sys_fstat_kp, ksu_sys_fstat_syms, ARRAY_SIZE(ksu_sys_fstat_syms), \"sys_fstat\");\n\tif (!ret) ksu_sys_fstat_is_wrapper = is_syscall_wrapper(sys_fstat_kp.kp.symbol_name);",
+            )
+
+            kp_hook_text = replace_call(
+                kp_hook_text,
+                r"int\s+rc\s*=\s*register_kprobe\(\s*&reboot_kp\s*\)\s*;",
+                "int rc = register_kprobe_fallback(&reboot_kp, ksu_reboot_syms, ARRAY_SIZE(ksu_reboot_syms), \"reboot\");\n\tif (!rc) ksu_reboot_is_wrapper = is_syscall_wrapper(reboot_kp.symbol_name);",
+            )
+
+            kp_hook.write_text(kp_hook_text)
+          else:
+            print(f"skip: {kp_hook} not found")
+
+          if kp_util.exists():
+            kp_util_text = kp_util.read_text()
+            kp_util_text = kp_util_text.replace("#include <linux/pgtable.h>", "#include <asm/pgtable.h>")
+            kp_util.write_text(kp_util_text)
+          else:
+            print(f"skip: {kp_util} not found")
+
           if supercalls.exists():
             super_text = supercalls.read_text()
             super_text = ensure_include(super_text, "#include <linux/kernel.h>")
@@ -485,10 +641,16 @@ jobs:
             # non-GKI 使用 kprobe
             sed -i -E '/^CONFIG_KSU=/d' "${DEFCONFIG_PATH}"
             sed -i -E '/^# CONFIG_KSU is not set/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^CONFIG_KSU_SYSCALL_HOOK=/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^# CONFIG_KSU_SYSCALL_HOOK is not set/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^CONFIG_KSU_MANUAL_HOOK=/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^# CONFIG_KSU_MANUAL_HOOK is not set/d' "${DEFCONFIG_PATH}"
             sed -i -E '/^CONFIG_KSU_MANUAL_SU/d' "${DEFCONFIG_PATH}"
             sed -i -E '/^# CONFIG_KSU_MANUAL_SU is not set/d' "${DEFCONFIG_PATH}"
             printf '%s\n' \
               'CONFIG_KSU=y' \
+              'CONFIG_KSU_SYSCALL_HOOK=y' \
+              '# CONFIG_KSU_MANUAL_HOOK is not set' \
               '# CONFIG_KSU_MANUAL_SU is not set' \
               'CONFIG_KPROBES=y' \
               'CONFIG_KRETPROBES=y' \
@@ -508,6 +670,8 @@ jobs:
           if [ "$WITH_SUKISU" = "on" ]; then
             # KernelSU：kprobe 路线
             ./scripts/config --file out/.config -e KSU || true
+            ./scripts/config --file out/.config -e KSU_SYSCALL_HOOK || true
+            ./scripts/config --file out/.config -d KSU_MANUAL_HOOK || true
             ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
             ./scripts/config --file out/.config -e KPROBES || true
             ./scripts/config --file out/.config -e KRETPROBES || true
@@ -544,6 +708,8 @@ jobs:
           if [ "$WITH_SUKISU" = "on" ]; then
             # olddefconfig 后确认 kprobe 仍保持开启
             ./scripts/config --file out/.config -e KSU || true
+            ./scripts/config --file out/.config -e KSU_SYSCALL_HOOK || true
+            ./scripts/config --file out/.config -d KSU_MANUAL_HOOK || true
             ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
             ./scripts/config --file out/.config -e KPROBES || true
             ./scripts/config --file out/.config -e KRETPROBES || true
