@@ -557,6 +557,10 @@ jobs:
                 "int rc = register_kprobe_fallback(&reboot_kp, ksu_reboot_syms, ARRAY_SIZE(ksu_reboot_syms), \"reboot\");\n\tif (!rc) ksu_reboot_is_wrapper = is_syscall_wrapper(reboot_kp.symbol_name);",
             )
 
+            # 4.14 tree may not provide *_nofault helpers as global symbols
+            kp_hook_text = kp_hook_text.replace("copy_from_user_nofault", "copy_from_user")
+            kp_hook_text = kp_hook_text.replace("copy_to_user_nofault", "copy_to_user")
+
             kp_hook.write_text(kp_hook_text)
           else:
             print(f"skip: {kp_hook} not found")
