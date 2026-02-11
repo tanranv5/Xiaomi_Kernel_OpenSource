@@ -16,12 +16,11 @@ on:
         required: true
         default: "main"
       sukisu_mode:
-        description: "SukiSU 集成模式：non-GKI 推荐 nongki"
+        description: "SukiSU 集成模式：builtin 更适合非 GKI/老内核"
         required: true
         default: "builtin"
         type: choice
         options:
-          - nongki
           - builtin
           - main
       fortify:
