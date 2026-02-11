@@ -502,7 +502,16 @@ jobs:
                 return ret;
             }
             """
-            kp_hook_text = insert_after_anchor(kp_hook_text, "static DECL_KP(input_event_kp, \"input_event\", input_handle_event_handler_pre);", kp_hook_block)
+            if "ksu_sys_read_syms[]" not in kp_hook_text:
+              include_anchor = "#include <linux/workqueue.h>\n"
+              if include_anchor in kp_hook_text:
+                kp_hook_text = kp_hook_text.replace(
+                  include_anchor,
+                  include_anchor + "\n" + kp_hook_block.rstrip() + "\n",
+                  1,
+                )
+              else:
+                kp_hook_text = kp_hook_block.rstrip() + "\n\n" + kp_hook_text
 
             # ABI compatibility: wrapper (__arm64_sys_*) vs direct syscall symbols
             kp_hook_text = replace_call(
