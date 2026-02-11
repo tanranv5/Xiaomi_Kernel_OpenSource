@@ -617,7 +617,15 @@ jobs:
               STOCK_DTB_B64="ci_assets/laurus_p_dtb.bin.gz.b64"
             fi
             if [ -f "${STOCK_DTB_B64}" ]; then
-              base64 -d "${STOCK_DTB_B64}" | gzip -d > dist/dtb
+              tmp_stock_dtb="$(mktemp)"
+              base64 -d "${STOCK_DTB_B64}" > "${tmp_stock_dtb}"
+              if gzip -dc "${tmp_stock_dtb}" > dist/dtb 2>/dev/null; then
+                echo "using gzipped stock dtb asset: ${STOCK_DTB_B64}" | tee -a build.log
+              else
+                cp -f "${tmp_stock_dtb}" dist/dtb
+                echo "using raw stock dtb asset: ${STOCK_DTB_B64}" | tee -a build.log
+              fi
+              rm -f "${tmp_stock_dtb}"
             else
               # 根据 stock dtb 的 size 列表重建 dtb blob（P 版本）
               STOCK_DTB_SIZES=("4065" "54743" "4753" "323654" "33249" "27359" "46749" "5306" "173")
