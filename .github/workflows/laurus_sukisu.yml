@@ -618,7 +618,12 @@ jobs:
             fi
             if [ -f "${STOCK_DTB_B64}" ]; then
               tmp_stock_dtb="$(mktemp)"
-              base64 -d "${STOCK_DTB_B64}" > "${tmp_stock_dtb}"
+              if base64 -d "${STOCK_DTB_B64}" > "${tmp_stock_dtb}" 2>/dev/null; then
+                echo "decoded base64 stock dtb asset: ${STOCK_DTB_B64}" | tee -a build.log
+              else
+                cp -f "${STOCK_DTB_B64}" "${tmp_stock_dtb}"
+                echo "stock dtb asset is raw file (not base64): ${STOCK_DTB_B64}" | tee -a build.log
+              fi
               if gzip -dc "${tmp_stock_dtb}" > dist/dtb 2>/dev/null; then
                 echo "using gzipped stock dtb asset: ${STOCK_DTB_B64}" | tee -a build.log
               else
