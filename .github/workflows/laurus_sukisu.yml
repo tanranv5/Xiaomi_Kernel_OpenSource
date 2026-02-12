@@ -443,8 +443,6 @@ jobs:
 
           ksud.write_text(ksud_text)
 
-          patch_exec_manual_hook(Path("fs/exec.c"))
-
           if supercalls.exists():
             super_text = supercalls.read_text()
             super_text = ensure_include(super_text, "#include <linux/kernel.h>")
@@ -524,7 +522,7 @@ jobs:
           rm -f .scmversion
 
           if [ "$WITH_SUKISU" = "on" ]; then
-            # non-GKI 走 manual hook（保守稳定）
+            # non-GKI 走 syscall hook（ksud kprobe）
             sed -i -E '/^CONFIG_KSU=/d' "${DEFCONFIG_PATH}"
             sed -i -E '/^# CONFIG_KSU is not set/d' "${DEFCONFIG_PATH}"
             sed -i -E '/^CONFIG_KSU_SYSCALL_HOOK=/d' "${DEFCONFIG_PATH}"
@@ -535,8 +533,8 @@ jobs:
             sed -i -E '/^# CONFIG_KSU_MANUAL_SU is not set/d' "${DEFCONFIG_PATH}"
             printf '%s\n' \
               'CONFIG_KSU=y' \
-              '# CONFIG_KSU_SYSCALL_HOOK is not set' \
-              'CONFIG_KSU_MANUAL_HOOK=y' \
+              'CONFIG_KSU_SYSCALL_HOOK=y' \
+              '# CONFIG_KSU_MANUAL_HOOK is not set' \
               '# CONFIG_KSU_MANUAL_SU is not set' \
               'CONFIG_KPROBES=y' \
               'CONFIG_KRETPROBES=y' \
@@ -554,10 +552,10 @@ jobs:
           make O=out "$DEFCONFIG"
 
           if [ "$WITH_SUKISU" = "on" ]; then
-            # KernelSU：manual hook 路线
+            # KernelSU：syscall hook 路线
             ./scripts/config --file out/.config -e KSU || true
-            ./scripts/config --file out/.config -d KSU_SYSCALL_HOOK || true
-            ./scripts/config --file out/.config -e KSU_MANUAL_HOOK || true
+            ./scripts/config --file out/.config -e KSU_SYSCALL_HOOK || true
+            ./scripts/config --file out/.config -d KSU_MANUAL_HOOK || true
             ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
             ./scripts/config --file out/.config -e KPROBES || true
             ./scripts/config --file out/.config -e KRETPROBES || true
@@ -592,10 +590,10 @@ jobs:
           make O=out olddefconfig
 
           if [ "$WITH_SUKISU" = "on" ]; then
-            # olddefconfig 后确认 manual hook 仍保持开启
+            # olddefconfig 后确认 syscall hook 仍保持开启
             ./scripts/config --file out/.config -e KSU || true
-            ./scripts/config --file out/.config -d KSU_SYSCALL_HOOK || true
-            ./scripts/config --file out/.config -e KSU_MANUAL_HOOK || true
+            ./scripts/config --file out/.config -e KSU_SYSCALL_HOOK || true
+            ./scripts/config --file out/.config -d KSU_MANUAL_HOOK || true
             ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
             ./scripts/config --file out/.config -e KPROBES || true
             ./scripts/config --file out/.config -e KRETPROBES || true
