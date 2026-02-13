@@ -1,12 +1,12 @@
 name: build-laurus-sukisu
 
-on:
+"on":
   workflow_dispatch:
     inputs:
       kernel_branch:
         description: "要编译的内核分支"
         required: true
-        default: "laurus-p-oss-ci"
+        default: "laurus-q-oss-ci"
       defconfig:
         description: "defconfig（相对 arch/arm64/configs/）"
         required: true
@@ -57,7 +57,10 @@ on:
         default: "lineage-19.1"
   push:
     branches:
-      - laurus-p-oss-ci-ksu-kprobe-fallback
+      - laurus-q-oss-ci
+    paths:
+      - ".github/workflows/laurus_sukisu.yml"
+      - "ci_trigger.txt"
 
 permissions:
   contents: write
@@ -75,7 +78,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.kernel_branch || github.ref }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.kernel_branch || 'laurus-q-oss-ci' }}
 
       - name: 安装依赖
         id: deps
@@ -118,513 +121,167 @@ jobs:
           # SukiSU 官方脚本
           curl -fsSL "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/${ref}/kernel/setup.sh" | bash -s "$mode"
 
-      - name: 修补 KSU kprobe 符号回退
-        id: ksu_kprobe_fallback
-        run: |
-          set -euxo pipefail
-          ksu_dirs=()
-          add_ksu_dir() {
-            local d="$1"
-            if [ -f "${d}/ksud.c" ]; then
-              local real
-              real="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "${d}")"
-              for e in "${ksu_dirs[@]:-}"; do
-                if [ "${e}" = "${real}" ]; then
-                  return
-                fi
-              done
-              ksu_dirs+=("${real}")
-            fi
+          # 应用 manual hook 补丁（4.14）
+          patch_url="https://raw.githubusercontent.com/rksuorg/kernel_patches/master/manual_hook/kernel-4.14.patch"
+          curl -fsSL "$patch_url" -o /tmp/ksu_manual_hook.patch
+          if git apply --reverse --check /tmp/ksu_manual_hook.patch; then
+            echo "manual hook patch already applied"
+          else
+            git apply /tmp/ksu_manual_hook.patch
+          fi
+
+          # 集成 SUSFS（KernelSU + kernel），提供 KPM/SUSFS 支持
+          susfs_dir="/tmp/susfs4ksu"
+          susfs_ref="gki-android12-5.10"
+          rm -rf "$susfs_dir"
+          git clone --depth=1 -b "$susfs_ref" https://gitlab.com/simonpunk/susfs4ksu "$susfs_dir"
+
+          cp -f "$susfs_dir/kernel_patches/fs/susfs.c" fs/
+          cp -f "$susfs_dir/kernel_patches/include/linux/susfs.h" include/linux/
+          cp -f "$susfs_dir/kernel_patches/include/linux/susfs_def.h" include/linux/
+          sed -i 's#<linux/bits.h>#<linux/bitops.h>#' include/linux/susfs_def.h
+          if ! grep -q "<linux/sched.h>" include/linux/susfs_def.h; then
+            sed -i '/bitops.h/a #include <linux/sched.h>\n#include <linux/thread_info.h>' include/linux/susfs_def.h
+          fi
+          if ! grep -q "susfs_reorder_mnt_id" fs/susfs.c; then
+            cat >> fs/susfs.c <<'SUSFS_EOF'
+
+          void susfs_reorder_mnt_id(void)
+          {
           }
-
-          add_ksu_dir "KernelSU/kernel"
-          add_ksu_dir "drivers/kernelsu"
-          add_ksu_dir "common/drivers/kernelsu"
-          if [ -L "drivers/kernelsu" ]; then
-            add_ksu_dir "drivers/kernelsu"
+          SUSFS_EOF
           fi
-
-          if [ "${#ksu_dirs[@]}" -eq 0 ]; then
-            echo "ksu source dir not found"
-            exit 1
-          fi
-
-          echo "ksu candidate dirs:"
-          printf ' - %s\n' "${ksu_dirs[@]}"
-
-          for ksu_dir in "${ksu_dirs[@]}"; do
-          python3 - "$ksu_dir" <<'PY'
-          import re
-          import sys
+          python3 - <<'PY'
           from pathlib import Path
 
-          base = Path(sys.argv[1])
-          ksud = base / "ksud.c"
-          kp_hook = base / "kp_hook.c"
-          kp_util = base / "kp_util.c"
-          supercalls = base / "supercalls.c"
-          if not ksud.exists():
-            print(f"skip: {ksud} not found")
-            raise SystemExit(0)
+          path = Path("fs/susfs.c")
+          lines = path.read_text().splitlines()
+          new_lines = []
+          seen = 0
+          for line in lines:
+            if "susfs_is_avc_log_spoofing_enabled" in line:
+              seen += 1
+              if seen > 1:
+                continue
+            new_lines.append(line)
+          lines = new_lines
 
-          def ensure_include(text, header):
-            if header in text:
-              return text
-            lines = text.splitlines()
-            insert_at = None
-            for i, line in enumerate(lines):
-              if line.strip().startswith("#include"):
-                insert_at = i + 1
-              if line.strip() == "#include <linux/fs.h>":
-                insert_at = i + 1
-            if insert_at is None:
-              insert_at = 0
-            lines.insert(insert_at, header)
-            return "\n".join(lines) + "\n"
+          if not any("susfs_is_avc_log_spoofing_enabled" in line for line in lines):
+            inserted = False
+            new_lines = []
+            for line in lines:
+              new_lines.append(line)
+              if (not inserted
+                  and line.strip().startswith("bool susfs_is_log_enabled")
+                  and "__read_mostly" in line):
+                new_lines.append("bool susfs_is_avc_log_spoofing_enabled __read_mostly = false;")
+                inserted = True
+            lines = new_lines
 
-          def insert_after_anchor(text, anchor, block):
-            if block.strip() in text:
-              return text
-            idx = text.find(anchor)
-            if idx == -1:
-              return text
-            tail = text[idx:]
-            end = tail.find("};")
-            if end == -1:
-              return text
-            insert_pos = idx + end + 2
-            return text[:insert_pos] + "\n\n" + block.rstrip() + "\n" + text[insert_pos:]
+            if not inserted:
+              new_lines = []
+              for line in lines:
+                new_lines.append(line)
+                if (not inserted
+                    and "susfs_is_current_ksu_domain" in line):
+                  new_lines.append("bool susfs_is_avc_log_spoofing_enabled __read_mostly = false;")
+                  inserted = True
+              lines = new_lines
 
-          def replace_call(text, pattern, replacement):
-            if re.search(pattern, text):
-              return re.sub(pattern, replacement, text, count=1)
-            return text
+          path.write_text("\n".join(lines) + "\n")
+          PY
+          if ! grep -q "CONFIG_KSU_SUSFS" fs/Makefile; then
+            echo 'obj-$(CONFIG_KSU_SUSFS) += susfs.o' >> fs/Makefile
+          fi
 
-          ksud_text = ksud.read_text()
-          ksud_text = ensure_include(ksud_text, "#include <linux/kernel.h>")
-          ksud_text = ensure_include(ksud_text, "#include <linux/proc_fs.h>")
-          ksud_text = ensure_include(ksud_text, "#include <linux/seq_file.h>")
-          ksud_text = ensure_include(ksud_text, "#include <linux/module.h>")
+          # 补齐 manual hook 适配符号，避免链接错误
+          if [ -d "common/drivers" ]; then
+            ksu_dir="common/drivers/kernelsu"
+          else
+            ksu_dir="drivers/kernelsu"
+          fi
 
-          ksu_debug_block = """
-          static int ksu_execve_kp_ret = -999;
-          static int ksu_sys_read_kp_ret = -999;
-          static int ksu_sys_fstat_kp_ret = -999;
-          static int ksu_input_kp_ret = -999;
-          static int ksu_init_rc_seen = 0;
-          static char ksu_last_rc_path[256];
+          python3 - <<PY
+          from pathlib import Path
 
-          static void ksu_record_init_rc_path(const char *dpath)
+          path = Path("${ksu_dir}") / "supercalls.c"
+          text = path.read_text()
+          if "susfs_def.h" not in text:
+              key = "#include <linux/version.h>\n"
+              if key in text:
+                  text = text.replace(key, key + "#include <linux/susfs_def.h>\n", 1)
+              else:
+                  text = "#include <linux/susfs_def.h>\n" + text
+              path.write_text(text)
+          PY
+
+          cat > "${ksu_dir}/manual_hook_adapters.c" <<'EOF'
+          #include <linux/compiler.h>
+          #include <linux/cred.h>
+          #include <linux/err.h>
+          #include <linux/fs.h>
+          #include <linux/namei.h>
+          #include <linux/printk.h>
+          #include <linux/string.h>
+          #include <linux/version.h>
+
+          #include "allowlist.h"
+          #include "app_profile.h"
+          #include "ksud.h"
+
+          struct user_arg_ptr;
+          int ksu_handle_execveat_ksud(int *fd, struct filename **filename_ptr,
+                                       struct user_arg_ptr *argv,
+                                       struct user_arg_ptr *envp, int *flags);
+
+          // 弱符号兜底，避免与 SukiSU 自带实现重复定义
+          bool ksu_execveat_hook __read_mostly __weak = true;
+          bool ksu_vfs_read_hook __read_mostly __weak = false;
+          bool ksu_input_hook __read_mostly __weak = true;
+
+          int __weak ksu_handle_execveat(int *fd, struct filename **filename_ptr,
+                                         void *argv, void *envp, int *flags)
           {
-              if (!dpath) {
-                  return;
+              struct user_arg_ptr *argv_ptr = (struct user_arg_ptr *)argv;
+              struct user_arg_ptr *envp_ptr = (struct user_arg_ptr *)envp;
+
+              ksu_handle_execveat_ksud(fd, filename_ptr, argv_ptr, envp_ptr, flags);
+
+              if (!ksu_is_allow_uid_for_current(current_uid().val)) {
+                  return 0;
               }
-              strlcpy(ksu_last_rc_path, dpath, sizeof(ksu_last_rc_path));
-              ksu_init_rc_seen = 1;
-          }
+              if (!filename_ptr || !*filename_ptr || IS_ERR(*filename_ptr)) {
+                  return 0;
+              }
 
-          static int ksu_status_show(struct seq_file *m, void *v)
-          {
-              seq_printf(m, "execve_kp=%d\\n", ksu_execve_kp_ret);
-              seq_printf(m, "sys_read_kp=%d\\n", ksu_sys_read_kp_ret);
-              seq_printf(m, "sys_fstat_kp=%d\\n", ksu_sys_fstat_kp_ret);
-              seq_printf(m, "input_kp=%d\\n", ksu_input_kp_ret);
-              seq_printf(m, "init_rc_seen=%d\\n", ksu_init_rc_seen);
-              seq_printf(m, "last_rc_path=%s\\n", ksu_last_rc_path[0] ? ksu_last_rc_path : "(none)");
+              if (!strcmp((*filename_ptr)->name, "/system/bin/su")) {
+                  struct filename *newf = getname_kernel(KSUD_PATH);
+                  if (!IS_ERR(newf)) {
+                      putname(*filename_ptr);
+                      *filename_ptr = newf;
+                      escape_with_root_profile();
+                  }
+              }
+
               return 0;
           }
 
-          static int ksu_status_open(struct inode *inode, struct file *file)
+          int __weak ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,
+                                                  void *argv, void *envp, int *flags)
           {
-              return single_open(file, ksu_status_show, NULL);
+              return 0;
           }
 
-          static const struct file_operations ksu_status_fops = {
-              .owner = THIS_MODULE,
-              .open = ksu_status_open,
-              .read = seq_read,
-              .llseek = seq_lseek,
-              .release = single_release,
-          };
-          """
-
-          ksud_block = """
-          static const char *const ksu_sys_read_syms[] = {
-              SYS_READ_SYMBOL,
-              "sys_read",
-              "__se_sys_read",
-              "SyS_read",
-              "ksys_read",
-          };
-
-          static const char *const ksu_sys_execve_syms[] = {
-              SYS_EXECVE_SYMBOL,
-              "sys_execve",
-              "__se_sys_execve",
-              "SyS_execve",
-              "do_execveat_common",
-          };
-
-          static const char *const ksu_sys_fstat_syms[] = {
-              SYS_FSTAT_SYMBOL,
-              "sys_newfstat",
-              "__se_sys_newfstat",
-              "SyS_newfstat",
-              "vfs_fstat",
-          };
-
-          static int register_kprobe_fallback(struct kprobe *kp,
-                                              const char *const *syms,
-                                              size_t count,
-                                              const char *tag)
+          int __weak ksu_handle_vfs_read(struct file **file_ptr, char __user **buf_ptr,
+                                         size_t *count_ptr, loff_t **pos)
           {
-              size_t i;
-              int ret = -ENOENT;
-
-              for (i = 0; i < count; i++) {
-                  kp->symbol_name = syms[i];
-                  ret = register_kprobe(kp);
-                  if (!ret) {
-                      pr_info("ksud: %s kprobe -> %s\\n", tag, syms[i]);
-                      return 0;
-                  }
-                  pr_warn("ksud: %s kprobe %s failed: %d\\n", tag, syms[i], ret);
-              }
-
-              pr_err("ksud: %s kprobe all candidates failed\\n", tag);
-              return ret;
+              return 0;
           }
+          EOF
 
-          static int register_kretprobe_fallback(struct kretprobe *rp,
-                                                 const char *const *syms,
-                                                 size_t count,
-                                                 const char *tag)
-          {
-              size_t i;
-              int ret = -ENOENT;
-
-              for (i = 0; i < count; i++) {
-                  rp->kp.symbol_name = syms[i];
-                  ret = register_kretprobe(rp);
-                  if (!ret) {
-                      pr_info("ksud: %s kretprobe -> %s\\n", tag, syms[i]);
-                      return 0;
-                  }
-                  pr_warn("ksud: %s kretprobe %s failed: %d\\n", tag, syms[i], ret);
-              }
-
-              pr_err("ksud: %s kretprobe all candidates failed\\n", tag);
-              return ret;
-          }
-          """
-
-          ksud_text = insert_after_anchor(ksud_text, "bool ksu_boot_completed __read_mostly = false;", ksu_debug_block)
-          ksud_text = insert_after_anchor(ksud_text, "static struct kprobe input_event_kp", ksud_block)
-
-          ksud_text = replace_call(
-              ksud_text,
-              r"ret\s*=\s*register_kprobe\(\s*&execve_kp\s*\)\s*;",
-              "ret = register_kprobe_fallback(&execve_kp, ksu_sys_execve_syms, ARRAY_SIZE(ksu_sys_execve_syms), \"execve\");",
-          )
-          ksud_text = replace_call(
-              ksud_text,
-              r"pr_info\\(\\s*\\\"ksud:\\s*execve_kp:\\s*%d\\\\n\\\"\\s*,\\s*ret\\s*\\)\\s*;",
-              "ksu_execve_kp_ret = ret;\\n    pr_info(\"ksud: execve_kp: %d\\n\", ret);",
-          )
-          ksud_text = replace_call(
-              ksud_text,
-              r"ret\s*=\s*register_kprobe\(\s*&sys_read_kp\s*\)\s*;",
-              "ret = register_kprobe_fallback(&sys_read_kp, ksu_sys_read_syms, ARRAY_SIZE(ksu_sys_read_syms), \"sys_read\");",
-          )
-          ksud_text = replace_call(
-              ksud_text,
-              r"pr_info\\(\\s*\\\"ksud:\\s*sys_read_kp:\\s*%d\\\\n\\\"\\s*,\\s*ret\\s*\\)\\s*;",
-              "ksu_sys_read_kp_ret = ret;\\n    pr_info(\"ksud: sys_read_kp: %d\\n\", ret);",
-          )
-          ksud_text = replace_call(
-              ksud_text,
-              r"ret\s*=\s*register_kretprobe\(\s*&sys_fstat_kp\s*\)\s*;",
-              "ret = register_kretprobe_fallback(&sys_fstat_kp, ksu_sys_fstat_syms, ARRAY_SIZE(ksu_sys_fstat_syms), \"sys_fstat\");",
-          )
-          ksud_text = replace_call(
-              ksud_text,
-              r"pr_info\\(\\s*\\\"ksud:\\s*sys_fstat_kp:\\s*%d\\\\n\\\"\\s*,\\s*ret\\s*\\)\\s*;",
-              "ksu_sys_fstat_kp_ret = ret;\\n    pr_info(\"ksud: sys_fstat_kp: %d\\n\", ret);",
-          )
-          ksud_text = replace_call(
-              ksud_text,
-              r"pr_info\\(\\s*\\\"ksud:\\s*input_event_kp:\\s*%d\\\\n\\\"\\s*,\\s*ret\\s*\\)\\s*;",
-              "ksu_input_kp_ret = ret;\\n    pr_info(\"ksud: input_event_kp: %d\\n\", ret);",
-          )
-
-          ksud_text = replace_call(
-              ksud_text,
-              r"if\s*\\(\\s*strcmp\\(\\s*short_name,\\s*\\\"init\\.rc\\\"\\s*\\)\\s*\\)\\s*\\{\\s*// we are only interest `init\\.rc` file name file\\s*return\\s+false;\\s*\\}",
-              "if (!strstr(short_name, \\\".rc\\\")) {\\n"
-              "        return false;\\n"
-              "    }",
-          )
-          ksud_text = replace_call(
-              ksud_text,
-              r"if\s*\\(\\s*strcmp\\(\\s*dpath,\\s*\\\"/system/etc/init/hw/init\\.rc\\\"\\s*\\)\\s*\\)\\s*\\{\\s*return\\s+false;\\s*\\}",
-              "if (strncmp(dpath, \\\"/system/etc/init/\\\", 17) &&\\n"
-              "        strncmp(dpath, \\\"/vendor/etc/init/\\\", 17) &&\\n"
-              "        strncmp(dpath, \\\"/product/etc/init/\\\", 18) &&\\n"
-              "        strncmp(dpath, \\\"/system_ext/etc/init/\\\", 22) &&\\n"
-              "        strncmp(dpath, \\\"/odm/etc/init/\\\", 14) &&\\n"
-              "        strncmp(dpath, \\\"/oem/etc/init/\\\", 14)) {\\n"
-              "        return false;\\n"
-              "    }",
-          )
-          ksud_text = replace_call(
-              ksud_text,
-              r"return\\s+true\\s*;",
-              "ksu_record_init_rc_path(dpath);\\n    return true;",
-          )
-          ksud_text = replace_call(
-              ksud_text,
-              r"INIT_WORK\\(\\s*&stop_init_rc_hook_work\\s*,\\s*do_stop_init_rc_hook\\s*\\)\\s*;",
-              "proc_create(\"ksu_status\", 0444, NULL, &ksu_status_fops);\\n    INIT_WORK(&stop_init_rc_hook_work, do_stop_init_rc_hook);",
-          )
-
-          if "proc_create(\"ksu_status\"" not in ksud_text:
-            lines = ksud_text.splitlines()
-            inserted = False
-            for i, line in enumerate(lines):
-              if line.strip() == "void ksu_ksud_init(void)":
-                j = i + 1
-                while j < len(lines) and "{" not in lines[j]:
-                  j += 1
-                if j < len(lines):
-                  indent = lines[j][:len(lines[j]) - len(lines[j].lstrip())]
-                  lines.insert(j + 1, indent + '    proc_create("ksu_status", 0444, NULL, &ksu_status_fops);')
-                  inserted = True
-                break
-            if inserted:
-              ksud_text = "\n".join(lines) + "\n"
-
-          ksud.write_text(ksud_text)
-
-          if kp_hook.exists():
-            kp_hook_text = kp_hook.read_text()
-            kp_hook_text = ensure_include(kp_hook_text, "#include <linux/kernel.h>")
-
-            kp_hook_text = kp_hook_text.replace(
-              "static struct work_struct stop_vfs_read_work, stop_execve_hook_work,\n\tstop_input_hook_work;",
-              "static struct work_struct stop_init_rc_hook_work, stop_execve_hook_work,\n\tstop_input_hook_work;"
-            )
-
-            kp_hook_block = """
-            static const char *const ksu_sys_read_syms[] = {
-                SYS_READ_SYMBOL,
-                "sys_read",
-                "__se_sys_read",
-                "SyS_read",
-                "ksys_read",
-            };
-
-            static const char *const ksu_sys_execve_syms[] = {
-                SYS_EXECVE_SYMBOL,
-                "sys_execve",
-                "__se_sys_execve",
-                "SyS_execve",
-            };
-
-            static const char *const ksu_sys_fstat_syms[] = {
-                SYS_FSTAT_SYMBOL,
-                "sys_newfstat",
-                "__se_sys_newfstat",
-                "SyS_newfstat",
-                "vfs_fstat",
-            };
-
-            static const char *const ksu_reboot_syms[] = {
-                REBOOT_SYMBOL,
-                "sys_reboot",
-                "__se_sys_reboot",
-                "SyS_reboot",
-            };
-
-            static bool ksu_execve_is_wrapper = true;
-            static bool ksu_sys_read_is_wrapper = true;
-            static bool ksu_sys_fstat_is_wrapper = true;
-            static bool ksu_reboot_is_wrapper = true;
-
-            extern const size_t ksu_rc_len;
-
-            static bool is_syscall_wrapper(const char *sym)
-            {
-                return strncmp(sym, "__arm64_sys_", 12) == 0 ||
-                       strncmp(sym, "__x64_sys_", 10) == 0;
-            }
-
-            static int register_kprobe_fallback(struct kprobe *kp,
-                                                const char *const *syms,
-                                                size_t count,
-                                                const char *tag)
-            {
-                size_t i;
-                int ret = -ENOENT;
-
-                for (i = 0; i < count; i++) {
-                    kp->symbol_name = syms[i];
-                    ret = register_kprobe(kp);
-                    if (!ret) {
-                        pr_info("ksu: %s kprobe -> %s\\n", tag, syms[i]);
-                        return 0;
-                    }
-                    pr_warn("ksu: %s kprobe %s failed: %d\\n", tag, syms[i], ret);
-                }
-
-                pr_err("ksu: %s kprobe all candidates failed\\n", tag);
-                return ret;
-            }
-
-            static int register_kretprobe_fallback(struct kretprobe *rp,
-                                                   const char *const *syms,
-                                                   size_t count,
-                                                   const char *tag)
-            {
-                size_t i;
-                int ret = -ENOENT;
-
-                for (i = 0; i < count; i++) {
-                    rp->kp.symbol_name = syms[i];
-                    ret = register_kretprobe(rp);
-                    if (!ret) {
-                        pr_info("ksu: %s kretprobe -> %s\\n", tag, syms[i]);
-                        return 0;
-                    }
-                    pr_warn("ksu: %s kretprobe %s failed: %d\\n", tag, syms[i], ret);
-                }
-
-                pr_err("ksu: %s kretprobe all candidates failed\\n", tag);
-                return ret;
-            }
-            """
-            if "ksu_sys_read_syms[]" not in kp_hook_text:
-              include_anchor = "#include <linux/workqueue.h>\n"
-              if include_anchor in kp_hook_text:
-                kp_hook_text = kp_hook_text.replace(
-                  include_anchor,
-                  include_anchor + "\n" + kp_hook_block.rstrip() + "\n",
-                  1,
-                )
-              else:
-                kp_hook_text = kp_hook_block.rstrip() + "\n\n" + kp_hook_text
-
-            # ABI compatibility: wrapper (__arm64_sys_*) vs direct syscall symbols
-            kp_hook_text = replace_call(
-                kp_hook_text,
-                r"struct\s+pt_regs\s*\*\s*real_regs\s*=\s*PT_REAL_REGS\(regs\)\s*;",
-                "struct pt_regs *real_regs = ksu_execve_is_wrapper ? PT_REAL_REGS(regs) : regs;",
-            )
-            kp_hook_text = replace_call(
-                kp_hook_text,
-                r"struct\s+pt_regs\s*\*\s*real_regs\s*=\s*PT_REAL_REGS\(regs\)\s*;",
-                "struct pt_regs *real_regs = ksu_sys_read_is_wrapper ? PT_REAL_REGS(regs) : regs;",
-            )
-            kp_hook_text = replace_call(
-                kp_hook_text,
-                r"struct\s+pt_regs\s*\*\s*real_regs\s*=\s*PT_REAL_REGS\(regs\)\s*;",
-                "struct pt_regs *real_regs = ksu_sys_fstat_is_wrapper ? PT_REAL_REGS(regs) : regs;",
-            )
-            kp_hook_text = replace_call(
-                kp_hook_text,
-                r"struct\s+pt_regs\s*\*\s*real_regs\s*=\s*PT_REAL_REGS\(regs\)\s*;",
-                "struct pt_regs *real_regs = ksu_reboot_is_wrapper ? PT_REAL_REGS(regs) : regs;",
-            )
-
-            kp_hook_text = replace_call(
-                kp_hook_text,
-                r"ret\s*=\s*register_kprobe\(\s*&execve_kp\s*\)\s*;",
-                "ret = register_kprobe_fallback(&execve_kp, ksu_sys_execve_syms, ARRAY_SIZE(ksu_sys_execve_syms), \"execve\");\n\tif (!ret) ksu_execve_is_wrapper = is_syscall_wrapper(execve_kp.symbol_name);",
-            )
-            kp_hook_text = replace_call(
-                kp_hook_text,
-                r"ret\s*=\s*register_kprobe\(\s*&sys_read_kp\s*\)\s*;",
-                "ret = register_kprobe_fallback(&sys_read_kp, ksu_sys_read_syms, ARRAY_SIZE(ksu_sys_read_syms), \"sys_read\");\n\tif (!ret) ksu_sys_read_is_wrapper = is_syscall_wrapper(sys_read_kp.symbol_name);",
-            )
-            kp_hook_text = replace_call(
-                kp_hook_text,
-                r"ret\s*=\s*register_kretprobe\(\s*&sys_fstat_kp\s*\)\s*;",
-                "ret = register_kretprobe_fallback(&sys_fstat_kp, ksu_sys_fstat_syms, ARRAY_SIZE(ksu_sys_fstat_syms), \"sys_fstat\");\n\tif (!ret) ksu_sys_fstat_is_wrapper = is_syscall_wrapper(sys_fstat_kp.kp.symbol_name);",
-            )
-
-            kp_hook_text = replace_call(
-                kp_hook_text,
-                r"int\s+rc\s*=\s*register_kprobe\(\s*&reboot_kp\s*\)\s*;",
-                "int rc = register_kprobe_fallback(&reboot_kp, ksu_reboot_syms, ARRAY_SIZE(ksu_reboot_syms), \"reboot\");\n\tif (!rc) ksu_reboot_is_wrapper = is_syscall_wrapper(reboot_kp.symbol_name);",
-            )
-
-            # 4.14 tree may not provide *_nofault helpers as global symbols
-            kp_hook_text = kp_hook_text.replace("copy_from_user_nofault", "copy_from_user")
-            kp_hook_text = kp_hook_text.replace("copy_to_user_nofault", "copy_to_user")
-
-            kp_hook.write_text(kp_hook_text)
-          else:
-            print(f"skip: {kp_hook} not found")
-
-          if kp_util.exists():
-            kp_util_text = kp_util.read_text()
-            kp_util_text = kp_util_text.replace("#include <linux/pgtable.h>", "#include <asm/pgtable.h>")
-            kp_util.write_text(kp_util_text)
-          else:
-            print(f"skip: {kp_util} not found")
-
-          if supercalls.exists():
-            super_text = supercalls.read_text()
-            super_text = ensure_include(super_text, "#include <linux/kernel.h>")
-
-            super_block = """
-            static const char *const ksu_reboot_syms[] = {
-                REBOOT_SYMBOL,
-                "sys_reboot",
-                "__se_sys_reboot",
-            };
-
-            static int register_kprobe_fallback(struct kprobe *kp,
-                                                const char *const *syms,
-                                                size_t count,
-                                                const char *tag)
-            {
-                size_t i;
-                int ret = -ENOENT;
-
-                for (i = 0; i < count; i++) {
-                    kp->symbol_name = syms[i];
-                    ret = register_kprobe(kp);
-                    if (!ret) {
-                        pr_info("ksu: %s kprobe -> %s\\n", tag, syms[i]);
-                        return 0;
-                    }
-                    pr_warn("ksu: %s kprobe %s failed: %d\\n", tag, syms[i], ret);
-                }
-
-                pr_err("ksu: %s kprobe all candidates failed\\n", tag);
-                return ret;
-            }
-            """
-            super_text = insert_after_anchor(super_text, "static struct kprobe reboot_kp", super_block)
-            super_text = replace_call(
-                super_text,
-                r"int\s+rc\s*=\s*register_kprobe\(\s*&reboot_kp\s*\)\s*;",
-                "int rc = register_kprobe_fallback(&reboot_kp, ksu_reboot_syms, ARRAY_SIZE(ksu_reboot_syms), \"reboot\");",
-            )
-            supercalls.write_text(super_text)
-          else:
-            print(f"skip: {supercalls} not found")
-          PY
-          done
-
-          mkdir -p ci_logs
-          i=0
-          for ksu_dir in "${ksu_dirs[@]}"; do
-            if [ -f "${ksu_dir}/ksud.c" ]; then
-              cp -f "${ksu_dir}/ksud.c" "ci_logs/ksud.${i}.c"
-              i=$((i+1))
-            fi
-          done
+          if ! grep -q "manual_hook_adapters.o" "${ksu_dir}/Kbuild"; then
+            echo "kernelsu-objs += manual_hook_adapters.o" >> "${ksu_dir}/Kbuild"
+          fi
 
       - name: 配置 defconfig
         id: config
@@ -646,25 +303,33 @@ jobs:
           fi
 
           # 对齐 vendor 模块 vermagic（避免 Wi-Fi 模块加载失败）
-          sed -i -E 's/^SUBLEVEL = .*/SUBLEVEL = 98/' Makefile
+          sed -i -E 's/^SUBLEVEL = .*/SUBLEVEL = 117/' Makefile
           sed -i -E 's/^EXTRAVERSION = .*/EXTRAVERSION =/' Makefile
           rm -f .scmversion
 
           if [ "$WITH_SUKISU" = "on" ]; then
-            # non-GKI 使用 kprobe
+            # non-GKI 使用 manual hook
             sed -i -E '/^CONFIG_KSU=/d' "${DEFCONFIG_PATH}"
             sed -i -E '/^# CONFIG_KSU is not set/d' "${DEFCONFIG_PATH}"
-            sed -i -E '/^CONFIG_KSU_SYSCALL_HOOK=/d' "${DEFCONFIG_PATH}"
-            sed -i -E '/^# CONFIG_KSU_SYSCALL_HOOK is not set/d' "${DEFCONFIG_PATH}"
-            sed -i -E '/^CONFIG_KSU_MANUAL_HOOK=/d' "${DEFCONFIG_PATH}"
+            sed -i -E '/^CONFIG_KSU_MANUAL_HOOK/d' "${DEFCONFIG_PATH}"
             sed -i -E '/^# CONFIG_KSU_MANUAL_HOOK is not set/d' "${DEFCONFIG_PATH}"
             sed -i -E '/^CONFIG_KSU_MANUAL_SU/d' "${DEFCONFIG_PATH}"
             sed -i -E '/^# CONFIG_KSU_MANUAL_SU is not set/d' "${DEFCONFIG_PATH}"
             printf '%s\n' \
               'CONFIG_KSU=y' \
-              'CONFIG_KSU_SYSCALL_HOOK=y' \
-              '# CONFIG_KSU_MANUAL_HOOK is not set' \
+              'CONFIG_KSU_MANUAL_HOOK=y' \
               '# CONFIG_KSU_MANUAL_SU is not set' \
+              'CONFIG_KPM=y' \
+              'CONFIG_KSU_SUSFS=y' \
+              'CONFIG_KSU_SUSFS_SUS_PATH=y' \
+              'CONFIG_KSU_SUSFS_SUS_MOUNT=y' \
+              'CONFIG_KSU_SUSFS_SUS_KSTAT=y' \
+              'CONFIG_KSU_SUSFS_SPOOF_UNAME=y' \
+              'CONFIG_KSU_SUSFS_ENABLE_LOG=y' \
+              'CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y' \
+              'CONFIG_KSU_SUSFS_OPEN_REDIRECT=y' \
+              'CONFIG_KSU_SUSFS_SUS_MAP=y' \
+              'CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y' \
               'CONFIG_KPROBES=y' \
               'CONFIG_KRETPROBES=y' \
               'CONFIG_KPROBE_EVENTS=y' \
@@ -681,11 +346,21 @@ jobs:
           make O=out "$DEFCONFIG"
 
           if [ "$WITH_SUKISU" = "on" ]; then
-            # KernelSU：kprobe 路线
+            # KernelSU：manual hook 路线
             ./scripts/config --file out/.config -e KSU || true
-            ./scripts/config --file out/.config -e KSU_SYSCALL_HOOK || true
-            ./scripts/config --file out/.config -d KSU_MANUAL_HOOK || true
+            ./scripts/config --file out/.config -e KSU_MANUAL_HOOK || true
             ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
+            ./scripts/config --file out/.config -e KPM || true
+            ./scripts/config --file out/.config -e KSU_SUSFS || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_PATH || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_MOUNT || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_KSTAT || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SPOOF_UNAME || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_ENABLE_LOG || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_OPEN_REDIRECT || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_MAP || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS || true
             ./scripts/config --file out/.config -e KPROBES || true
             ./scripts/config --file out/.config -e KRETPROBES || true
             ./scripts/config --file out/.config -e KPROBE_EVENTS || true
@@ -706,7 +381,7 @@ jobs:
 
           # 对齐版本字符串，避免 vermagic 不匹配
           ./scripts/config --file out/.config -d LOCALVERSION_AUTO || true
-          ./scripts/config --file out/.config --set-str LOCALVERSION "-perf+-tanran" || true
+          ./scripts/config --file out/.config --set-str LOCALVERSION "-perf-g4732215" || true
 
           FORTIFY="${{ github.event_name == 'workflow_dispatch' && inputs.fortify || 'off' }}"
           if [ "$FORTIFY" = "on" ]; then
@@ -716,14 +391,28 @@ jobs:
             ./scripts/config --file out/.config -d FORTIFY_SOURCE || true
           fi
 
+          # 避免 Image.gz 触发 dtb 全量编译（dtc 错误会导致构建失败）
+          ./scripts/config --file out/.config -d BUILD_ARM64_DTBS || true
+          ./scripts/config --file out/.config -d BUILD_ARM64_APPENDED_DTB_IMAGE || true
+
           make O=out olddefconfig
 
           if [ "$WITH_SUKISU" = "on" ]; then
-            # olddefconfig 后确认 kprobe 仍保持开启
+            # olddefconfig 后确认 manual hook 仍保持开启
             ./scripts/config --file out/.config -e KSU || true
-            ./scripts/config --file out/.config -e KSU_SYSCALL_HOOK || true
-            ./scripts/config --file out/.config -d KSU_MANUAL_HOOK || true
+            ./scripts/config --file out/.config -e KSU_MANUAL_HOOK || true
             ./scripts/config --file out/.config -d KSU_MANUAL_SU || true
+            ./scripts/config --file out/.config -e KPM || true
+            ./scripts/config --file out/.config -e KSU_SUSFS || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_PATH || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_MOUNT || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_KSTAT || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SPOOF_UNAME || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_ENABLE_LOG || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_OPEN_REDIRECT || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_MAP || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS || true
             ./scripts/config --file out/.config -e KPROBES || true
             ./scripts/config --file out/.config -e KRETPROBES || true
             ./scripts/config --file out/.config -e KPROBE_EVENTS || true
@@ -740,9 +429,14 @@ jobs:
             ./scripts/config --file out/.config -d MODULE_SIG_ALL || true
             ./scripts/config --file out/.config -e MODVERSIONS || true
             ./scripts/config --file out/.config -d LOCALVERSION_AUTO || true
-            ./scripts/config --file out/.config --set-str LOCALVERSION "-perf+-tanran" || true
+            ./scripts/config --file out/.config --set-str LOCALVERSION "-perf-g4732215" || true
 
             make O=out olddefconfig
+
+            if ! grep -q '^CONFIG_KSU_MANUAL_HOOK=y' out/.config; then
+              echo "CONFIG_KSU_MANUAL_HOOK 未开启，停止构建"
+              exit 1
+            fi
           fi
 
           # 保持默认版本字符串，避免 vendor 模块 vermagic 不匹配（例如 Wi-Fi 驱动）
@@ -764,55 +458,34 @@ jobs:
             make -j"$(nproc)" O=out Image.gz-dtb V=1 DTC_FLAGS="-@" 2>&1 | tee build.log
           else
             # 先确保能编译出内核镜像；dtbo 问题后续再单独修
-            # 使用 PIPESTATUS 捕获 make 退出码（即使输出通过 tee 管道）
             make -j"$(nproc)" O=out Image.gz V=1 2>&1 | tee build.log
-            make_exit="${PIPESTATUS[0]}"
-
-            if [ "$make_exit" -ne 0 ]; then
-              # make 失败，检查 Image.gz 是否已生成
-              if [ -f "out/arch/arm64/boot/Image.gz" ]; then
-                echo "::warning::make Image.gz 失败（退出码 $make_exit），但 out/arch/arm64/boot/Image.gz 已存在，继续 DTB 重建流程" | tee -a build.log
-              else
-                echo "::error::make Image.gz 失败（退出码 $make_exit）且 out/arch/arm64/boot/Image.gz 不存在" | tee -a build.log
-                exit "$make_exit"
-              fi
-            fi
 
             mkdir -p dist
             rm -f dist/dtb
 
-            # 编译 trinket 相关 dtb（失败跳过，后续按 size 白名单拼接）
-            for dts in $(find arch/arm64/boot/dts/qcom -maxdepth 1 -name 'trinket*.dts' ! -name '*-overlay.dts' -print | sort); do
-              dtb="$(basename "${dts%.dts}.dtb")"
-              if make -j"$(nproc)" O=out "qcom/${dtb}" V=1 2>&1 | tee -a build.log; then
-                echo "built dtb: ${dtb}" | tee -a build.log
-              else
-                echo "skip dtb build failed: ${dtb}" | tee -a build.log
-              fi
-            done
-
             STOCK_DTB_B64="ci_assets/laurus_q_dtb.bin.gz.b64"
-            if [ ! -f "${STOCK_DTB_B64}" ]; then
-              STOCK_DTB_B64="ci_assets/laurus_p_dtb.bin.gz.b64"
-            fi
             if [ -f "${STOCK_DTB_B64}" ]; then
-              tmp_stock_dtb="$(mktemp)"
-              if base64 -d "${STOCK_DTB_B64}" > "${tmp_stock_dtb}" 2>/dev/null; then
-                echo "decoded base64 stock dtb asset: ${STOCK_DTB_B64}" | tee -a build.log
+              # 优先使用 stock dtb blob，避免 trinket dtb 编译失败
+              if gzip -t "${STOCK_DTB_B64}" >/dev/null 2>&1; then
+                gzip -dc "${STOCK_DTB_B64}" > dist/dtb
               else
-                cp -f "${STOCK_DTB_B64}" "${tmp_stock_dtb}"
-                echo "stock dtb asset is raw file (not base64): ${STOCK_DTB_B64}" | tee -a build.log
+                base64 -d "${STOCK_DTB_B64}" | gzip -d > dist/dtb
               fi
-              if gzip -dc "${tmp_stock_dtb}" > dist/dtb 2>/dev/null; then
-                echo "using gzipped stock dtb asset: ${STOCK_DTB_B64}" | tee -a build.log
-              else
-                cp -f "${tmp_stock_dtb}" dist/dtb
-                echo "using raw stock dtb asset: ${STOCK_DTB_B64}" | tee -a build.log
-              fi
-              rm -f "${tmp_stock_dtb}"
             else
-              # 根据 stock dtb 的 size 列表重建 dtb blob（P 版本）
-              STOCK_DTB_SIZES=("4065" "54743" "4753" "323654" "33249" "27359" "46749" "5306" "173")
+              # 编译 trinket 相关 dtb（失败跳过，后续按 size 白名单拼接）
+              set +e
+              for dts in $(find arch/arm64/boot/dts/qcom -maxdepth 1 -name 'trinket*.dts' ! -name '*-overlay.dts' -print | sort); do
+                dtb="$(basename "${dts%.dts}.dtb")"
+                if make -j"$(nproc)" O=out "qcom/${dtb}" V=1 2>&1 | tee -a build.log; then
+                  echo "built dtb: ${dtb}" | tee -a build.log
+                else
+                  echo "skip dtb build failed: ${dtb}" | tee -a build.log
+                fi
+              done
+              set -e
+
+              # 根据 stock dtb 的 size 列表重建 dtb blob（Q 版本）
+              STOCK_DTB_SIZES=("54743" "33269" "4065" "46749" "5306" "4753" "27379" "327570")
               tmp_map="$(mktemp)"
               find out/arch/arm64/boot/dts/qcom -maxdepth 1 -name 'trinket*.dtb' -print0 | xargs -0 -I{} stat -c '%s %n' {} | sort > "${tmp_map}"
 
@@ -865,80 +538,38 @@ jobs:
           set -euxo pipefail
           mkdir -p dist
           test -f out/arch/arm64/boot/Image.gz
-          cp -f out/arch/arm64/boot/Image.gz dist/Image.gz
-
-          # 确认内核包含 KernelSU（防止打包回 stock 内核）
-          python3 - <<'PY'
-          import gzip
-          import sys
-          from pathlib import Path
-
-          data = Path("dist/Image.gz").read_bytes()
-          if data[:2] == b"\x1f\x8b":
-            try:
-              data = gzip.decompress(data)
-            except Exception:
-              # 部分环境下 gzip 末尾附带数据，容错解压
-              import zlib
-              d = zlib.decompressobj(16 + zlib.MAX_WBITS)
-              data = d.decompress(data)
-          if b"KernelSU" not in data:
-            print("KernelSU string not found in dist/Image.gz")
-            sys.exit(1)
-          print("KernelSU string found in dist/Image.gz")
-          PY
-
-          # 使用 stock boot 模板重打（避免刷机卡 fastboot）
-          test -f ci_assets/stock_boot.img.gz.b64
-          python3 - <<'PY'
-          import base64
-          import gzip
-          from pathlib import Path
-
-          path = Path("ci_assets/stock_boot.img.gz.b64")
-          raw = path.read_bytes()
-          # 如果文件本身已是 gzip（二进制），直接解压；否则当作 base64 文本解码
-          if raw[:2] == b"\x1f\x8b":
-              data = raw
-          else:
-              text = raw.decode("utf-8", errors="ignore")
-              data = base64.b64decode("".join(text.split()))
-          Path("dist/stock_boot.img").write_bytes(gzip.decompress(data))
-          PY
 
           rm -rf repack
-          mkdir -p repack/stock
+          mkdir -p repack/out
+          cp -f out/arch/arm64/boot/Image.gz repack/out/kernel
+          : > repack/out/ramdisk
 
-          python3 tools/unpack_bootimg.py \
-            --boot_img dist/stock_boot.img \
-            --out repack/stock \
-            --format=mkbootimg -0 > repack/mkbootimg_args
+          test -f dist/dtb
+          cp -f dist/dtb repack/out/dtb
+          ls -lh dist/dtb repack/out/dtb
 
-          # 用 stock boot 参数重建，只替换 kernel（用 -0 避免 cmdline 被拆分）
-          mapfile -d '' -t MKBOOTIMG_ARGS < repack/mkbootimg_args
-          python3 tools/mkbootimg.py "${MKBOOTIMG_ARGS[@]}" \
-            --kernel out/arch/arm64/boot/Image.gz \
-            --ramdisk repack/stock/ramdisk \
-            --dtb repack/stock/dtb \
-            -o dist/boot.img
+          # 使用仓库自带 mkbootimg.py 生成 boot.img
+          test -f tools/mkbootimg.py
 
-          # 校验 boot.img 确实使用了新内核
-          mkdir -p repack/check
-          python3 tools/unpack_bootimg.py \
-            --boot_img dist/boot.img \
-            --out repack/check \
-            --format=mkbootimg -0 >/dev/null
-          python3 - <<'PY'
-          import hashlib
-          from pathlib import Path
+          CMDLINE="console=ttyMSM0,115200n8 androidboot.hardware=qcom androidboot.console=ttyMSM0 androidboot.memcg=1 lpm_levels.sleep_disabled=1 video=vfb:640x400,bpp=32,memsize=3072000 msm_rtb.filter=0x237 service_locator.enable=1 swiotlb=1 earlycon=msm_geni_serial,0x4a90000 loop.max_part=7 cgroup.memory=nokmem,nosocket androidboot.selinux=enforcing buildvariant=user"
 
-          def sha(path):
-            return hashlib.sha256(Path(path).read_bytes()).hexdigest()
-
-          if sha("repack/check/kernel") != sha("dist/Image.gz"):
-            raise SystemExit("boot.img kernel mismatch with dist/Image.gz")
-          print("boot.img kernel matches dist/Image.gz")
-          PY
+          (cd repack && python3 ../tools/mkbootimg.py \
+            --header_version 2 \
+            --os_version 10.0.0 \
+            --os_patch_level 2021-09 \
+            --kernel out/kernel \
+            --ramdisk out/ramdisk \
+            --dtb out/dtb \
+            --pagesize 0x00001000 \
+            --base 0x00000000 \
+            --kernel_offset 0x00008000 \
+            --ramdisk_offset 0x01000000 \
+            --second_offset 0x00f00000 \
+            --tags_offset 0x00000100 \
+            --dtb_offset 0x0000000001f00000 \
+            --board "" \
+            --cmdline "$CMDLINE" \
+            -o ../dist/boot.img)
 
           # laurus boot 分区固定 64MB，做一次 truncate 与 stock 对齐
           truncate -s 64M dist/boot.img
@@ -953,7 +584,7 @@ jobs:
           {
             echo "run_id=${{ github.run_id }}"
             echo "head_sha=${{ github.sha }}"
-            echo "kernel_ref=${{ github.event_name == 'workflow_dispatch' && inputs.kernel_branch || 'laurus-p-oss-ci' }}"
+            echo "kernel_ref=${{ github.event_name == 'workflow_dispatch' && inputs.kernel_branch || 'laurus-q-oss-ci' }}"
             echo "defconfig=${{ github.event_name == 'workflow_dispatch' && inputs.defconfig || 'vendor/laurus-perf_defconfig' }}"
             echo "fortify=${{ github.event_name == 'workflow_dispatch' && inputs.fortify || 'off' }}"
             echo "build_dtbo=${{ github.event_name == 'workflow_dispatch' && inputs.build_dtbo || 'off' }}"
@@ -970,45 +601,15 @@ jobs:
             echo
             echo "==== ksu config snapshot (out/.config) ===="
             if [ -f out/.config ]; then
-              grep -nE "KSU|KPROBES|KRETPROBES|KPROBES_ON_FTRACE|KPROBE_EVENTS|KALLSYMS|FTRACE" out/.config 2>&1 | head -n 200 || true
+              grep -nE "KSU|KPM|SUSFS|KPROBES|KRETPROBES|KPROBES_ON_FTRACE|KPROBE_EVENTS|KALLSYMS|FTRACE" out/.config 2>&1 | head -n 200 || true
             else
               echo "out/.config not found"
-            fi
-            echo
-            echo "==== System.map syscall symbols ===="
-            if [ -f out/System.map ]; then
-              grep -E "T.*(sys_read|SyS_read|sys_execve|SyS_execve|sys_newfstat|SyS_newfstat)" out/System.map 2>&1 | head -n 50 || true
-            elif [ -f out/arch/arm64/boot/System.map ]; then
-              grep -E "T.*(sys_read|SyS_read|sys_execve|SyS_execve|sys_newfstat|SyS_newfstat)" out/arch/arm64/boot/System.map 2>&1 | head -n 50 || true
-            else
-              echo "System.map not found"
-            fi
-            echo
-            echo "==== ksud.o compile lines ===="
-            if [ -f build.log ]; then
-              grep -nE "ksud\\.o" build.log 2>&1 | head -n 50 || true
-            else
-              echo "build.log not found"
-            fi
-            echo
-            echo "==== ksud.c proc_create ===="
-            if ls ci_logs/ksud*.c >/dev/null 2>&1; then
-              grep -n "proc_create(\\\"ksu_status\\\"" ci_logs/ksud*.c 2>&1 | head -n 20 || true
-            else
-              echo "ci_logs/ksud*.c not found"
-            fi
-            echo
-            echo "==== ksu_status strings in Image.gz ===="
-            if [ -f out/arch/arm64/boot/Image.gz ]; then
-              (gzip -dc out/arch/arm64/boot/Image.gz 2>/dev/null | strings | grep -E "ksu_status|init_rc_seen|last_rc_path" | head -n 50) || true
-            else
-              echo "Image.gz not found"
             fi
             echo
             echo "==== artifacts existence ===="
             ls -l build.log 2>&1 || true
             ls -l out/arch/arm64/boot/Image.gz-dtb out/arch/arm64/boot/Image.gz out/arch/arm64/boot/dts/qcom/trinket.dtb 2>&1 || true
-            ls -l dist/Image.gz dist/Image.gz-dtb dist/AnyKernel3-laurus-${{ github.run_id }}.zip dist/boot.img 2>&1 || true
+            ls -l dist/Image.gz-dtb dist/AnyKernel3-laurus-${{ github.run_id }}.zip dist/boot.img 2>&1 || true
             echo
             echo "==== build.log errors (tail 200) ===="
             grep -nE "error:|fatal error:" build.log 2>&1 | tail -n 200 || true
@@ -1023,7 +624,7 @@ jobs:
             grep -n "warn, forbidden warning" build.log 2>&1 | tail -n 80 || true
             echo
             echo "==== bad_copy / fortify hits (head 200) ===="
-            grep -nE "__bad_copy_(to|from)|copy (source|destination) size is too small|__compiletime_error\\(\"copy (source|destination) size is too small\"\\)|__read_overflow2|FORTIFY|__check_object_size" build.log 2>&1 | head -n 200 || true
+            grep -nE "__bad_copy_(to|from)|copy (source|destination) size is too small|__compiletime_error\(\"copy (source|destination) size is too small\"\)|__read_overflow2|FORTIFY|__check_object_size" build.log 2>&1 | head -n 200 || true
             echo
             echo "==== bad_copy context (first 3 hits, each +/-60 lines) ===="
             hits="$(grep -nE "__bad_copy_(to|from)" build.log 2>/dev/null | head -n 3 | cut -d: -f1 | tr '\n' ' ' || true)"
@@ -1055,14 +656,10 @@ jobs:
           path: |
             build.log
             ci_logs/latest.txt
-            ci_logs/ksud*.c
             out/.config
-            out/System.map
-            out/arch/arm64/boot/System.map
             out/arch/arm64/boot/Image.gz-dtb
             out/arch/arm64/boot/Image.gz
             out/arch/arm64/boot/dts/qcom/trinket.dtb
-            dist/Image.gz
             dist/Image.gz-dtb
             dist/AnyKernel3-laurus-${{ github.run_id }}.zip
             dist/boot.img
