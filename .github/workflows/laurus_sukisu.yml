@@ -367,7 +367,8 @@ jobs:
           ksud_text = replace_call(
               ksud_text,
               r"if\s*\\(\\s*strcmp\\(\\s*dpath,\\s*\\\"/system/etc/init/hw/init\\.rc\\\"\\s*\\)\\s*\\)\\s*\\{\\s*return\\s+false;\\s*\\}",
-              "if (strncmp(dpath, \\\"/system/etc/init/\\\", 17) &&\\n"
+              "if (strcmp(dpath, \\\"/init.rc\\\") &&\\n"
+              "        strncmp(dpath, \\\"/system/etc/init/\\\", 17) &&\\n"
               "        strncmp(dpath, \\\"/vendor/etc/init/\\\", 17) &&\\n"
               "        strncmp(dpath, \\\"/product/etc/init/\\\", 18) &&\\n"
               "        strncmp(dpath, \\\"/system_ext/etc/init/\\\", 22) &&\\n"
