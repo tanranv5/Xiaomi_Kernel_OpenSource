@@ -325,6 +325,66 @@ jobs:
           else
             echo "git apply failed, trying patch with fuzz..."
             patch -p1 --fuzz=3 < /tmp/susfs4ksu/kernel_patches/50_add_susfs_in_kernel-4.14.patch
+
+            # fuzz=3 可能错位 readdir.c，恢复原始文件后用 Python 精确修补
+            git checkout fs/readdir.c
+            python3 <<'SUSFS_READDIR'
+          from pathlib import Path
+          p = Path("fs/readdir.c")
+          src = p.read_text()
+          changed = False
+
+          # Hunk 1: include
+          inc_anchor = '#include <linux/uaccess.h>'
+          inc_block = ('#include <linux/uaccess.h>\n'
+                       '#ifdef CONFIG_KSU_SUSFS_SUS_PATH\n'
+                       '#include <linux/susfs_def.h>\n'
+                       'extern int susfs_sus_ino_for_filldir64(unsigned long ino);\n'
+                       '#endif')
+          if 'susfs_def.h' not in src and inc_anchor in src:
+              src = src.replace(inc_anchor, inc_block, 1)
+              changed = True
+
+          # Hunk 2-5: insert SUS_PATH check
+          sus_check = ('#ifdef CONFIG_KSU_SUSFS_SUS_PATH\n'
+                       '\tif (likely(current->susfs_task_state & TASK_STRUCT_NON_ROOT_USER_APP_PROC) && susfs_sus_ino_for_filldir64(ino)) {\n'
+                       '\t\treturn 0;\n'
+                       '\t}\n'
+                       '#endif\n')
+
+          # count actual check calls (not extern decl)
+          n = src.count('susfs_sus_ino_for_filldir64(ino)')
+
+          # filldir + filldir64: replace all "buf->error = verify_dirent_name"
+          if n == 0:
+              a = '\tbuf->error = verify_dirent_name(name, namlen);'
+              if a in src:
+                  src = src.replace(a, sus_check + a)
+                  changed = True
+                  n = src.count('susfs_sus_ino_for_filldir64(ino)')
+
+          # compat_fillonedir: before "buf->result = verify_dirent_name"
+          if n < 3:
+              a = '\tbuf->result = verify_dirent_name(name, namlen);'
+              if a in src:
+                  src = src.replace(a, sus_check + a, 1)
+                  changed = True
+                  n = src.count('susfs_sus_ino_for_filldir64(ino)')
+
+          # compat_filldir: before "d_ino = ino;"
+          if n < 4:
+              a = '\td_ino = ino;\n\tif (sizeof(d_ino) < sizeof(ino) && d_ino != ino) {'
+              if a in src:
+                  src = src.replace(a, sus_check + a, 1)
+                  changed = True
+
+          if changed:
+              p.write_text(src)
+              cnt = src.count('susfs_sus_ino_for_filldir64(ino)')
+              print(f"readdir.c: SUSFS patches applied ({cnt} checks)")
+          else:
+              print("readdir.c: already patched or no anchors found")
+          SUSFS_READDIR
           fi
 
           # 验证关键文件与补丁锚点
