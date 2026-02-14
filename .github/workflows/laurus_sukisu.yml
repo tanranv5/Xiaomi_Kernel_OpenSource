@@ -215,7 +215,7 @@ jobs:
                    '\tksu_allow(db, "init", "adb_data_file", "file", ALL);\n'
                    '\tksu_allow(db, "init", "adb_data_file", "dir", ALL);')
           changed = False
-          if 'adb_data_file' not in src and marker in src:
+          if '"init", "adb_data_file"' not in src and marker in src:
               src = src.replace(marker, marker + extra, 1)
               changed = True
               print("rules.c: added init adb_data_file rule")
