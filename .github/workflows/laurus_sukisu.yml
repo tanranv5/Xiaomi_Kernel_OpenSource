@@ -757,10 +757,9 @@ jobs:
                           print("kernel/sys.c: SETRESUID hook added (anchor: " + m2.group(1)[:40] + ")")
                       else:
                           print("kernel/sys.c: ERROR - no setresuid anchor found!")
-                          # Debug: show what's around setresuid
                           for i, line in enumerate(src.split('\n')):
                               if 'setresuid' in line.lower():
-                                  print(f"  line {i+1}: {line.rstrip()[:100]}")
+                                  print("  line %d: %s" % (i+1, line.rstrip()[:100]))
           PATCH_SETRESUID
 
           echo "SUSFS v2.0.0 minimal integration complete"
