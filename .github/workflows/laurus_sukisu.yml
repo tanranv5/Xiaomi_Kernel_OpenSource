@@ -221,6 +221,14 @@ jobs:
               changed = True
               print("rules.c: added init adb_data_file rule")
           # ensure apply_kernelsu_rules flushes AVC cache
+          # need forward declaration since reset_avc_cache is static, defined after apply_kernelsu_rules
+          fwd_decl = 'static void reset_avc_cache();\n\n'
+          apply_fn = 'void apply_kernelsu_rules()'
+          if 'reset_avc_cache' not in src.split('apply_kernelsu_rules')[0]:
+              idx = src.index(apply_fn)
+              src = src[:idx] + fwd_decl + src[idx:]
+              changed = True
+              print("rules.c: added forward declaration for reset_avc_cache")
           unlock_marker = 'mutex_unlock(&ksu_rules);\n}'
           avc_call = 'reset_avc_cache();\n    mutex_unlock(&ksu_rules);\n}'
           if 'reset_avc_cache' not in src.split('apply_kernelsu_rules')[1].split('mutex_unlock')[0]:
