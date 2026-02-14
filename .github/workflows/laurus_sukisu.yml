@@ -336,6 +336,17 @@ jobs:
           #include <linux/susfs.h>
           #include <linux/susfs_def.h>
 
+          #if defined(CONFIG_ARM64) && defined(TIF_PROC_UMOUNTED)
+          #if (TIF_PROC_UMOUNTED >= BITS_PER_LONG)
+          #error "susfs: TIF_PROC_UMOUNTED exceeds thread_info.flags bit width"
+          #endif
+          #endif
+
+          static inline bool susfs_user_ptr_ok(void __user **p)
+          {
+          	return p && *p;
+          }
+
           static bool susfs_log_enabled = false;
 
           #ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
@@ -346,11 +357,15 @@ jobs:
           void susfs_set_uname(void __user **user_info)
           {
           	struct st_susfs_uname tmp;
+          	if (!susfs_user_ptr_ok(user_info))
+          		return;
           	if (copy_from_user(&tmp, *user_info, sizeof(tmp))) {
           		if (susfs_log_enabled)
           			pr_err("susfs: set_uname copy_from_user failed\n");
           		return;
           	}
+          	tmp.release[__NEW_UTS_LEN] = '\0';
+          	tmp.version[__NEW_UTS_LEN] = '\0';
           	mutex_lock(&susfs_uname_mutex);
           	memcpy(&spoofed_uname, &tmp, sizeof(spoofed_uname));
           	uname_spoofed = true;
@@ -368,6 +383,8 @@ jobs:
           		strncpy(tmp->release, spoofed_uname.release, __NEW_UTS_LEN);
           	if (spoofed_uname.version[0])
           		strncpy(tmp->version, spoofed_uname.version, __NEW_UTS_LEN);
+          	tmp->release[__NEW_UTS_LEN] = '\0';
+          	tmp->version[__NEW_UTS_LEN] = '\0';
           	mutex_unlock(&susfs_uname_mutex);
           }
           #endif
@@ -381,9 +398,20 @@ jobs:
           void susfs_add_sus_kstat(void __user **user_info)
           {
           	struct st_susfs_sus_kstat info;
-          	struct st_susfs_sus_kstat_hlist *entry;
+          	struct st_susfs_sus_kstat_hlist *entry, *existing;
+          	if (!susfs_user_ptr_ok(user_info))
+          		return;
           	if (copy_from_user(&info, *user_info, sizeof(info)))
           		return;
+          	spin_lock(&susfs_kstat_lock);
+          	hash_for_each_possible(susfs_kstat_ht, existing, node, info.target_ino) {
+          		if (existing->target_ino == info.target_ino) {
+          			memcpy(&existing->info, &info, sizeof(info));
+          			spin_unlock(&susfs_kstat_lock);
+          			return;
+          		}
+          	}
+          	spin_unlock(&susfs_kstat_lock);
           	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
           	if (!entry) return;
           	entry->target_ino = info.target_ino;
@@ -403,10 +431,10 @@ jobs:
           void susfs_sus_ino_for_generic_fillattr(unsigned long ino, struct kstat *stat)
           {
           	struct st_susfs_sus_kstat_hlist *entry;
-          	rcu_read_lock();
-          	hash_for_each_possible_rcu(susfs_kstat_ht, entry, node, ino) {
+          	spin_lock(&susfs_kstat_lock);
+          	hash_for_each_possible(susfs_kstat_ht, entry, node, ino) {
           		if (entry->target_ino == ino) {
-          			struct st_susfs_sus_kstat *s = &entry->info;
+          			const struct st_susfs_sus_kstat *s = &entry->info;
           			if (s->spoofed_ino) stat->ino = s->spoofed_ino;
           			if (s->spoofed_dev) stat->dev = s->spoofed_dev;
           			if (s->spoofed_nlink) stat->nlink = s->spoofed_nlink;
@@ -422,21 +450,21 @@ jobs:
           			break;
           		}
           	}
-          	rcu_read_unlock();
+          	spin_unlock(&susfs_kstat_lock);
           }
 
           void susfs_sus_ino_for_show_map_vma(unsigned long ino, dev_t *out_dev, unsigned long *out_ino)
           {
           	struct st_susfs_sus_kstat_hlist *entry;
-          	rcu_read_lock();
-          	hash_for_each_possible_rcu(susfs_kstat_ht, entry, node, ino) {
+          	spin_lock(&susfs_kstat_lock);
+          	hash_for_each_possible(susfs_kstat_ht, entry, node, ino) {
           		if (entry->target_ino == ino) {
           			if (entry->info.spoofed_dev) *out_dev = entry->info.spoofed_dev;
           			if (entry->info.spoofed_ino) *out_ino = entry->info.spoofed_ino;
           			break;
           		}
           	}
-          	rcu_read_unlock();
+          	spin_unlock(&susfs_kstat_lock);
           }
           #endif
 
@@ -444,6 +472,8 @@ jobs:
           void susfs_enable_log(void __user **user_info)
           {
           	struct st_susfs_log tmp;
+          	if (!susfs_user_ptr_ok(user_info))
+          		return;
           	if (copy_from_user(&tmp, *user_info, sizeof(tmp)))
           		return;
           	susfs_log_enabled = tmp.enabled;
@@ -458,6 +488,9 @@ jobs:
           void susfs_set_cmdline_or_bootconfig(void __user **user_info)
           {
           	struct st_susfs_spoof_cmdline_or_bootconfig *tmp;
+          	char *new_cmdline, *old_cmdline;
+          	if (!susfs_user_ptr_ok(user_info))
+          		return;
           	tmp = kmalloc(sizeof(*tmp), GFP_KERNEL);
           	if (!tmp) return;
           	if (copy_from_user(tmp, *user_info, sizeof(*tmp))) {
@@ -465,24 +498,30 @@ jobs:
           		return;
           	}
           	tmp->fake_cmdline_or_bootconfig[SUSFS_FAKE_CMDLINE_OR_BOOTCONFIG_SIZE - 1] = '\0';
-          	mutex_lock(&susfs_cmdline_mutex);
-          	kfree(fake_cmdline);
-          	fake_cmdline = kstrdup(tmp->fake_cmdline_or_bootconfig, GFP_KERNEL);
-          	mutex_unlock(&susfs_cmdline_mutex);
+          	new_cmdline = kstrdup(tmp->fake_cmdline_or_bootconfig, GFP_KERNEL);
           	kfree(tmp);
+          	if (!new_cmdline)
+          		return;
+          	mutex_lock(&susfs_cmdline_mutex);
+          	old_cmdline = fake_cmdline;
+          	fake_cmdline = new_cmdline;
+          	mutex_unlock(&susfs_cmdline_mutex);
+          	kfree(old_cmdline);
           	if (susfs_log_enabled)
           		pr_info("susfs: cmdline spoofed\n");
           }
 
           int susfs_spoof_cmdline_or_bootconfig(struct seq_file *m)
           {
-          	if (!fake_cmdline)
-          		return 0;
+          	int ret = 0;
           	mutex_lock(&susfs_cmdline_mutex);
-          	seq_puts(m, fake_cmdline);
-          	seq_putc(m, '\n');
+          	if (fake_cmdline) {
+          		seq_puts(m, fake_cmdline);
+          		seq_putc(m, '\n');
+          		ret = 1;
+          	}
           	mutex_unlock(&susfs_cmdline_mutex);
-          	return 1;
+          	return ret;
           }
           #endif
 
@@ -490,6 +529,8 @@ jobs:
           void susfs_set_avc_log_spoofing(void __user **user_info)
           {
           	struct st_susfs_avc_log_spoofing tmp;
+          	if (!susfs_user_ptr_ok(user_info))
+          		return;
           	if (!copy_from_user(&tmp, *user_info, sizeof(tmp)) && susfs_log_enabled)
           		pr_info("susfs: avc_log_spoofing=%d\n", tmp.enabled);
           }
@@ -497,6 +538,8 @@ jobs:
           void susfs_get_enabled_features(void __user **user_info)
           {
           	struct st_susfs_enabled_features *feat;
+          	if (!susfs_user_ptr_ok(user_info))
+          		return;
           	feat = kzalloc(sizeof(*feat), GFP_KERNEL);
           	if (!feat) return;
           	snprintf(feat->enabled_features, sizeof(feat->enabled_features),
@@ -524,6 +567,8 @@ jobs:
           void susfs_show_variant(void __user **user_info)
           {
           	struct st_susfs_variant v;
+          	if (!susfs_user_ptr_ok(user_info))
+          		return;
           	memset(&v, 0, sizeof(v));
           	strncpy(v.susfs_variant, SUSFS_VARIANT, sizeof(v.susfs_variant) - 1);
           	if (copy_to_user(*user_info, &v, sizeof(v)))
@@ -533,6 +578,8 @@ jobs:
           void susfs_show_version(void __user **user_info)
           {
           	struct st_susfs_version v;
+          	if (!susfs_user_ptr_ok(user_info))
+          		return;
           	memset(&v, 0, sizeof(v));
           	strncpy(v.susfs_version, SUSFS_VERSION, sizeof(v.susfs_version) - 1);
           	if (copy_to_user(*user_info, &v, sizeof(v)))
@@ -633,7 +680,7 @@ jobs:
           from pathlib import Path
           p = Path("fs/stat.c")
           src = p.read_text()
-          anchor = 'stat->blksize = i_blocksize(inode);'
+          anchor = 'stat->blocks = inode->i_blocks;'
           hook = ('\n#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT\n'
                   '\t{\n'
                   '\t\textern void susfs_sus_ino_for_generic_fillattr(unsigned long, struct kstat *);\n'
