@@ -212,32 +212,32 @@ jobs:
           src = p.read_text()
           marker = 'ksu_allow(db, "init", KERNEL_SU_DOMAIN, ALL, ALL);'
           extra = ('\n'
-                   '    // allow init to execute ksud from /data/adb/ (labeled adb_data_file)\n'
-                   '    ksu_allow(db, "init", "adb_data_file", "file", ALL);\n'
-                   '    ksu_allow(db, "init", "adb_data_file", "dir", ALL);')
+                   '\tksu_allow(db, "init", "adb_data_file", "file", ALL);\n'
+                   '\tksu_allow(db, "init", "adb_data_file", "dir", ALL);')
           changed = False
           if 'adb_data_file' not in src and marker in src:
               src = src.replace(marker, marker + extra, 1)
               changed = True
               print("rules.c: added init adb_data_file rule")
           # ensure apply_kernelsu_rules flushes AVC cache
-          fwd_decl = 'static void reset_avc_cache(void);\n\n'
-          apply_fn = 'void apply_kernelsu_rules()'
-          idx = src.find(apply_fn)
-          if idx == -1:
-              print("DEBUG rules.c first 500 chars: " + repr(src[:500]))
-              print("WARNING: '" + apply_fn + "' not found, skip forward decl")
-          elif 'reset_avc_cache' not in src[:idx]:
-              src = src[:idx] + fwd_decl + src[idx:]
-              changed = True
-              print("rules.c: added forward declaration for reset_avc_cache")
-          unlock_marker = 'mutex_unlock(&ksu_rules);\n}'
-          avc_call = 'reset_avc_cache();\n    mutex_unlock(&ksu_rules);\n}'
-          parts = src.split(apply_fn)
-          if len(parts) > 1 and 'reset_avc_cache()' not in parts[1].split('mutex_unlock')[0]:
-              src = src.replace(unlock_marker, avc_call, 1)
-              changed = True
-              print("rules.c: added reset_avc_cache to apply_kernelsu_rules")
+          import re
+          m = re.search(r'void apply_kernelsu_rules\([^)]*\)', src)
+          if m is None:
+              print("WARNING: apply_kernelsu_rules not found, skip AVC fix")
+          else:
+              fn_sig = m.group(0)
+              idx = m.start()
+              if 'reset_avc_cache' not in src[:idx]:
+                  src = src[:idx] + 'static void reset_avc_cache(void);\n\n' + src[idx:]
+                  changed = True
+                  print("rules.c: added forward declaration for reset_avc_cache")
+              unlock_marker = 'mutex_unlock(&ksu_rules);\n}'
+              avc_call = 'reset_avc_cache();\n\tmutex_unlock(&ksu_rules);\n}'
+              parts = src.split(fn_sig)
+              if len(parts) > 1 and 'reset_avc_cache()' not in parts[1].split('mutex_unlock')[0]:
+                  src = src.replace(unlock_marker, avc_call, 1)
+                  changed = True
+                  print("rules.c: added reset_avc_cache to apply_kernelsu_rules")
           if changed:
               p.write_text(src)
           else:
