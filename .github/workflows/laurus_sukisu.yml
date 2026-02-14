@@ -211,10 +211,10 @@ jobs:
           p = Path(ksu_dir) / "selinux" / "rules.c"
           src = p.read_text()
           marker = 'ksu_allow(db, "init", KERNEL_SU_DOMAIN, ALL, ALL);'
-          extra = '''
-    // allow init to execute ksud from /data/adb/ (labeled adb_data_file)
-    ksu_allow(db, "init", "adb_data_file", "file", ALL);
-    ksu_allow(db, "init", "adb_data_file", "dir", ALL);'''
+          extra = ('\n'
+                   '    // allow init to execute ksud from /data/adb/ (labeled adb_data_file)\n'
+                   '    ksu_allow(db, "init", "adb_data_file", "file", ALL);\n'
+                   '    ksu_allow(db, "init", "adb_data_file", "dir", ALL);')
           if 'adb_data_file' not in src and marker in src:
               src = src.replace(marker, marker + extra, 1)
               p.write_text(src)
