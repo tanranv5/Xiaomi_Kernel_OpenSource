@@ -719,7 +719,6 @@ jobs:
           # 5) SETRESUID: hook for manager fd installation + umount
           # tracepoint on sys_enter doesn't fire for zygote children on 4.14
           python3 <<'PATCH_SETRESUID'
-          import re
           from pathlib import Path
           p = Path("kernel/sys.c")
           src = p.read_text()
@@ -732,34 +731,29 @@ jobs:
                       '\t\tksu_handle_setresuid(ruid, euid, suid);\n'
                       '\t}\n'
                       '#endif\n')
-              # Try anchor 1: exact make_kuid line
-              a1 = 'ksuid = make_kuid(current_user_ns(), suid);'
-              if a1 in src:
-                  idx = src.index(a1) + len(a1)
-                  src = src[:idx] + hook + src[idx:]
-                  p.write_text(src)
-                  print("kernel/sys.c: SETRESUID hook added (anchor: make_kuid)")
-              else:
-                  # Try anchor 2: regex for SYSCALL_DEFINE3(setresuid...)
-                  m = re.search(r'(SYSCALL_DEFINE3\s*\(\s*setresuid\b[^)]*\)\s*\{)', src, re.DOTALL)
-                  if m:
-                      idx = m.end()
+              anchors = [
+                  'ksuid = make_kuid(current_user_ns(), suid);',
+                  'kruid = make_kuid(current_user_ns(), ruid);',
+                  'new = prepare_creds();',
+              ]
+              patched = False
+              for a in anchors:
+                  if a in src:
+                      idx = src.index(a) + len(a)
                       src = src[:idx] + hook + src[idx:]
                       p.write_text(src)
-                      print("kernel/sys.c: SETRESUID hook added (anchor: SYSCALL_DEFINE3)")
-                  else:
-                      # Try anchor 3: long sys_setresuid / SYSC_setresuid
-                      m2 = re.search(r'((?:SYSC_|sys_|SyS_)setresuid\s*\([^)]*\)\s*\{)', src)
-                      if m2:
-                          idx = m2.end()
-                          src = src[:idx] + hook + src[idx:]
-                          p.write_text(src)
-                          print("kernel/sys.c: SETRESUID hook added (anchor: " + m2.group(1)[:40] + ")")
-                      else:
-                          print("kernel/sys.c: ERROR - no setresuid anchor found!")
-                          for i, line in enumerate(src.split('\n')):
-                              if 'setresuid' in line.lower():
-                                  print("  line %d: %s" % (i+1, line.rstrip()[:100]))
+                      print("kernel/sys.c: SETRESUID hook added (anchor: " + a[:30] + ")")
+                      patched = True
+                      break
+              if not patched:
+                  print("kernel/sys.c: ERROR - no setresuid anchor found, dumping context")
+                  lines = src.split('\n')
+                  for i, line in enumerate(lines):
+                      if 'setresuid' in line.lower():
+                          start = max(0, i-2)
+                          end = min(len(lines), i+8)
+                          for j in range(start, end):
+                              print("  %d: %s" % (j+1, lines[j].rstrip()[:120]))
           PATCH_SETRESUID
 
           echo "SUSFS v2.0.0 minimal integration complete"
