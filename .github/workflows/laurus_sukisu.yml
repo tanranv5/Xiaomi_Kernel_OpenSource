@@ -137,6 +137,72 @@ jobs:
             ksu_dir="drivers/kernelsu"
           fi
 
+          # 修补 ksud.c：SAR 设备 /init.rc 路径 + vfs_read hook 实现
+          python3 - "${ksu_dir}" <<'PYEOF'
+          import sys
+          from pathlib import Path
+          ksu_dir = sys.argv[1]
+          p = Path(ksu_dir) / "ksud.c"
+          src = p.read_text()
+
+          # 1) is_init_rc: 支持 /init.rc (SAR 设备)
+          old = 'if (strcmp(dpath, "/system/etc/init/hw/init.rc")) {'
+          new = 'if (strcmp(dpath, "/system/etc/init/hw/init.rc") && strcmp(dpath, "/init.rc")) {'
+          if old in src:
+              src = src.replace(old, new, 1)
+
+          # 2) stop_init_rc_hook: 同时关闭 ksu_vfs_read_hook
+          old_stop = 'ksu_init_rc_hook = false;\n\tpr_info("stop vfs_read_hook\\n");'
+          new_stop = ('ksu_init_rc_hook = false;\n'
+                      '\textern bool ksu_vfs_read_hook;\n'
+                      '\tksu_vfs_read_hook = false;\n'
+                      '\tpr_info("stop vfs_read_hook\\n");')
+          if 'ksu_vfs_read_hook' not in src:
+              src = src.replace(old_stop, new_stop, 1)
+
+          # 3) 在 ksu_handle_sys_read 函数结束后插入 ksu_handle_vfs_read
+          vfs_read_impl = '''
+          /* --- manual_hook: vfs_read hook for init.rc injection --- */
+          bool ksu_vfs_read_hook __read_mostly = true;
+
+          int ksu_handle_vfs_read(struct file **file_ptr, char __user **buf_ptr,
+                                  size_t *count_ptr, loff_t **pos)
+          {
+          \tstruct file *file;
+          \tif (!file_ptr || !(file = *file_ptr))
+          \t\treturn 0;
+          \tif (!is_init_rc(file))
+          \t\treturn 0;
+          \tstatic bool vfs_rc_hooked = false;
+          \tif (vfs_rc_hooked) {
+          \t\tksu_vfs_read_hook = false;
+          \t\treturn 0;
+          \t}
+          \tvfs_rc_hooked = true;
+          \tpr_info("read init.rc (vfs_read hook), comm: %s, rc_count: %zu\\n",
+          \t\tcurrent->comm, ksu_rc_len);
+          \tmemcpy(&fops_proxy, file->f_op, sizeof(struct file_operations));
+          \torig_read = file->f_op->read;
+          \tif (orig_read)
+          \t\tfops_proxy.read = read_proxy;
+          \torig_read_iter = file->f_op->read_iter;
+          \tif (orig_read_iter)
+          \t\tfops_proxy.read_iter = read_iter_proxy;
+          \tfile->f_op = &fops_proxy;
+          \treturn 0;
+          }
+          '''
+
+          # 找到 ksu_handle_sys_read 函数结尾的 fput + #endif + }
+          marker = 'fput(file);\n#endif\n}'
+          if marker in src and 'ksu_handle_vfs_read' not in src:
+              idx = src.index(marker) + len(marker)
+              src = src[:idx] + '\n' + vfs_read_impl + src[idx:]
+
+          p.write_text(src)
+          print("ksud.c patched: init.rc path + vfs_read hook")
+          PYEOF
+
           cat > "${ksu_dir}/manual_hook_adapters.c" <<'EOF'
           #include <linux/compiler.h>
           #include <linux/cred.h>
@@ -158,7 +224,6 @@ jobs:
 
           // 弱符号兜底，避免与 SukiSU 自带实现重复定义
           bool ksu_execveat_hook __read_mostly __weak = true;
-          bool ksu_vfs_read_hook __read_mostly __weak = false;
           bool ksu_input_hook __read_mostly __weak = true;
 
           int __weak ksu_handle_execveat(int *fd, struct filename **filename_ptr,
@@ -194,11 +259,6 @@ jobs:
               return 0;
           }
 
-          int __weak ksu_handle_vfs_read(struct file **file_ptr, char __user **buf_ptr,
-                                         size_t *count_ptr, loff_t **pos)
-          {
-              return 0;
-          }
           EOF
 
           if ! grep -q "manual_hook_adapters.o" "${ksu_dir}/Kbuild"; then
