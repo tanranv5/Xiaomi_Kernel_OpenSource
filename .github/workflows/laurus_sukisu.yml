@@ -306,6 +306,29 @@ jobs:
             echo "kernelsu-objs += manual_hook_adapters.o" >> "${ksu_dir}/Kbuild"
           fi
 
+          # ---- SUSFS 集成 (kernel-4.14) ----
+          echo "--- Integrating SUSFS for kernel 4.14 ---"
+          git clone --depth=1 -b kernel-4.14 https://gitlab.com/simonpunk/susfs4ksu.git /tmp/susfs4ksu
+
+          # 复制 SUSFS 源码到内核树
+          cp /tmp/susfs4ksu/kernel_patches/fs/susfs.c fs/susfs.c
+          cp /tmp/susfs4ksu/kernel_patches/include/linux/susfs.h include/linux/susfs.h
+          cp /tmp/susfs4ksu/kernel_patches/include/linux/susfs_def.h include/linux/susfs_def.h
+
+          # 应用内核侧 SUSFS 补丁
+          if git apply --check /tmp/susfs4ksu/kernel_patches/50_add_susfs_in_kernel-4.14.patch 2>/dev/null; then
+            git apply /tmp/susfs4ksu/kernel_patches/50_add_susfs_in_kernel-4.14.patch
+            echo "SUSFS kernel patch applied cleanly"
+          else
+            echo "git apply failed, trying patch with fuzz..."
+            patch -p1 --fuzz=3 < /tmp/susfs4ksu/kernel_patches/50_add_susfs_in_kernel-4.14.patch
+          fi
+
+          # 验证关键文件
+          test -f fs/susfs.c
+          grep -q "susfs.o" fs/Makefile
+          echo "SUSFS integration complete"
+
       - name: 配置 defconfig
         id: config
         run: |
@@ -352,6 +375,16 @@ jobs:
               'CONFIG_DEVTMPFS=y' \
               'CONFIG_DEVTMPFS_MOUNT=y' \
               'CONFIG_OVERLAY_FS=y' \
+              'CONFIG_KSU_SUSFS=y' \
+              'CONFIG_KSU_SUSFS_SUS_PATH=y' \
+              'CONFIG_KSU_SUSFS_SUS_MOUNT=y' \
+              'CONFIG_KSU_SUSFS_SUS_KSTAT=y' \
+              'CONFIG_KSU_SUSFS_SPOOF_UNAME=y' \
+              'CONFIG_KSU_SUSFS_ENABLE_LOG=y' \
+              'CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y' \
+              'CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y' \
+              'CONFIG_KSU_SUSFS_OPEN_REDIRECT=y' \
+              'CONFIG_KSU_SUSFS_SUS_MAP=y' \
               >> "${DEFCONFIG_PATH}"
           fi
 
@@ -373,6 +406,18 @@ jobs:
             ./scripts/config --file out/.config -e DEVTMPFS || true
             ./scripts/config --file out/.config -e DEVTMPFS_MOUNT || true
             ./scripts/config --file out/.config -e OVERLAY_FS || true
+
+            # SUSFS
+            ./scripts/config --file out/.config -e KSU_SUSFS || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_PATH || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_MOUNT || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_KSTAT || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SPOOF_UNAME || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_ENABLE_LOG || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_OPEN_REDIRECT || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_MAP || true
           fi
 
           # 保持 MODULE_SIG 以对齐 struct module，但关闭强制签名校验
@@ -416,6 +461,18 @@ jobs:
             ./scripts/config --file out/.config -e DEVTMPFS_MOUNT || true
             ./scripts/config --file out/.config -e OVERLAY_FS || true
 
+            # SUSFS (second round)
+            ./scripts/config --file out/.config -e KSU_SUSFS || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_PATH || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_MOUNT || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_KSTAT || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SPOOF_UNAME || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_ENABLE_LOG || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_OPEN_REDIRECT || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_MAP || true
+
             # 再次确保模块签名/版本字符串设置生效
             ./scripts/config --file out/.config -e MODULE_SIG || true
             ./scripts/config --file out/.config -d MODULE_SIG_FORCE || true
@@ -428,6 +485,10 @@ jobs:
 
             if ! grep -q '^CONFIG_KSU_MANUAL_HOOK=y' out/.config; then
               echo "CONFIG_KSU_MANUAL_HOOK 未开启，停止构建"
+              exit 1
+            fi
+            if ! grep -q '^CONFIG_KSU_SUSFS=y' out/.config; then
+              echo "CONFIG_KSU_SUSFS 未开启，停止构建"
               exit 1
             fi
           fi
@@ -443,6 +504,8 @@ jobs:
           export CROSS_COMPILE="$TOOLCHAIN_GCC64/bin/aarch64-linux-android-"
           export CROSS_COMPILE_ARM32="$TOOLCHAIN_GCC32/bin/arm-linux-androideabi-"
           export LOCALVERSION=
+          export KBUILD_BUILD_USER=tanran
+          export KBUILD_BUILD_HOST=laurus
 
           BUILD_DTBO="${{ github.event_name == 'workflow_dispatch' && inputs.build_dtbo || 'off' }}"
 
