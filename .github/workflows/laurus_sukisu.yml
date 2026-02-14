@@ -315,6 +315,9 @@ jobs:
           cp /tmp/susfs4ksu/kernel_patches/include/linux/susfs.h include/linux/susfs.h
           cp /tmp/susfs4ksu/kernel_patches/include/linux/susfs_def.h include/linux/susfs_def.h
 
+          # 4.14 内核没有 linux/bits.h (4.19 引入)，BIT() 在 bitops.h 中
+          sed -i 's|#include <linux/bits.h>|#include <linux/bitops.h>|' include/linux/susfs_def.h
+
           # 应用内核侧 SUSFS 补丁
           if git apply --check /tmp/susfs4ksu/kernel_patches/50_add_susfs_in_kernel-4.14.patch 2>/dev/null; then
             git apply /tmp/susfs4ksu/kernel_patches/50_add_susfs_in_kernel-4.14.patch
@@ -324,9 +327,11 @@ jobs:
             patch -p1 --fuzz=3 < /tmp/susfs4ksu/kernel_patches/50_add_susfs_in_kernel-4.14.patch
           fi
 
-          # 验证关键文件
+          # 验证关键文件与补丁锚点
           test -f fs/susfs.c
           grep -q "susfs.o" fs/Makefile
+          grep -q "susfs_task_state" include/linux/sched.h
+          grep -q "INODE_STATE_SUS_PATH" fs/dcache.c || echo "WARN: dcache.c anchor missing"
           echo "SUSFS integration complete"
 
       - name: 配置 defconfig
