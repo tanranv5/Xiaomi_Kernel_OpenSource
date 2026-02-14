@@ -327,6 +327,7 @@ jobs:
           cat > fs/susfs.c <<'SUSFS_C'
           #include <linux/kernel.h>
           #include <linux/module.h>
+          #include <linux/slab.h>
           #include <linux/string.h>
           #include <linux/uaccess.h>
           #include <linux/utsname.h>
@@ -495,9 +496,10 @@ jobs:
 
           void susfs_get_enabled_features(void __user **user_info)
           {
-          	struct st_susfs_enabled_features feat;
-          	memset(&feat, 0, sizeof(feat));
-          	snprintf(feat.enabled_features, sizeof(feat.enabled_features),
+          	struct st_susfs_enabled_features *feat;
+          	feat = kzalloc(sizeof(*feat), GFP_KERNEL);
+          	if (!feat) return;
+          	snprintf(feat->enabled_features, sizeof(feat->enabled_features),
           #ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
           		"SPOOF_UNAME,"
           #endif
@@ -514,7 +516,9 @@ jobs:
           		"SPOOF_CMDLINE_OR_BOOTCONFIG,"
           #endif
           		"");
-          	copy_to_user(*user_info, &feat, sizeof(feat));
+          	if (copy_to_user(*user_info, feat, sizeof(*feat)))
+          		pr_err("susfs: get_enabled_features copy_to_user failed\n");
+          	kfree(feat);
           }
 
           void susfs_show_variant(void __user **user_info)
@@ -522,7 +526,8 @@ jobs:
           	struct st_susfs_variant v;
           	memset(&v, 0, sizeof(v));
           	strncpy(v.susfs_variant, SUSFS_VARIANT, sizeof(v.susfs_variant) - 1);
-          	copy_to_user(*user_info, &v, sizeof(v));
+          	if (copy_to_user(*user_info, &v, sizeof(v)))
+          		pr_err("susfs: show_variant copy_to_user failed\n");
           }
 
           void susfs_show_version(void __user **user_info)
@@ -530,7 +535,8 @@ jobs:
           	struct st_susfs_version v;
           	memset(&v, 0, sizeof(v));
           	strncpy(v.susfs_version, SUSFS_VERSION, sizeof(v.susfs_version) - 1);
-          	copy_to_user(*user_info, &v, sizeof(v));
+          	if (copy_to_user(*user_info, &v, sizeof(v)))
+          		pr_err("susfs: show_version copy_to_user failed\n");
           }
 
           void susfs_start_sdcard_monitor_fn(void) { }
