@@ -725,6 +725,10 @@ jobs:
             ./scripts/config --file out/.config -e KSU_SUSFS_ENABLE_LOG || true
             ./scripts/config --file out/.config -e KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS || true
             ./scripts/config --file out/.config -e KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG || true
+            ./scripts/config --file out/.config -d KSU_SUSFS_SUS_PATH || true
+            ./scripts/config --file out/.config -d KSU_SUSFS_SUS_MOUNT || true
+            ./scripts/config --file out/.config -d KSU_SUSFS_OPEN_REDIRECT || true
+            ./scripts/config --file out/.config -d KSU_SUSFS_SUS_MAP || true
           fi
 
           # 保持 MODULE_SIG 以对齐 struct module，但关闭强制签名校验
