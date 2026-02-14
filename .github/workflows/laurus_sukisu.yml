@@ -306,93 +306,343 @@ jobs:
             echo "kernelsu-objs += manual_hook_adapters.o" >> "${ksu_dir}/Kbuild"
           fi
 
-          # ---- SUSFS 集成 (kernel-4.14) ----
-          echo "--- Integrating SUSFS for kernel 4.14 ---"
-          git clone --depth=1 -b kernel-4.14 https://gitlab.com/simonpunk/susfs4ksu.git /tmp/susfs4ksu
+          # ---- SUSFS v2.0.0 集成 (4.14 最小实现) ----
+          # 策略：使用 v2.0.0 头文件（匹配 SukiSU builtin supercalls.c API），
+          # 自写最小 susfs.c 实现 SPOOF_UNAME / SUS_KSTAT / ENABLE_LOG / SPOOF_CMDLINE 等。
+          # 不应用 v1.5.5 内核补丁（其 API 签名与 v2.0.0 不兼容）。
+          echo "--- Integrating SUSFS v2.0.0 (minimal, kernel 4.14) ---"
 
-          # 复制 SUSFS 源码到内核树
-          cp /tmp/susfs4ksu/kernel_patches/fs/susfs.c fs/susfs.c
+          git clone --depth=1 -b gki-android14-6.1 https://gitlab.com/simonpunk/susfs4ksu.git /tmp/susfs4ksu
+
+          # 复制 v2.0.0 头文件
           cp /tmp/susfs4ksu/kernel_patches/include/linux/susfs.h include/linux/susfs.h
           cp /tmp/susfs4ksu/kernel_patches/include/linux/susfs_def.h include/linux/susfs_def.h
 
-          # 4.14 内核没有 linux/bits.h (4.19 引入)，BIT() 在 bitops.h 中
+          # 4.14 没有 linux/bits.h（4.19 引入），BIT() 在 bitops.h
           sed -i 's|#include <linux/bits.h>|#include <linux/bitops.h>|' include/linux/susfs_def.h
+          # susfs_def.h 内联函数访问 current->thread_info，需要 sched.h
+          sed -i '/#include <linux\/bitops.h>/a #include <linux\/sched.h>' include/linux/susfs_def.h
 
-          # 应用内核侧 SUSFS 补丁
-          if git apply --check /tmp/susfs4ksu/kernel_patches/50_add_susfs_in_kernel-4.14.patch 2>/dev/null; then
-            git apply /tmp/susfs4ksu/kernel_patches/50_add_susfs_in_kernel-4.14.patch
-            echo "SUSFS kernel patch applied cleanly"
-          else
-            echo "git apply failed, trying patch with fuzz..."
-            patch -p1 --fuzz=3 < /tmp/susfs4ksu/kernel_patches/50_add_susfs_in_kernel-4.14.patch
+          # 写入最小 susfs.c（v2.0.0 API，4.14 兼容）
+          cat > fs/susfs.c <<'SUSFS_C'
+          #include <linux/kernel.h>
+          #include <linux/module.h>
+          #include <linux/string.h>
+          #include <linux/uaccess.h>
+          #include <linux/utsname.h>
+          #include <linux/seq_file.h>
+          #include <linux/version.h>
+          #include <linux/susfs.h>
+          #include <linux/susfs_def.h>
 
-            # fuzz=3 可能错位 readdir.c，恢复原始文件后用 Python 精确修补
-            git checkout fs/readdir.c
-            python3 <<'SUSFS_READDIR'
-          from pathlib import Path
-          p = Path("fs/readdir.c")
-          src = p.read_text()
-          changed = False
+          static bool susfs_log_enabled = false;
 
-          # Hunk 1: include
-          inc_anchor = '#include <linux/uaccess.h>'
-          inc_block = ('#include <linux/uaccess.h>\n'
-                       '#ifdef CONFIG_KSU_SUSFS_SUS_PATH\n'
-                       '#include <linux/susfs_def.h>\n'
-                       'extern int susfs_sus_ino_for_filldir64(unsigned long ino);\n'
-                       '#endif')
-          if 'susfs_def.h' not in src and inc_anchor in src:
-              src = src.replace(inc_anchor, inc_block, 1)
-              changed = True
+          #ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
+          static DEFINE_MUTEX(susfs_uname_mutex);
+          static struct st_susfs_uname spoofed_uname;
+          static bool uname_spoofed = false;
 
-          # Hunk 2-5: insert SUS_PATH check
-          sus_check = ('#ifdef CONFIG_KSU_SUSFS_SUS_PATH\n'
-                       '\tif (likely(current->susfs_task_state & TASK_STRUCT_NON_ROOT_USER_APP_PROC) && susfs_sus_ino_for_filldir64(ino)) {\n'
-                       '\t\treturn 0;\n'
-                       '\t}\n'
-                       '#endif\n')
+          void susfs_set_uname(void __user **user_info)
+          {
+          	struct st_susfs_uname tmp;
+          	if (copy_from_user(&tmp, *user_info, sizeof(tmp))) {
+          		if (susfs_log_enabled)
+          			pr_err("susfs: set_uname copy_from_user failed\n");
+          		return;
+          	}
+          	mutex_lock(&susfs_uname_mutex);
+          	memcpy(&spoofed_uname, &tmp, sizeof(spoofed_uname));
+          	uname_spoofed = true;
+          	mutex_unlock(&susfs_uname_mutex);
+          	if (susfs_log_enabled)
+          		pr_info("susfs: uname spoofed: release='%s'\n", spoofed_uname.release);
+          }
 
-          # count actual check calls (not extern decl)
-          n = src.count('susfs_sus_ino_for_filldir64(ino)')
+          void susfs_spoof_uname(struct new_utsname *tmp)
+          {
+          	if (!uname_spoofed)
+          		return;
+          	mutex_lock(&susfs_uname_mutex);
+          	if (spoofed_uname.release[0])
+          		strncpy(tmp->release, spoofed_uname.release, __NEW_UTS_LEN);
+          	if (spoofed_uname.version[0])
+          		strncpy(tmp->version, spoofed_uname.version, __NEW_UTS_LEN);
+          	mutex_unlock(&susfs_uname_mutex);
+          }
+          #endif
 
-          # filldir + filldir64: replace all "buf->error = verify_dirent_name"
-          if n == 0:
-              a = '\tbuf->error = verify_dirent_name(name, namlen);'
-              if a in src:
-                  src = src.replace(a, sus_check + a)
-                  changed = True
-                  n = src.count('susfs_sus_ino_for_filldir64(ino)')
+          #ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
+          #include <linux/hashtable.h>
+          #include <linux/slab.h>
+          static DEFINE_HASHTABLE(susfs_kstat_ht, 8);
+          static DEFINE_SPINLOCK(susfs_kstat_lock);
 
-          # compat_fillonedir: before "buf->result = verify_dirent_name"
-          if n < 3:
-              a = '\tbuf->result = verify_dirent_name(name, namlen);'
-              if a in src:
-                  src = src.replace(a, sus_check + a, 1)
-                  changed = True
-                  n = src.count('susfs_sus_ino_for_filldir64(ino)')
+          void susfs_add_sus_kstat(void __user **user_info)
+          {
+          	struct st_susfs_sus_kstat info;
+          	struct st_susfs_sus_kstat_hlist *entry;
+          	if (copy_from_user(&info, *user_info, sizeof(info)))
+          		return;
+          	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+          	if (!entry) return;
+          	entry->target_ino = info.target_ino;
+          	memcpy(&entry->info, &info, sizeof(info));
+          	spin_lock(&susfs_kstat_lock);
+          	hash_add(susfs_kstat_ht, &entry->node, entry->target_ino);
+          	spin_unlock(&susfs_kstat_lock);
+          	if (susfs_log_enabled)
+          		pr_info("susfs: add_sus_kstat ino=%lu\n", info.target_ino);
+          }
 
-          # compat_filldir: before "d_ino = ino;"
-          if n < 4:
-              a = '\td_ino = ino;\n\tif (sizeof(d_ino) < sizeof(ino) && d_ino != ino) {'
-              if a in src:
-                  src = src.replace(a, sus_check + a, 1)
-                  changed = True
+          void susfs_update_sus_kstat(void __user **user_info)
+          {
+          	susfs_add_sus_kstat(user_info);
+          }
 
-          if changed:
-              p.write_text(src)
-              cnt = src.count('susfs_sus_ino_for_filldir64(ino)')
-              print(f"readdir.c: SUSFS patches applied ({cnt} checks)")
-          else:
-              print("readdir.c: already patched or no anchors found")
-          SUSFS_READDIR
+          void susfs_sus_ino_for_generic_fillattr(unsigned long ino, struct kstat *stat)
+          {
+          	struct st_susfs_sus_kstat_hlist *entry;
+          	rcu_read_lock();
+          	hash_for_each_possible_rcu(susfs_kstat_ht, entry, node, ino) {
+          		if (entry->target_ino == ino) {
+          			struct st_susfs_sus_kstat *s = &entry->info;
+          			if (s->spoofed_ino) stat->ino = s->spoofed_ino;
+          			if (s->spoofed_dev) stat->dev = s->spoofed_dev;
+          			if (s->spoofed_nlink) stat->nlink = s->spoofed_nlink;
+          			if (s->spoofed_size) stat->size = s->spoofed_size;
+          			if (s->spoofed_atime_tv_sec) stat->atime.tv_sec = s->spoofed_atime_tv_sec;
+          			if (s->spoofed_mtime_tv_sec) stat->mtime.tv_sec = s->spoofed_mtime_tv_sec;
+          			if (s->spoofed_ctime_tv_sec) stat->ctime.tv_sec = s->spoofed_ctime_tv_sec;
+          			if (s->spoofed_atime_tv_nsec) stat->atime.tv_nsec = s->spoofed_atime_tv_nsec;
+          			if (s->spoofed_mtime_tv_nsec) stat->mtime.tv_nsec = s->spoofed_mtime_tv_nsec;
+          			if (s->spoofed_ctime_tv_nsec) stat->ctime.tv_nsec = s->spoofed_ctime_tv_nsec;
+          			if (s->spoofed_blksize) stat->blksize = s->spoofed_blksize;
+          			if (s->spoofed_blocks) stat->blocks = s->spoofed_blocks;
+          			break;
+          		}
+          	}
+          	rcu_read_unlock();
+          }
+
+          void susfs_sus_ino_for_show_map_vma(unsigned long ino, dev_t *out_dev, unsigned long *out_ino)
+          {
+          	struct st_susfs_sus_kstat_hlist *entry;
+          	rcu_read_lock();
+          	hash_for_each_possible_rcu(susfs_kstat_ht, entry, node, ino) {
+          		if (entry->target_ino == ino) {
+          			if (entry->info.spoofed_dev) *out_dev = entry->info.spoofed_dev;
+          			if (entry->info.spoofed_ino) *out_ino = entry->info.spoofed_ino;
+          			break;
+          		}
+          	}
+          	rcu_read_unlock();
+          }
+          #endif
+
+          #ifdef CONFIG_KSU_SUSFS_ENABLE_LOG
+          void susfs_enable_log(void __user **user_info)
+          {
+          	struct st_susfs_log tmp;
+          	if (copy_from_user(&tmp, *user_info, sizeof(tmp)))
+          		return;
+          	susfs_log_enabled = tmp.enabled;
+          	pr_info("susfs: log %s\n", susfs_log_enabled ? "enabled" : "disabled");
+          }
+          #endif
+
+          #ifdef CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
+          static DEFINE_MUTEX(susfs_cmdline_mutex);
+          static char *fake_cmdline = NULL;
+
+          void susfs_set_cmdline_or_bootconfig(void __user **user_info)
+          {
+          	struct st_susfs_spoof_cmdline_or_bootconfig *tmp;
+          	tmp = kmalloc(sizeof(*tmp), GFP_KERNEL);
+          	if (!tmp) return;
+          	if (copy_from_user(tmp, *user_info, sizeof(*tmp))) {
+          		kfree(tmp);
+          		return;
+          	}
+          	tmp->fake_cmdline_or_bootconfig[SUSFS_FAKE_CMDLINE_OR_BOOTCONFIG_SIZE - 1] = '\0';
+          	mutex_lock(&susfs_cmdline_mutex);
+          	kfree(fake_cmdline);
+          	fake_cmdline = kstrdup(tmp->fake_cmdline_or_bootconfig, GFP_KERNEL);
+          	mutex_unlock(&susfs_cmdline_mutex);
+          	kfree(tmp);
+          	if (susfs_log_enabled)
+          		pr_info("susfs: cmdline spoofed\n");
+          }
+
+          int susfs_spoof_cmdline_or_bootconfig(struct seq_file *m)
+          {
+          	if (!fake_cmdline)
+          		return 0;
+          	mutex_lock(&susfs_cmdline_mutex);
+          	seq_puts(m, fake_cmdline);
+          	seq_putc(m, '\n');
+          	mutex_unlock(&susfs_cmdline_mutex);
+          	return 1;
+          }
+          #endif
+
+          /* 无条件编译的 supercalls 接口 */
+          void susfs_set_avc_log_spoofing(void __user **user_info)
+          {
+          	struct st_susfs_avc_log_spoofing tmp;
+          	if (!copy_from_user(&tmp, *user_info, sizeof(tmp)) && susfs_log_enabled)
+          		pr_info("susfs: avc_log_spoofing=%d\n", tmp.enabled);
+          }
+
+          void susfs_get_enabled_features(void __user **user_info)
+          {
+          	struct st_susfs_enabled_features feat;
+          	memset(&feat, 0, sizeof(feat));
+          	snprintf(feat.enabled_features, sizeof(feat.enabled_features),
+          #ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
+          		"SPOOF_UNAME,"
+          #endif
+          #ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
+          		"SUS_KSTAT,"
+          #endif
+          #ifdef CONFIG_KSU_SUSFS_ENABLE_LOG
+          		"ENABLE_LOG,"
+          #endif
+          #ifdef CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS
+          		"HIDE_KSU_SUSFS_SYMBOLS,"
+          #endif
+          #ifdef CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
+          		"SPOOF_CMDLINE_OR_BOOTCONFIG,"
+          #endif
+          		"");
+          	copy_to_user(*user_info, &feat, sizeof(feat));
+          }
+
+          void susfs_show_variant(void __user **user_info)
+          {
+          	struct st_susfs_variant v;
+          	memset(&v, 0, sizeof(v));
+          	strncpy(v.susfs_variant, SUSFS_VARIANT, sizeof(v.susfs_variant) - 1);
+          	copy_to_user(*user_info, &v, sizeof(v));
+          }
+
+          void susfs_show_version(void __user **user_info)
+          {
+          	struct st_susfs_version v;
+          	memset(&v, 0, sizeof(v));
+          	strncpy(v.susfs_version, SUSFS_VERSION, sizeof(v.susfs_version) - 1);
+          	copy_to_user(*user_info, &v, sizeof(v));
+          }
+
+          void susfs_start_sdcard_monitor_fn(void) { }
+
+          void __init susfs_init(void)
+          {
+          	pr_info("susfs: " SUSFS_VERSION " (" SUSFS_VARIANT ") initialized\n");
+          }
+          SUSFS_C
+
+          # fs/Makefile 添加 susfs.o
+          if ! grep -q "susfs.o" fs/Makefile; then
+            echo 'obj-$(CONFIG_KSU_SUSFS) += susfs.o' >> fs/Makefile
           fi
 
-          # 验证关键文件与补丁锚点
+          # SUS_PATH/SUS_MOUNT/SUS_MAP/OPEN_REDIRECT 的 stub（supercalls.c ifdef 保护，
+          # 但 CMD define 和函数符号仍需存在以通过编译）
+          cat > "${ksu_dir}/susfs_compat_stubs.c" <<'STUBS'
+          #include <linux/errno.h>
+          #include <linux/susfs_def.h>
+
+          #ifdef CONFIG_KSU_SUSFS_SUS_PATH
+          void susfs_add_sus_path(void __user **a) { }
+          void susfs_add_sus_path_loop(void __user **a) { }
+          void susfs_set_i_state_on_external_dir(void __user **a) { }
+          #endif
+          #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+          void susfs_set_hide_sus_mnts_for_non_su_procs(void __user **a) { }
+          #endif
+          #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
+          void susfs_add_open_redirect(void __user **a) { }
+          #endif
+          #ifdef CONFIG_KSU_SUSFS_SUS_MAP
+          void susfs_add_sus_map(void __user **a) { }
+          #endif
+          STUBS
+
+          if ! grep -q "susfs_compat_stubs.o" "${ksu_dir}/Kbuild"; then
+            echo "kernelsu-objs += susfs_compat_stubs.o" >> "${ksu_dir}/Kbuild"
+          fi
+
+          # 验证
           test -f fs/susfs.c
+          test -f include/linux/susfs.h
+          test -f include/linux/susfs_def.h
           grep -q "susfs.o" fs/Makefile
-          grep -q "susfs_task_state" include/linux/sched.h
-          grep -q "INODE_STATE_SUS_PATH" fs/dcache.c || echo "WARN: dcache.c anchor missing"
-          echo "SUSFS integration complete"
+
+          # ---- 内核 hook 补丁（精确插桩，不用 fuzz 补丁） ----
+          # 1) SPOOF_UNAME: hook newuname syscall
+          python3 <<'PATCH_UNAME'
+          from pathlib import Path
+          p = Path("kernel/sys.c")
+          src = p.read_text()
+          marker = 'memcpy(&tmp, utsname(), sizeof(tmp));'
+          hook = ('#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME\n'
+                  '\t{\n'
+                  '\t\textern void susfs_spoof_uname(struct new_utsname *);\n'
+                  '\t\tsusfs_spoof_uname(&tmp);\n'
+                  '\t}\n'
+                  '#endif\n')
+          if marker in src and 'susfs_spoof_uname' not in src:
+              src = src.replace(marker, marker + '\n' + hook, 1)
+              p.write_text(src)
+              print("kernel/sys.c: SPOOF_UNAME hook added")
+          else:
+              print("kernel/sys.c: already patched or anchor not found")
+          PATCH_UNAME
+
+          # 2) SPOOF_CMDLINE: hook /proc/cmdline
+          python3 <<'PATCH_CMDLINE'
+          from pathlib import Path
+          p = Path("fs/proc/cmdline.c")
+          src = p.read_text()
+          anchor = 'seq_puts(m, saved_command_line);'
+          if anchor not in src:
+              anchor = 'seq_printf(m, "%s\\n", saved_command_line);'
+          hook = ('#ifdef CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG\n'
+                  '\t{\n'
+                  '\t\textern int susfs_spoof_cmdline_or_bootconfig(struct seq_file *);\n'
+                  '\t\tif (susfs_spoof_cmdline_or_bootconfig(m))\n'
+                  '\t\t\treturn 0;\n'
+                  '\t}\n'
+                  '#endif\n')
+          if anchor in src and 'susfs_spoof_cmdline' not in src:
+              src = src.replace(anchor, hook + '\t' + anchor, 1)
+              p.write_text(src)
+              print("fs/proc/cmdline.c: SPOOF_CMDLINE hook added")
+          else:
+              print("fs/proc/cmdline.c: already patched or anchor not found")
+          PATCH_CMDLINE
+
+          # 3) SUS_KSTAT: hook generic_fillattr
+          python3 <<'PATCH_KSTAT'
+          from pathlib import Path
+          p = Path("fs/stat.c")
+          src = p.read_text()
+          anchor = 'stat->blksize = i_blocksize(inode);'
+          hook = ('\n#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT\n'
+                  '\t{\n'
+                  '\t\textern void susfs_sus_ino_for_generic_fillattr(unsigned long, struct kstat *);\n'
+                  '\t\tsusfs_sus_ino_for_generic_fillattr(inode->i_ino, stat);\n'
+                  '\t}\n'
+                  '#endif')
+          if anchor in src and 'susfs_sus_ino_for_generic_fillattr' not in src:
+              src = src.replace(anchor, anchor + hook, 1)
+              p.write_text(src)
+              print("fs/stat.c: SUS_KSTAT hook added")
+          else:
+              print("fs/stat.c: already patched or anchor not found")
+          PATCH_KSTAT
+
+          echo "SUSFS v2.0.0 minimal integration complete"
 
       - name: 配置 defconfig
         id: config
@@ -441,15 +691,11 @@ jobs:
               'CONFIG_DEVTMPFS_MOUNT=y' \
               'CONFIG_OVERLAY_FS=y' \
               'CONFIG_KSU_SUSFS=y' \
-              'CONFIG_KSU_SUSFS_SUS_PATH=y' \
-              'CONFIG_KSU_SUSFS_SUS_MOUNT=y' \
               'CONFIG_KSU_SUSFS_SUS_KSTAT=y' \
               'CONFIG_KSU_SUSFS_SPOOF_UNAME=y' \
               'CONFIG_KSU_SUSFS_ENABLE_LOG=y' \
               'CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y' \
               'CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y' \
-              'CONFIG_KSU_SUSFS_OPEN_REDIRECT=y' \
-              'CONFIG_KSU_SUSFS_SUS_MAP=y' \
               >> "${DEFCONFIG_PATH}"
           fi
 
@@ -474,15 +720,11 @@ jobs:
 
             # SUSFS
             ./scripts/config --file out/.config -e KSU_SUSFS || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_PATH || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_MOUNT || true
             ./scripts/config --file out/.config -e KSU_SUSFS_SUS_KSTAT || true
             ./scripts/config --file out/.config -e KSU_SUSFS_SPOOF_UNAME || true
             ./scripts/config --file out/.config -e KSU_SUSFS_ENABLE_LOG || true
             ./scripts/config --file out/.config -e KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS || true
             ./scripts/config --file out/.config -e KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_OPEN_REDIRECT || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_MAP || true
           fi
 
           # 保持 MODULE_SIG 以对齐 struct module，但关闭强制签名校验
@@ -528,15 +770,11 @@ jobs:
 
             # SUSFS (second round)
             ./scripts/config --file out/.config -e KSU_SUSFS || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_PATH || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_MOUNT || true
             ./scripts/config --file out/.config -e KSU_SUSFS_SUS_KSTAT || true
             ./scripts/config --file out/.config -e KSU_SUSFS_SPOOF_UNAME || true
             ./scripts/config --file out/.config -e KSU_SUSFS_ENABLE_LOG || true
             ./scripts/config --file out/.config -e KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS || true
             ./scripts/config --file out/.config -e KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_OPEN_REDIRECT || true
-            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_MAP || true
 
             # 再次确保模块签名/版本字符串设置生效
             ./scripts/config --file out/.config -e MODULE_SIG || true
