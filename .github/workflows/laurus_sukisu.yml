@@ -215,12 +215,22 @@ jobs:
                    '    // allow init to execute ksud from /data/adb/ (labeled adb_data_file)\n'
                    '    ksu_allow(db, "init", "adb_data_file", "file", ALL);\n'
                    '    ksu_allow(db, "init", "adb_data_file", "dir", ALL);')
+          changed = False
           if 'adb_data_file' not in src and marker in src:
               src = src.replace(marker, marker + extra, 1)
+              changed = True
+              print("rules.c: added init adb_data_file rule")
+          # ensure apply_kernelsu_rules flushes AVC cache
+          unlock_marker = 'mutex_unlock(&ksu_rules);\n}'
+          avc_call = 'reset_avc_cache();\n    mutex_unlock(&ksu_rules);\n}'
+          if 'reset_avc_cache' not in src.split('apply_kernelsu_rules')[1].split('mutex_unlock')[0]:
+              src = src.replace(unlock_marker, avc_call, 1)
+              changed = True
+              print("rules.c: added reset_avc_cache to apply_kernelsu_rules")
+          if changed:
               p.write_text(src)
-              print("rules.c patched: init adb_data_file access")
           else:
-              print("rules.c: already patched or marker not found")
+              print("rules.c: no changes needed")
           PYEOF
 
           cat > "${ksu_dir}/manual_hook_adapters.c" <<'EOF'
