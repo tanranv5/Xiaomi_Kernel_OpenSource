@@ -203,6 +203,26 @@ jobs:
           print("ksud.c patched: init.rc path + vfs_read hook")
           PYEOF
 
+          # 修补 SELinux rules：允许 init 执行 /data/adb/ksud (标签 adb_data_file)
+          python3 - "${ksu_dir}" <<'PYEOF'
+          import sys
+          from pathlib import Path
+          ksu_dir = sys.argv[1]
+          p = Path(ksu_dir) / "selinux" / "rules.c"
+          src = p.read_text()
+          marker = 'ksu_allow(db, "init", KERNEL_SU_DOMAIN, ALL, ALL);'
+          extra = '''
+    // allow init to execute ksud from /data/adb/ (labeled adb_data_file)
+    ksu_allow(db, "init", "adb_data_file", "file", ALL);
+    ksu_allow(db, "init", "adb_data_file", "dir", ALL);'''
+          if 'adb_data_file' not in src and marker in src:
+              src = src.replace(marker, marker + extra, 1)
+              p.write_text(src)
+              print("rules.c patched: init adb_data_file access")
+          else:
+              print("rules.c: already patched or marker not found")
+          PYEOF
+
           cat > "${ksu_dir}/manual_hook_adapters.c" <<'EOF'
           #include <linux/compiler.h>
           #include <linux/cred.h>
