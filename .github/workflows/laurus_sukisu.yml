@@ -722,38 +722,20 @@ jobs:
           from pathlib import Path
           p = Path("kernel/sys.c")
           src = p.read_text()
-          if 'ksu_handle_setresuid' in src:
-              print("kernel/sys.c: ksu_handle_setresuid already present, skip")
+          anchor = 'ksuid = make_kuid(current_user_ns(), suid);'
+          hook = ('\n#ifdef CONFIG_KSU_MANUAL_HOOK\n'
+                  '\t{\n'
+                  '\t\textern int ksu_handle_setresuid(uid_t, uid_t, uid_t);\n'
+                  '\t\tksu_handle_setresuid(ruid, euid, suid);\n'
+                  '\t}\n'
+                  '#endif\n')
+          if anchor in src and 'ksu_handle_setresuid' not in src:
+              idx = src.index(anchor) + len(anchor)
+              src = src[:idx] + hook + src[idx:]
+              p.write_text(src)
+              print("kernel/sys.c: SETRESUID hook added for manager fd + umount")
           else:
-              hook = ('\n#ifdef CONFIG_KSU_MANUAL_HOOK\n'
-                      '\t{\n'
-                      '\t\textern int ksu_handle_setresuid(uid_t, uid_t, uid_t);\n'
-                      '\t\tksu_handle_setresuid(ruid, euid, suid);\n'
-                      '\t}\n'
-                      '#endif\n')
-              anchors = [
-                  'ksuid = make_kuid(current_user_ns(), suid);',
-                  'kruid = make_kuid(current_user_ns(), ruid);',
-                  'new = prepare_creds();',
-              ]
-              patched = False
-              for a in anchors:
-                  if a in src:
-                      idx = src.index(a) + len(a)
-                      src = src[:idx] + hook + src[idx:]
-                      p.write_text(src)
-                      print("kernel/sys.c: SETRESUID hook added (anchor: " + a[:30] + ")")
-                      patched = True
-                      break
-              if not patched:
-                  print("kernel/sys.c: ERROR - no setresuid anchor found, dumping context")
-                  lines = src.split('\n')
-                  for i, line in enumerate(lines):
-                      if 'setresuid' in line.lower():
-                          start = max(0, i-2)
-                          end = min(len(lines), i+8)
-                          for j in range(start, end):
-                              print("  %d: %s" % (j+1, lines[j].rstrip()[:120]))
+              print("kernel/sys.c: already patched or anchor not found")
           PATCH_SETRESUID
 
           echo "SUSFS v2.0.0 minimal integration complete"
