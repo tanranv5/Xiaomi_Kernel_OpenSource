@@ -722,7 +722,7 @@ jobs:
           from pathlib import Path
           p = Path("kernel/sys.c")
           src = p.read_text()
-          anchor = 'ksuid = make_kuid(current_user_ns(), suid);'
+          anchor = 'ksuid = make_kuid(ns, suid);'
           hook = ('\n#ifdef CONFIG_KSU_MANUAL_HOOK\n'
                   '\t{\n'
                   '\t\textern int ksu_handle_setresuid(uid_t, uid_t, uid_t);\n'
