@@ -848,7 +848,7 @@ jobs:
 
           # 对齐版本字符串，避免 vermagic 不匹配
           ./scripts/config --file out/.config -d LOCALVERSION_AUTO || true
-          ./scripts/config --file out/.config --set-str LOCALVERSION "-perf-g4732215" || true
+          ./scripts/config --file out/.config --set-str LOCALVERSION "-perf-g4732215-tanran" || true
 
           FORTIFY="${{ github.event_name == 'workflow_dispatch' && inputs.fortify || 'off' }}"
           if [ "$FORTIFY" = "on" ]; then
@@ -894,7 +894,7 @@ jobs:
             ./scripts/config --file out/.config -d MODULE_SIG_ALL || true
             ./scripts/config --file out/.config -e MODVERSIONS || true
             ./scripts/config --file out/.config -d LOCALVERSION_AUTO || true
-            ./scripts/config --file out/.config --set-str LOCALVERSION "-perf-g4732215" || true
+            ./scripts/config --file out/.config --set-str LOCALVERSION "-perf-g4732215-tanran" || true
 
             make O=out olddefconfig
 
