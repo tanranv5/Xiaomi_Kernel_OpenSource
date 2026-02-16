@@ -611,24 +611,24 @@ jobs:
             echo 'obj-$(CONFIG_KSU_SUSFS) += susfs.o' >> fs/Makefile
           fi
 
-          # SUS_PATH/SUS_MOUNT/SUS_MAP/OPEN_REDIRECT 的 stub（supercalls.c ifdef 保护，
-          # 但 CMD define 和函数符号仍需存在以通过编译）
+          # SUS_PATH/SUS_MOUNT/SUS_MAP/OPEN_REDIRECT 的 stub（仅在功能未启用时提供空实现，
+          # 避免与 susfs.c 真实实现产生重复符号）
           cat > "${ksu_dir}/susfs_compat_stubs.c" <<'STUBS'
           #include <linux/errno.h>
           #include <linux/susfs_def.h>
 
-          #ifdef CONFIG_KSU_SUSFS_SUS_PATH
+          #ifndef CONFIG_KSU_SUSFS_SUS_PATH
           void susfs_add_sus_path(void __user **a) { }
           void susfs_add_sus_path_loop(void __user **a) { }
           void susfs_set_i_state_on_external_dir(void __user **a) { }
           #endif
-          #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+          #ifndef CONFIG_KSU_SUSFS_SUS_MOUNT
           void susfs_set_hide_sus_mnts_for_non_su_procs(void __user **a) { }
           #endif
-          #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
+          #ifndef CONFIG_KSU_SUSFS_OPEN_REDIRECT
           void susfs_add_open_redirect(void __user **a) { }
           #endif
-          #ifdef CONFIG_KSU_SUSFS_SUS_MAP
+          #ifndef CONFIG_KSU_SUSFS_SUS_MAP
           void susfs_add_sus_map(void __user **a) { }
           #endif
           STUBS
@@ -833,10 +833,12 @@ jobs:
             ./scripts/config --file out/.config -e KSU_SUSFS_ENABLE_LOG || true
             ./scripts/config --file out/.config -e KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS || true
             ./scripts/config --file out/.config -e KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG || true
-            ./scripts/config --file out/.config -d KSU_SUSFS_SUS_PATH || true
-            ./scripts/config --file out/.config -d KSU_SUSFS_SUS_MOUNT || true
-            ./scripts/config --file out/.config -d KSU_SUSFS_OPEN_REDIRECT || true
-            ./scripts/config --file out/.config -d KSU_SUSFS_SUS_MAP || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_PATH || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_MOUNT || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_OPEN_REDIRECT || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_SU || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_MAP || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_TRY_UMOUNT || true
           fi
 
           # 保持 MODULE_SIG 以对齐 struct module，但关闭强制签名校验
@@ -887,6 +889,12 @@ jobs:
             ./scripts/config --file out/.config -e KSU_SUSFS_ENABLE_LOG || true
             ./scripts/config --file out/.config -e KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS || true
             ./scripts/config --file out/.config -e KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_PATH || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_MOUNT || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_OPEN_REDIRECT || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_SU || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_SUS_MAP || true
+            ./scripts/config --file out/.config -e KSU_SUSFS_TRY_UMOUNT || true
 
             # 再次确保模块签名/版本字符串设置生效
             ./scripts/config --file out/.config -e MODULE_SIG || true
