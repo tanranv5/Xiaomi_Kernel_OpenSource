@@ -39,6 +39,18 @@ name: build-laurus-sukisu
         options:
           - "off"
           - "on"
+      kpm:
+        description: "是否启用 KPM（KernelPatch Module）：用 kptools 向 boot.img 注入 kpimg"
+        required: true
+        default: "off"
+        type: choice
+        options:
+          - "off"
+          - "on"
+      superkey:
+        description: "KPM superkey（kpm=on 时必填，用于 kptools -s）"
+        required: false
+        default: ""
       gcc64_repo:
         description: "AArch64 GCC 4.9 工具链仓库"
         required: true
@@ -1034,6 +1046,34 @@ jobs:
           truncate -s 64M dist/boot.img
           ls -lh dist/boot.img
 
+      - name: KPM 注入（kptools patch boot.img）
+        id: kpm
+        if: steps.bootimg.outcome == 'success' && github.event_name == 'workflow_dispatch' && inputs.kpm == 'on'
+        run: |
+          set -euxo pipefail
+          SUPERKEY="${{ inputs.superkey }}"
+          if [ -z "$SUPERKEY" ]; then
+            echo "ERROR: kpm=on but superkey is empty"
+            exit 1
+          fi
+
+          KPP_REPO="SukiSU-Ultra/SukiSU_KernelPatch_patch"
+          KPP_TAG="0.13.0"
+          KPP_BASE="https://github.com/${KPP_REPO}/releases/download/${KPP_TAG}"
+
+          curl -fSL "${KPP_BASE}/kptools-linux" -o kptools-linux
+          curl -fSL "${KPP_BASE}/kpimg" -o kpimg
+          chmod +x kptools-linux
+
+          ./kptools-linux -p \
+            -i dist/boot.img \
+            -k kpimg \
+            -s "$SUPERKEY" \
+            -o dist/boot_kpm.img
+
+          truncate -s 64M dist/boot_kpm.img
+          ls -lh dist/boot.img dist/boot_kpm.img
+
       - name: 写入精简日志（方便无鉴权查看）
         if: always()
         run: |
@@ -1048,6 +1088,7 @@ jobs:
             echo "fortify=${{ github.event_name == 'workflow_dispatch' && inputs.fortify || 'off' }}"
             echo "build_dtbo=${{ github.event_name == 'workflow_dispatch' && inputs.build_dtbo || 'off' }}"
             echo "with_sukisu=${WITH_SUKISU}"
+            echo "kpm=${{ github.event_name == 'workflow_dispatch' && inputs.kpm || 'off' }}"
             echo
             echo "==== step outcomes ===="
             echo "checkout=${{ steps.checkout.outcome }}"
@@ -1057,6 +1098,8 @@ jobs:
             echo "config=${{ steps.config.outcome }}"
             echo "build=${{ steps.build.outcome }}"
             echo "package=${{ steps.package.outcome }}"
+            echo "bootimg=${{ steps.bootimg.outcome }}"
+            echo "kpm=${{ steps.kpm.outcome }}"
             echo
             echo "==== ksu config snapshot (out/.config) ===="
             if [ -f out/.config ]; then
@@ -1122,3 +1165,4 @@ jobs:
             dist/Image.gz-dtb
             dist/AnyKernel3-laurus-${{ github.run_id }}.zip
             dist/boot.img
+            dist/boot_kpm.img
