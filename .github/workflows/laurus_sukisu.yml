@@ -149,6 +149,61 @@ jobs:
             ksu_dir="drivers/kernelsu"
           fi
 
+          # 修补 builtin sucompat：为 faccessat/stat 添加 allowlist 检查
+          # builtin 模式的 ksu_handle_faccessat/ksu_handle_stat 对所有进程
+          # 重定向 su→sh，使 su 对检测 App 可见。在 4.14 上 SUS_PATH 不可用，
+          # 因此直接在 VFS hook 层过滤：仅对 root 授权 UID 做重定向。
+          python3 - "${ksu_dir}" <<'PYEOF'
+          import sys, glob
+          from pathlib import Path
+          ksu_dir = sys.argv[1]
+          candidates = list(Path(ksu_dir).rglob("sucompat.c"))
+          if not candidates:
+              print("WARNING: sucompat.c not found, skip faccessat/stat patch")
+              sys.exit(0)
+          p = candidates[0]
+          src = p.read_text()
+          guard = "ksu_is_allow_uid_for_current"
+          if guard in src and "ksu_handle_faccessat" in src:
+              # 检查 faccessat 函数体内是否已有 guard
+              fa_idx = src.index("ksu_handle_faccessat")
+              fa_body = src[fa_idx:fa_idx+500]
+              if guard in fa_body:
+                  print(f"sucompat faccessat already patched in {p}")
+                  sys.exit(0)
+          # Patch ksu_handle_faccessat
+          old_fa = ('int ksu_handle_faccessat(int *dfd, const char __user **filename_user, int *mode,\n'
+                    '\t\t\t int *__unused_flags)\n'
+                    '{\n'
+                    '\tchar path')
+          new_fa = ('int ksu_handle_faccessat(int *dfd, const char __user **filename_user, int *mode,\n'
+                    '\t\t\t int *__unused_flags)\n'
+                    '{\n'
+                    '\tif (!ksu_is_allow_uid_for_current(current_uid().val))\n'
+                    '\t\treturn 0;\n'
+                    '\tchar path')
+          if old_fa in src:
+              src = src.replace(old_fa, new_fa, 1)
+              print(f"Patched ksu_handle_faccessat in {p}")
+          else:
+              print(f"WARNING: faccessat pattern not found in {p}")
+          # Patch ksu_handle_stat (< 6.1 version)
+          old_st = ('int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags)\n'
+                    '{\n'
+                    '\tchar path')
+          new_st = ('int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags)\n'
+                    '{\n'
+                    '\tif (!ksu_is_allow_uid_for_current(current_uid().val))\n'
+                    '\t\treturn 0;\n'
+                    '\tchar path')
+          if old_st in src:
+              src = src.replace(old_st, new_st, 1)
+              print(f"Patched ksu_handle_stat in {p}")
+          else:
+              print(f"WARNING: stat pattern not found in {p}")
+          p.write_text(src)
+          PYEOF
+
           # 修补 ksud.c：SAR 设备 /init.rc 路径 + vfs_read hook 实现
           python3 - "${ksu_dir}" <<'PYEOF'
           import sys
