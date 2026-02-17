@@ -373,6 +373,16 @@ jobs:
             echo "kernelsu-objs += manual_hook_adapters.o" >> "${ksu_dir}/Kbuild"
           fi
 
+      - name: SUSFS 集成 + 内核补丁
+        id: susfs
+        run: |
+          set -euxo pipefail
+          if [ -d "common/drivers" ]; then
+            ksu_dir="common/drivers/kernelsu"
+          else
+            ksu_dir="drivers/kernelsu"
+          fi
+
           # ---- SUSFS v2.0.0 集成 (4.14 最小实现) ----
           # 策略：使用 v2.0.0 头文件（匹配 SukiSU builtin supercalls.c API），
           # 自写最小 susfs.c 实现 SPOOF_UNAME / SUS_KSTAT / ENABLE_LOG / SPOOF_CMDLINE 等。
